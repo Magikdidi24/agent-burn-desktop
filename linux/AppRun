@@ -1,4 +1,4 @@
 #!/bin/sh
-# Point d'entrée de l'AppImage : le bundle PyInstaller est rangé dans usr/lib/agent-burn-desktop.
+# AppImage entry point: the PyInstaller bundle lives in usr/lib/agent-burn-desktop.
 HERE=$(dirname "$(readlink -f "$0")")
 exec "$HERE/usr/lib/agent-burn-desktop/agent-burn-desktop" "$@"

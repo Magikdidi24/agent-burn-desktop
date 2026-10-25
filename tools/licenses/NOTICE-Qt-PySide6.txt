@@ -1,18 +1,18 @@
-Qt @QT@, PySide6 et Shiboken6 @PYSIDE6@ (The Qt Company Ltd. et contributeurs)
+Qt @QT@, PySide6 and Shiboken6 @PYSIDE6@ (The Qt Company Ltd. and contributors)
 
-Licence : GNU Lesser General Public License v3.0 (LGPL-3.0-only), texte complet dans LGPL-3.0.txt.
-La LGPL-3.0 incorpore la GNU General Public License v3.0 : texte complet dans GPL-3.0.txt.
+License: GNU Lesser General Public License v3.0 (LGPL-3.0-only), full text in LGPL-3.0.txt.
+The LGPL-3.0 incorporates the GNU General Public License v3.0: full text in GPL-3.0.txt.
 
-Agent Burn utilise ces bibliothèques sans modification, telles que publiées sur PyPI (paquets
-PySide6-Essentials et shiboken6 @PYSIDE6@). Elles restent des bibliothèques partagées séparées, chargées à
-l'exécution depuis le dossier PySide6/ de l'application (et les liens lib*.so.6 à sa racine sous Linux) :
-elles peuvent être remplacées par une version modifiée compatible sans recompiler l'application
+Agent Burn uses these libraries unmodified, as published on PyPI (packages
+PySide6-Essentials and shiboken6 @PYSIDE6@). They remain separate shared libraries, loaded at
+run time from the application's PySide6/ folder (and the lib*.so.6 links at its root on Linux):
+they can be replaced by a compatible modified version without recompiling the application
 (LGPL-3.0, section 4 d) 1)).
 
-Sources correspondantes :
-  Qt @QT@ : https://download.qt.io/official_releases/qt/
-  PySide6 et Shiboken6 @PYSIDE6@ : https://download.qt.io/official_releases/QtForPython/
-    (dépôt : https://code.qt.io/cgit/pyside/pyside-setup.git, étiquette v@PYSIDE6@)
+Corresponding sources:
+  Qt @QT@: https://download.qt.io/official_releases/qt/
+  PySide6 and Shiboken6 @PYSIDE6@: https://download.qt.io/official_releases/QtForPython/
+    (repository: https://code.qt.io/cgit/pyside/pyside-setup.git, tag v@PYSIDE6@)
 
-Composants tiers compilés dans les fichiers Qt et PySide6 livrés (ICU sous Linux, HarfBuzz, PCRE2, libpng…) :
-liste, licences et textes dans QT-THIRD-PARTY.txt. Pour tout Qt : https://doc.qt.io/qt-6/licenses-used-in-qt.html
+Third-party components compiled into the shipped Qt and PySide6 files (ICU on Linux, HarfBuzz, PCRE2, libpng…):
+list, licenses and texts in QT-THIRD-PARTY.txt. For all of Qt: https://doc.qt.io/qt-6/licenses-used-in-qt.html

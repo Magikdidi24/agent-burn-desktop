@@ -1,11 +1,11 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 
-// Histogramme quotidien (« Daily spend » de l'app Mac) : une barre par jour, jour absent = trou,
-// survol d'une colonne = info-bulle date + valeur. Composant pur : le parent fournit les points.
+// Daily histogram ("Daily spend" in the Mac app): one bar per day, missing day = gap,
+// hovering a column = date + value tooltip. Pure component: the parent supplies the points.
 Item {
     id: root
-    property var points: []          // [{ date: "YYYY-MM-DD", value }] triés ; value null = montant inconnu
+    property var points: []          // [{ date: "YYYY-MM-DD", value }] sorted; value null = unknown amount
     property color barColor: Colors.accent
     property string unit: "USD"
     property bool compact: false
@@ -14,46 +14,46 @@ Item {
     implicitHeight: compact ? 150 : 190
 
     readonly property int fs: compact ? 10 : 11
-    readonly property var fr: Qt.locale("fr_FR")
+    readonly property var en: Qt.locale("en_US")
 
-    // Lecteurs d'écran (Burn.accessibleText, app de bureau) : le graphe en une phrase. Posé en JS comme les Txt
-    // des vues : la barre Quickshell n'a aucun objet Accessible de plus.
+    // Screen readers (Burn.accessibleText, desktop app): the chart in one sentence. Set in JS like the Txt
+    // of the views: the Quickshell bar gets no extra Accessible object.
     readonly property bool exposed: Burn.accessibleText === true
     onExposedChanged: if (exposed) {
         Accessible.role = Accessible.Chart;
         Accessible.name = Qt.binding(() => root.summary());
     }
-    // Période, total et jour le plus cher ; sans graphe, le message affiché à sa place.
+    // Period, total and most expensive day; without a chart, the message shown in its place.
     function summary() {
         if (!chart.ok) return empty.text;
-        const known = points.filter(p => p.value !== null), d = s => day(s).toLocaleString(fr, "d MMM");
+        const known = points.filter(p => p.value !== null), d = s => day(s).toLocaleString(en, "MMM d");
         const peak = known.reduce((a, p) => p.value > a.value ? p : a);
-        if (points.length === 1) return day(peak.date).toLocaleString(fr, "ddd d MMM") + " : " + fmt(peak.value);
-        return "Du " + d(points[0].date) + " au " + d(points[points.length - 1].date) + " : "
-            + fmt(known.reduce((s, p) => s + p.value, 0)) + " au total, pic de " + fmt(peak.value)
-            + " le " + day(peak.date).toLocaleString(fr, "ddd d MMM");
+        if (points.length === 1) return day(peak.date).toLocaleString(en, "ddd MMM d") + ": " + fmt(peak.value);
+        return "From " + d(points[0].date) + " to " + d(points[points.length - 1].date) + ": "
+            + fmt(known.reduce((s, p) => s + p.value, 0)) + " in total, peak of " + fmt(peak.value)
+            + " on " + day(peak.date).toLocaleString(en, "ddd MMM d");
     }
 
     function day(s) { const p = s.split("-"); return new Date(p[0], p[1] - 1, p[2]); }
-    // Points des n derniers jours (Burn.lastDays) d'une série Burn.dailySeries ; jour à tokens sans prix : null.
+    // Points of the last n days (Burn.lastDays) of a Burn.dailySeries series; a day with tokens but no price: null.
     function lastDays(series, n) {
         const tokens = {};
         for (const d of series) tokens[d.date] = d.tokens;
         return Burn.lastDays(series, n).map(p => ({ date: p.date, value: Burn.priced(p.value, tokens[p.date] ?? 0) }));
     }
     function fmt(v) { return Burn.money(v); }
-    // Graduations compactes, zéros décimaux en moins : "$1,000.00" → "$1,000", "$2.50" → "$2.5".
+    // Compact ticks without trailing decimal zeros: "$1,000.00" → "$1,000", "$2.50" → "$2.5".
     function tick(v) { return fmt(v).replace(/(\.\d*?)0+(?=\D*$)/, "$1").replace(/\.(?=\D*$)/, ""); }
 
-    // Index de jour de chaque point et graduations Y rondes.
+    // Day index of each point and round Y ticks.
     readonly property var chart: {
         const pts = points || [];
         const max = Math.max(0, ...pts.map(p => p.value));
         if (!(max > 0)) return { ok: false, idx: [], days: 1, ticks: [], top: 1 };
         const t0 = day(pts[0].date);
-        // round : un jour de changement d'heure dure 23 ou 25 h.
+        // round: a daylight saving time change day lasts 23 or 25 h.
         const idx = pts.map(p => Math.round((day(p.date) - t0) / 864e5));
-        // Pas de 1, 2, 2,5 ou 5 × 10^k : 4 ou 5 graduations, 0 compris.
+        // Step of 1, 2, 2.5 or 5 × 10^k: 4 or 5 ticks, 0 included.
         const raw = max / 4, mag = Math.pow(10, Math.floor(Math.log10(raw))), n = raw / mag;
         const step = (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * mag;
         const ticks = [];
@@ -61,9 +61,9 @@ Item {
         return { ok: true, t0: t0, idx: idx, days: idx[idx.length - 1] + 1, ticks: ticks, top: ticks[ticks.length - 1] };
     }
 
-    // Jours sur 2 semaines au plus ; au-delà les débuts de mois s'il y en a au moins 3, sinon des jours
-    // espacés. Une étiquette sur `stride` pour garder ≥ 80 px entre deux : même recalée au bord,
-    // une date ne chevauche pas sa voisine.
+    // Days over 2 weeks at most; beyond that, the first days of months if there are at least 3, otherwise
+    // spaced days. One label every `stride` to keep ≥ 80 px between two: even when shifted at the edge,
+    // a date does not overlap its neighbor.
     readonly property var xLabels: {
         const c = chart, all = [];
         if (!c.ok) return [];
@@ -81,8 +81,8 @@ Item {
         id: empty
         anchors.centerIn: parent
         visible: !root.chart.ok
-        // Tokens sans aucun prix (hors ligne) : des jours d'usage, pas un graphe vide.
-        text: (root.points || []).some(p => p.value === null) ? "Montants inconnus : tarifs indisponibles" : "Aucune donnée"
+        // Tokens without any price (offline): days of usage, not an empty chart.
+        text: (root.points || []).some(p => p.value === null) ? "Unknown amounts: pricing unavailable" : "No data"
         color: Colors.muted
         font.family: "JetBrainsMono Nerd Font"
         font.pixelSize: root.fs + 1
@@ -100,7 +100,7 @@ Item {
             font.pixelSize: root.fs
         }
 
-        // Cadre des barres ; la gouttière gauche suit la plus longue graduation.
+        // Bar frame; the left gutter follows the longest tick.
         Item {
             id: plot
             readonly property real slot: width / root.chart.days
@@ -141,7 +141,7 @@ Item {
                 required property var modelData
                 required property int index
                 readonly property real h: plot.height * Math.max(0, modelData.value) / root.chart.top
-                // 24 px au plus et 2 px d'air entre voisines ; 1 px minimum sur les longues plages.
+                // 24 px at most and 2 px of space between neighbors; 1 px minimum on long ranges.
                 width: Math.max(1, Math.round(Math.min(24, plot.slot - 2)))
                 height: h
                 x: Math.round(plot.x + (root.chart.idx[index] + 0.5) * plot.slot - width / 2)
@@ -160,7 +160,7 @@ Item {
                 x: Math.max(plot.x, Math.min(root.width - implicitWidth,
                     plot.x + (modelData.i + 0.5) * plot.slot - implicitWidth / 2))
                 y: plot.y + plot.height + 6
-                text: modelData.d.toLocaleString(root.fr, "d MMM")
+                text: modelData.d.toLocaleString(root.en, "MMM d")
                 color: Colors.muted
                 font.family: "JetBrainsMono Nerd Font"
                 font.pixelSize: root.fs
@@ -169,7 +169,7 @@ Item {
 
         MouseArea {
             id: hover
-            // Toute la colonne du jour sert de cible : les barres font parfois 1 px.
+            // The whole day column is the target: bars are sometimes 1 px wide.
             readonly property int idx: containsMouse ? root.chart.idx.indexOf(Math.floor(mouseX / plot.slot)) : -1
             x: plot.x
             y: plot.y
@@ -181,7 +181,7 @@ Item {
 
         Rectangle {
             id: tip
-            readonly property var p: root.points[hover.idx]   // undefined hors survol
+            readonly property var p: root.points[hover.idx]   // undefined when not hovered
             visible: p !== undefined
             width: tipCol.implicitWidth + 16
             height: tipCol.implicitHeight + 10
@@ -189,7 +189,7 @@ Item {
                 plot.x + (root.chart.idx[hover.idx] + 0.5) * plot.slot - width / 2)) : 0
             y: p ? Math.max(0, plot.y + plot.height * (1 - p.value / root.chart.top) - height - 6) : 0
             radius: 8
-            color: Colors.withAlpha(Colors.background, 0.97)   // surface : 2,3:1 sous le texte avec wallust
+            color: Colors.withAlpha(Colors.background, 0.97)   // surface: 2.3:1 under the text with wallust
             border.color: Colors.withAlpha(Colors.accent, 0.4)
             border.width: 1
 
@@ -205,7 +205,7 @@ Item {
                     font.bold: true
                 }
                 Text {
-                    text: tip.p ? root.day(tip.p.date).toLocaleString(root.fr, "ddd d MMM yyyy") : ""
+                    text: tip.p ? root.day(tip.p.date).toLocaleString(root.en, "ddd MMM d yyyy") : ""
                     color: Colors.muted
                     font.family: "JetBrainsMono Nerd Font"
                     font.pixelSize: root.fs

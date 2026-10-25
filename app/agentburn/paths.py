@@ -1,6 +1,6 @@
-# Dossiers de l'app de bureau, seul endroit qui les connaît par plateforme. Windows : %APPDATA%\AgentBurn
-# (historique déjà là) et %LOCALAPPDATA%\AgentBurn. Linux : XDG, sous agent-burn-desktop pour rester à
-# part des ~/.cache/agent-burn et ~/.config/agent-burn du CLI lui-même.
+# Directories of the desktop app, the only place that knows them per platform. Windows: %APPDATA%\AgentBurn
+# (history already there) and %LOCALAPPDATA%\AgentBurn. Linux: XDG, under agent-burn-desktop to stay
+# apart from the CLI's own ~/.cache/agent-burn and ~/.config/agent-burn.
 import getpass
 import os
 import sys
@@ -12,7 +12,7 @@ LINUX = "agent-burn-desktop"
 
 
 def xdg(var, default):
-    """Dossier de base XDG ; une valeur relative est invalide selon la spec, donc ignorée."""
+    """XDG base directory; a relative value is invalid per the spec, so it is ignored."""
     value = os.environ.get(var, "")
     return Path(value) if os.path.isabs(value) else Path.home() / default
 
@@ -38,15 +38,15 @@ def log_dir():
 
 
 def cache_dir():
-    if sys.platform == "win32":   # %LOCALAPPDATA%\AgentBurn\cache, comme avant
+    if sys.platform == "win32":   # %LOCALAPPDATA%\AgentBurn\cache, as before
         return Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.CacheLocation))
     return xdg("XDG_CACHE_HOME", ".cache") / LINUX
 
 
 def instance_name():
-    """Serveur d'instance unique. Unix : socket au chemin complet dans le dossier d'exécution (0700, pas
-    /tmp où un autre compte peut prendre le nom). Windows : pipe nommé, espace de noms global, d'où
-    l'utilisateur et la session dans le nom."""
+    """Single-instance server. Unix: socket with a full path in the runtime directory (0700, not
+    /tmp where another account can take the name). Windows: named pipe, global namespace, hence
+    the user and the session in the name."""
     if sys.platform == "win32":
         from agentburn import platform_win
         return f"AgentBurn-{getpass.getuser()}-{platform_win.session_id()}"

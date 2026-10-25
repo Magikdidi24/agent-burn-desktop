@@ -1,16 +1,16 @@
 import QtQuick
 import QtQuick.Effects
 
-// Popover de l'icône de notification (celui de la barre de menus de l'app Mac) : carte sans bordure
-// posée contre l'icône par tray.py ; fermée par Échap, « Ouvrir le dashboard » ou la perte du focus.
+// Tray icon popover (the one from the Mac app's menu bar): borderless card
+// placed against the icon by tray.py; closed by Esc, "Open dashboard" or focus loss.
 Window {
     id: win
 
-    readonly property int pad: 16   // place de l'ombre autour de la carte = écart à la barre des tâches
-    property int edge: Qt.BottomEdge   // bord de la barre des tâches, d'où la carte glisse
-    property int maxHeight: 0   // hauteur utile de l'écran (tray.py ; 0 : sans limite), au-delà la carte défile
+    readonly property int pad: 16   // room for the shadow around the card = gap to the taskbar
+    property int edge: Qt.BottomEdge   // taskbar edge, where the card slides in from
+    property int maxHeight: 0   // usable screen height (tray.py; 0: no limit), beyond it the card scrolls
     property alias tab: content.tab
-    property real closedAt: 0   // fermé par perte du focus : tray.py ignore le clic d'icône qui suit
+    property real closedAt: 0   // closed by focus loss: tray.py ignores the icon click that follows
     readonly property point start: edge === Qt.TopEdge ? Qt.point(0, -10) : edge === Qt.LeftEdge ? Qt.point(-10, 0)
                                  : edge === Qt.RightEdge ? Qt.point(10, 0) : Qt.point(0, 10)
 
@@ -40,7 +40,7 @@ Window {
 
     Shortcut { sequence: "Esc"; onActivated: win.dismiss() }
 
-    // Écran court : la carte défile jusqu'au contrôle atteint au clavier (Tab).
+    // Short screen: the card scrolls to the control reached by keyboard (Tab).
     onActiveFocusItemChanged: {
         const item = activeFocusItem;
         let inside = false;
@@ -62,7 +62,7 @@ Window {
         width: 440
         height: win.maxHeight > 0 ? Math.min(content.implicitHeight, win.maxHeight) : content.implicitHeight
         transform: Translate { id: slide }
-        // Page précédente ou suivante, début, fin : au clavier aussi, contrôle focalisé ou non.
+        // Page up or down, home, end: by keyboard too, with or without a focused control.
         focus: true
         Keys.onPressed: event => {
             const max = Math.max(0, flick.contentHeight - flick.height), step = flick.height - 40;
@@ -88,7 +88,7 @@ Window {
             border.width: 1
             border.color: Colors.withAlpha(Colors.muted, 0.3)
         }
-        // Portable en 1080p à 150 % : l'onglet d'un agent dépasse la hauteur utile de l'écran.
+        // Laptop at 1080p and 150%: an agent's tab is taller than the usable screen height.
         Flickable {
             id: flick
             anchors.fill: parent
@@ -98,11 +98,11 @@ Window {
             BurnPopover {
                 id: content
                 width: parent.width
-                visible: win.visible   // contenu créé et rafraîchi (poke) seulement popover ouvert
+                visible: win.visible   // content created and refreshed (poke) only while the popover is open
                 onCloseRequested: win.dismiss()
             }
         }
-        // Indicateur de défilement, celui du dashboard (le Flickable n'en dessine pas).
+        // Scroll indicator, as in the dashboard (the Flickable draws none).
         Rectangle {
             x: flick.x + flick.width - 7
             y: flick.y + flick.visibleArea.yPosition * flick.height

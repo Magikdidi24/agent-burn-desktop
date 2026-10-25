@@ -1,4 +1,4 @@
-# Faux secrets des tests du masquage du journal (app/tests/test_logs.py), au commit qui les a introduits.
+# Fake secrets from the log redaction tests (app/tests/test_logs.py), at the commit that introduced them.
 96b25ae69178385ee84101ed5d27c326d5bf2c1a:app/tests/test_logs.py:generic-api-key:33
 96b25ae69178385ee84101ed5d27c326d5bf2c1a:app/tests/test_logs.py:generic-api-key:35
 7233306aa0882d85890504cde79d29485b1082e6:app/tests/test_logs.py:jwt:25

@@ -1,5 +1,5 @@
-# Tests de l'app de bureau : faux CLI, position et hauteur du popover, icône, dossier QML d'exécution
-# (cache vérifié), démarrage avec Windows (registre factice). qml_env() sert aussi aux autres modules.
+# Desktop app tests: fake CLI, popover position and height, icon, runtime QML directory
+# (cache checked), Windows startup (fake registry). qml_env() also serves the other modules.
 #   cd app && python -m unittest discover -s tests -v
 import atexit
 import datetime
@@ -25,7 +25,7 @@ from PySide6.QtCore import QCoreApplication, QEventLoop, QLockFile, QMetaObject,
 from PySide6.QtGui import QColor, QGuiApplication  # noqa: E402
 from PySide6.QtNetwork import QLocalServer  # noqa: E402
 from PySide6.QtQml import QQmlComponent, QQmlEngine, QQmlExpression, qmlRegisterSingletonInstance  # noqa: E402
-from PySide6.QtQuick import QQuickItem, QQuickWindow  # noqa: E402,F401 (QQuickWindow : type des fenêtres QML côté Python)
+from PySide6.QtQuick import QQuickItem, QQuickWindow  # noqa: E402,F401 (QQuickWindow: type of the QML windows in Python)
 from PySide6.QtTest import QTest  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
@@ -34,7 +34,7 @@ from agentburn.tray import open_popover, pixmap, place  # noqa: E402
 
 
 def gui():
-    # QApplication (menus de l'icône) ; moteur logiciel : fenêtres affichables hors écran, sans OpenGL.
+    # QApplication (tray icon menus); software backend: windows can be shown offscreen, without OpenGL.
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     os.environ.setdefault("QT_QUICK_BACKEND", "software")
     QCoreApplication.setApplicationName("AgentBurn")
@@ -45,15 +45,15 @@ _env = {}
 
 
 def qml_env():
-    """Dossier QML d'exécution, types du shim et singletons Settings/Desktop enregistrés une seule fois par
-    process (un 2e enregistrement rend les types incompatibles), et le seul moteur qui puisse lire ces
-    singletons (instances enregistrées : un 2e moteur reçoit null). Faux CLI : jamais le vrai CLI ni le vrai HOME."""
+    """Runtime QML directory, shim types and Settings/Desktop singletons registered only once per
+    process (a 2nd registration makes the types incompatible), and the only engine that can read these
+    singletons (registered instances: a 2nd engine gets null). Fake CLI: never the real CLI or the real HOME."""
     if not _env:
         gui()
         data = Path(tempfile.mkdtemp(prefix="agent-burn-test-"))
         atexit.register(shutil.rmtree, data, True)
         cli = APP / "tests" / "fake-agent-burn"
-        if sys.platform == "win32":   # script sh inutilisable : le même faux CLI par un .cmd
+        if sys.platform == "win32":   # sh script unusable: the same fake CLI through a .cmd
             cli = data / "fake-agent-burn.cmd"
             cli.write_text(f'@echo off\ncd /d "{APP}"\n"{sys.executable}" -m agentburn %*\n', encoding="utf-8")
         os.environ["AGENT_BURN_BIN"] = str(cli)
@@ -67,14 +67,14 @@ def qml_env():
         qmlRegisterSingletonInstance(settings.Settings, "AgentBurn", 1, 0, "Settings", cfg)
         qmlRegisterSingletonInstance(diagnostics.Desktop, "AgentBurn", 1, 0, "Desktop", desk)
         _env.update(qml=qml, data=data, settings=cfg, desktop=desk, engine=QQmlEngine(), quickshell=own)
-        atexit.register(lambda: [_env.pop(k, None) for k in ("root", "component", "engine")])   # avant QApplication
+        atexit.register(lambda: [_env.pop(k, None) for k in ("root", "component", "engine")])   # before QApplication
     return _env
 
 
 def main_root():
-    """Main.qml de l'app, créé une fois par process dans le moteur partagé (fenêtres cachées)."""
+    """The app's Main.qml, created once per process in the shared engine (hidden windows)."""
     env = qml_env()
-    # test_shim remplace le global Python du shim (dossier courant des runs) puis efface son dossier : le nôtre.
+    # test_shim replaces the shim's Python global (run working directory), then deletes that directory: restore ours.
     shim._global = env["quickshell"]
     if "root" not in env:
         component = QQmlComponent(env["engine"], QUrl.fromLocalFile(str(env["qml"] / "Main.qml")))
@@ -112,7 +112,7 @@ class FakeCli(unittest.TestCase):
         self.assertEqual(d["subscription"]["period"]["to"], today)
         a = d["claudeAccount"]
         self.assertLess(abs(a["observedAtMs"] - time.time() * 1000), 60000)
-        # Les resets gardent leur écart au relevé de la capture.
+        # Resets keep their offset from the reading of the capture.
         self.assertEqual(a["weeklyResetsAtMs"] - a["observedAtMs"], 1792875599646 - 1792714971475)
         self.assertEqual(a["scoped"][0]["resetsAtMs"] - a["observedAtMs"], 1792875600000 - 1792714971475)
 
@@ -122,7 +122,7 @@ class FakeCli(unittest.TestCase):
         self.assertEqual(json.loads(r.stdout)["plan"], "Max 5×")
 
     def test_quota_only_reading_observed_now(self):
-        # Tick de 5 min de Burn.qml : relevé léger, pas le harness complet (sinon « Rapport illisible »).
+        # 5-min tick of Burn.qml: light reading, not the full harness (otherwise "unreadable report").
         r = fake("harness", "claude", "--json", "--no-color", AGENT_BURN_QUOTA_ONLY="1")
         self.assertEqual(r.returncode, 0, r.stderr)
         q = json.loads(r.stdout)
@@ -133,7 +133,7 @@ class FakeCli(unittest.TestCase):
         self.assertNotEqual(fake("harness", "codex", "--json").returncode, 0)
 
     def test_harness_agent_other_than_claude_or_codex_refused(self):
-        # Le nom de fichier vient d'argv : « ../summary-live » servirait un autre JSON.
+        # The file name comes from argv: "../summary-live" would serve another JSON.
         for args in (("harness",), ("harness", "../summary-live"), ("harness", "gemini", "--json")):
             r = fake(*args)
             self.assertEqual(r.returncode, 2, args)
@@ -142,8 +142,8 @@ class FakeCli(unittest.TestCase):
 
 class Startup(unittest.TestCase):
     def test_basic_render_loop_on_linux_unless_chosen(self):
-        # Boucle à fil de Qt 6.12 : plantages dans QtWaylandClient à l'affichage d'une fenêtre. Hors écran
-        # (selftest) la boucle basique capture mal le popover agrandi, et il n'y a rien de Wayland.
+        # Qt 6.12 threaded render loop: crashes in QtWaylandClient when a window is shown. Offscreen
+        # (selftest) the basic loop captures the enlarged popover badly, and no Wayland is involved.
         for platform, qpa, preset, loop in (("linux", None, None, "basic"), ("linux", "xcb", None, "basic"),
                                             ("linux", None, "threaded", "threaded"), ("linux", "offscreen", None, None),
                                             ("win32", None, None, None)):
@@ -158,10 +158,10 @@ class Startup(unittest.TestCase):
 
 
 class SingleInstance(unittest.TestCase):
-    @unittest.skipIf(sys.platform == "win32", "pipe de la session : pas isolable dans un test")
+    @unittest.skipIf(sys.platform == "win32", "session pipe: cannot be isolated in a test")
     def test_launch_losing_the_lock_waits_for_the_winner_then_exits(self):
-        # Deux lancements au même instant : le gagnant tient le verrou mais n'écoute pas encore ; le perdant
-        # ne devient pas une 2e instance (2e icône, CLI en double), il passe la main dès que le serveur écoute.
+        # Two launches at the same moment: the winner holds the lock but is not listening yet; the loser
+        # does not become a 2nd instance (2nd icon, duplicate CLI runs), it hands over as soon as the server listens.
         gui()
         with tempfile.TemporaryDirectory() as tmp:
             rt = Path(tmp) / "rt"
@@ -176,11 +176,11 @@ class SingleInstance(unittest.TestCase):
             loser = subprocess.Popen([sys.executable, "-m", "agentburn"], cwd=APP, env=env,
                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             self.addCleanup(lambda: loser.poll() is None and (loser.kill(), loser.wait()))
-            wait_for(lambda: False, 1.5)   # le perdant a déjà sondé une fois, en vain
+            wait_for(lambda: False, 1.5)   # the loser has already polled once, in vain
             server, got = QLocalServer(), []
             server.newConnection.connect(lambda: got.append(server.nextPendingConnection()))
             self.assertTrue(server.listen(name), server.errorString())
-            self.assertTrue(wait_for(lambda: loser.poll() is not None, 20), "toujours lancé : 2e instance")
+            self.assertTrue(wait_for(lambda: loser.poll() is not None, 20), "still running: 2nd instance")
             self.assertEqual(loser.returncode, 0)
             self.assertTrue(wait_for(lambda: len(got) == 1, 2))
             server.close()
@@ -192,7 +192,7 @@ class WindowSize(unittest.TestCase):
         declared = dash.minimumSize()
         self.assertEqual(declared, QSize(900, 600))
         self.addCleanup(dash.setMinimumSize, declared)
-        # Écran 1080p, 1366×768 à 100 %, 1366×768 à 125 % (barre de 40 px), 1280×720 à 150 %.
+        # 1080p screen, 1366×768 at 100%, 1366×768 at 125% (40 px taskbar), 1280×720 at 150%.
         for area, size, minimum in ((QRect(0, 0, 1920, 1040), QSize(1200, 800), QSize(900, 600)),
                                     (QRect(0, 0, 1366, 728), QSize(1200, 680), QSize(900, 600)),
                                     (QRect(0, 0, 1093, 574), QSize(1045, 526), QSize(900, 526)),
@@ -200,7 +200,7 @@ class WindowSize(unittest.TestCase):
             dash.setMinimumSize(declared)
             appmain.fit(dash, 1200, 800, area)
             self.assertEqual((dash.size(), dash.minimumSize()), (size, minimum), area)
-            # Centrée, tout entière dans l'écran, jamais plus petite que son minimum.
+            # Centered, entirely on screen, never smaller than its minimum.
             self.assertTrue(area.contains(dash.geometry()), (area, dash.geometry()))
             self.assertEqual(dash.geometry().center().x() - area.center().x(), 0, area)
             self.assertTrue(dash.width() >= dash.minimumWidth() and dash.height() >= dash.minimumHeight())
@@ -214,11 +214,11 @@ class CloseToTray(unittest.TestCase):
         self.cfg = settings.Settings(None)
         desktop = types.SimpleNamespace(property=lambda name: {"trayAvailable": self.tray}[name])
         appmain.quit_when_closed(self.app, self.dash, self.prefs, self.cfg, desktop)
-        for w in (self.dash, self.prefs):   # fenêtres de ce test détruites ensuite sans rappeler l'app
+        for w in (self.dash, self.prefs):   # windows of this test, destroyed afterwards without calling back the app
             self.addCleanup(w.visibleChanged.disconnect)
 
     def quits(self):
-        wait_for(lambda: False, 0.7)   # après les 500 ms de l'aller-retour de Burn.openDashboard
+        wait_for(lambda: False, 0.7)   # after the 500 ms round trip of Burn.openDashboard
         return self.app.quit.called
 
     def test_dashboard_closed_before_settings_still_quits_without_close_to_tray(self):
@@ -226,7 +226,7 @@ class CloseToTray(unittest.TestCase):
         self.dash.show()
         self.prefs.show()
         self.dash.hide()
-        self.assertFalse(self.quits())   # réglages encore ouverts
+        self.assertFalse(self.quits())   # settings still open
         self.prefs.hide()
         self.assertTrue(self.quits())
 
@@ -235,7 +235,7 @@ class CloseToTray(unittest.TestCase):
         self.prefs.show()
         self.dash.show()
         self.dash.hide()
-        self.dash.show()   # Burn.openDashboard : referme puis rouvre
+        self.dash.show()   # Burn.openDashboard: closes then reopens
         self.prefs.hide()
         self.assertFalse(self.quits())
 
@@ -291,15 +291,15 @@ class Placement(unittest.TestCase):
 
 class TrayIcon(unittest.TestCase):
     def test_16px_badge_ink_and_grey_flame_without_data(self):
-        app = gui()  # noqa: F841 (QPixmap l'exige)
-        # warn sombre, warn clair, good clair (clair en HSL mais noir plus contrasté : 4,78 contre 4,40).
+        app = gui()  # noqa: F841 (QPixmap requires it)
+        # dark warn, light warn, light good (light in HSL but black has more contrast: 4.78 vs 4.40).
         for tone, ink in (("#ff9f0a", Qt.black), ("#c93400", Qt.white), ("#248a3d", Qt.black)):
             img = pixmap(16, 25, QColor(tone)).toImage()
             px = [img.pixelColor(x, y) for x in range(16) for y in range(16)]
-            self.assertIn(QColor(tone), px, tone)    # pastille opaque
-            self.assertIn(QColor(ink), px, tone)     # chiffres les plus contrastés
+            self.assertIn(QColor(tone), px, tone)    # opaque badge
+            self.assertIn(QColor(ink), px, tone)     # highest-contrast digits
         img = pixmap(16, -1, QColor("#98989f")).toImage()
-        self.assertIn(QColor("#98989f"), [img.pixelColor(x, y) for x in range(16) for y in range(16)])   # flamme pleine
+        self.assertIn(QColor("#98989f"), [img.pixelColor(x, y) for x in range(16) for y in range(16)])   # solid flame
 
 
 class Runtime(unittest.TestCase):
@@ -315,16 +315,16 @@ class Runtime(unittest.TestCase):
         self.assertIn("singleton Burn 1.0 Burn.qml", q)
         self.assertIn("singleton Colors 1.0 Colors.qml", q)
         self.assertIn("BurnPopover 1.0 BurnPopover.qml", q)
-        self.assertEqual(runtime.assemble(), d)   # même contenu → même dossier, rien de recopié
+        self.assertEqual(runtime.assemble(), d)   # same content → same directory, nothing copied again
 
     def test_rename_refused_uses_assembled_copy(self):
-        # Windows : renommage refusé tant que l'antivirus tient un fichier qu'on vient d'écrire. Cache vide
-        # sur toute plateforme (XDG_CACHE_HOME ne joue pas sous Windows).
+        # Windows: rename refused while the antivirus holds a file just written. Empty cache
+        # on every platform (XDG_CACHE_HOME has no effect on Windows).
         with tempfile.TemporaryDirectory() as cache, mock.patch.object(paths, "cache_dir", return_value=Path(cache)), \
-                mock.patch.object(Path, "rename", side_effect=PermissionError(13, "accès refusé")) as rename:
+                mock.patch.object(Path, "rename", side_effect=PermissionError(13, "access denied")) as rename:
             d = runtime.assemble()
             self.assertTrue(rename.called)
-            self.assertEqual([p.name for p in Path(cache).iterdir()], [d.name])   # la copie temporaire, seule
+            self.assertEqual([p.name for p in Path(cache).iterdir()], [d.name])   # the temporary copy, alone
             self.assertTrue((d / "qmldir").is_file())
             self.assertTrue((d / "BurnPopover.qml").is_file())
 
@@ -332,18 +332,18 @@ class Runtime(unittest.TestCase):
         with tempfile.TemporaryDirectory() as cache, mock.patch.object(paths, "cache_dir", return_value=Path(cache)):
             d = runtime.assemble()
             good = (d / "Burn.qml").read_bytes()
-            (d / "Burn.qml").write_bytes(good + b"\n// modifie\n")
+            (d / "Burn.qml").write_bytes(good + b"\n// modified\n")
             self.assertEqual(runtime.assemble(), d)
             self.assertEqual((d / "Burn.qml").read_bytes(), good)
-            (d / "Extra.qml").write_text("import QtQuick\nItem {}\n")   # fichier en plus : reconstruit aussi
+            (d / "Extra.qml").write_text("import QtQuick\nItem {}\n")   # extra file: rebuilt too
             (d / "qmldir").unlink()
             self.assertEqual(runtime.assemble(), d)
             self.assertFalse((d / "Extra.qml").exists())
             self.assertTrue((d / "qmldir").is_file())
 
     def test_inline_components_not_named_like_a_qt_type(self):
-        # PySide type un objet QML par son nom de classe : un composant inline nommé comme un type Qt (Section,
-        # enum QDateTimeEdit.Section) prend ce type quand Python l'atteint, lu hors limites, et segfault.
+        # PySide types a QML object by its class name: an inline component named like a Qt type (Section,
+        # enum QDateTimeEdit.Section) takes that type when Python reaches it, is read out of bounds, and segfaults.
         qt = set()
         for m in (QtCore, QtGui, QtNetwork, QtQml, QtQuick, QtWidgets):
             for c in (getattr(m, n) for n in dir(m)):
@@ -366,8 +366,8 @@ class Popover(unittest.TestCase):
         flick = next(i for i in pop.findChildren(QQuickItem) if i.metaObject().className() == "QQuickFlickable")
         pop.setProperty("maxHeight", card - 50)
         self.assertEqual(pop.height(), card - 50 + 2 * pad)
-        self.assertEqual(flick.property("contentHeight") - flick.height(), 50)   # le reste défile
-        # Hors écran : un seul écran, sans barre des tâches ; icône dans son coin bas droit.
+        self.assertEqual(flick.property("contentHeight") - flick.height(), 50)   # the rest scrolls
+        # Offscreen: a single screen, no taskbar; icon in its bottom-right corner.
         a = QGuiApplication.primaryScreen().availableGeometry()
         open_popover(pop, QRect(a.x() + a.width() - 20, a.y() + a.height() - 20, 10, 10))
         self.assertEqual(pop.property("maxHeight"), a.height() - 2 * 16)
@@ -376,11 +376,11 @@ class Popover(unittest.TestCase):
         del pop, component
 
     def test_short_screen_keyboard_scrolls_the_card(self):
-        # 1366×768 à 125 % : la carte défile. Page suivante, Fin, Début, et Tab amène le contrôle à l'écran.
+        # 1366×768 at 125%: the card scrolls. Page Down, End, Home, and Tab brings the control on screen.
         env = qml_env()
         component = QQmlComponent(env["engine"], QUrl.fromLocalFile(str(env["qml"] / "PopoverWindow.qml")))
         pop = component.create()
-        self.addCleanup(lambda: (pop.setVisible(False), component))   # composant gardé : il détruirait la fenêtre
+        self.addCleanup(lambda: (pop.setVisible(False), component))   # component kept: it would destroy the window
         pop.setProperty("maxHeight", 300)
         QMetaObject.invokeMethod(pop, "open")
         self.assertTrue(wait_for(lambda: pop.isVisible() and pop.isActive(), 5))
@@ -402,13 +402,13 @@ class Popover(unittest.TestCase):
 
 class Autostart(unittest.TestCase):
     def test_entry_disabled_by_windows_shows_off_and_is_reenabled(self):
-        reg = {}   # winreg factice : chemin de clé → {valeur: données}
+        reg = {}   # fake winreg: key path → {value: data}
 
         class Key(dict):
             __enter__ = lambda self: self
             __exit__ = lambda self, *exc: None
 
-        def value(key, name):   # winreg lève FileNotFoundError pour une valeur absente
+        def value(key, name):   # winreg raises FileNotFoundError for a missing value
             if name not in key:
                 raise FileNotFoundError(name)
             return key[name]
@@ -424,7 +424,7 @@ class Autostart(unittest.TestCase):
             self.assertFalse(pw.autostart())
             pw.set_autostart(True)
             self.assertTrue(pw.autostart())
-            reg[pw.APPROVED][pw.NAME] = bytes([3]) + bytes(11)   # désactivée dans le Gestionnaire des tâches
+            reg[pw.APPROVED][pw.NAME] = bytes([3]) + bytes(11)   # disabled in Task Manager
             self.assertFalse(pw.autostart())
             pw.set_autostart(True)
             self.assertTrue(pw.autostart())
@@ -432,7 +432,7 @@ class Autostart(unittest.TestCase):
             pw.set_autostart(False)
             self.assertFalse(pw.autostart())
             pw.set_autostart(True)
-            reg[pw.APPROVED][pw.NAME] = b""   # REG_BINARY vide : pas une désactivation (plus d'IndexError)
+            reg[pw.APPROVED][pw.NAME] = b""   # empty REG_BINARY: not a disable (no more IndexError)
             self.assertTrue(pw.autostart())
 
 

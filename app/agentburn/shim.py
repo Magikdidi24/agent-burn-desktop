@@ -1,10 +1,10 @@
-# Les QML partagés avec le module Quickshell tournent ici tels quels : ce module recrée le petit
-# sous-ensemble de Quickshell 0.3.2 qu'ils utilisent (et leur suite de tests), même sémantique.
-# Ordre des signaux de Process relevé sous qs : streamFinished → exited (running déjà faux) →
-# runningChanged ; binaire absent : un seul runningChanged, sans started.
-# En plus de qs : enfants lancés dans le dossier de données avec child_environment(), chaque run
-# journalisé sur le logger « agentburn.cli » (handlers posés par l'app, fin du stderr en DEBUG),
-# runs en cours attendus à la fermeture (wait_for_runs).
+# The QML shared with the Quickshell module runs here unchanged: this module recreates the small
+# subset of Quickshell 0.3.2 they (and their test suite) use, with the same semantics.
+# Process signal order observed under qs: streamFinished → exited (running already false) →
+# runningChanged; missing binary: a single runningChanged, without started.
+# Beyond qs: children launched in the data directory with child_environment(), each run
+# logged on the "agentburn.cli" logger (handlers set by the app, stderr tail at DEBUG),
+# runs in progress awaited on close (wait_for_runs).
 import logging
 import os
 import sys
@@ -18,22 +18,22 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtQml import ListProperty, QJSValue, qmlRegisterSingletonInstance, qmlRegisterType
 
 log = logging.getLogger("agentburn.cli")
-_runs = set()   # QProcess en cours, attendus par wait_for_runs()
-_closing = False   # wait_for_runs() appelé : l'app ferme, plus aucun run lancé
+_runs = set()   # QProcess objects in progress, awaited by wait_for_runs()
+_closing = False   # wait_for_runs() called: the app is closing, no more runs launched
 
-# Réglages du CLI qui changent son JSON ou son stderr : seul l'environment explicite de Burn.qml les pose.
+# CLI settings that change its JSON or its stderr: only the explicit environment of Burn.qml sets them.
 _CLI_VARS = ("AGENT_BURN_QUOTA_ONLY", "AGENT_BURN_FORCE_REFRESH", "LOG_LEVEL")
-# Posées par PyInstaller pour l'app gelée (avec _PYI_* et LD_LIBRARY_PATH) : kde-open, lancé par xdg-open,
-# chargerait sinon les plugins Qt du bundle.
+# Set by PyInstaller for the frozen app (with _PYI_* and LD_LIBRARY_PATH): kde-open, launched by xdg-open,
+# would otherwise load the bundle's Qt plugins.
 _BUNDLE_VARS = ("QT_PLUGIN_PATH", "QML2_IMPORT_PATH", "QML_IMPORT_PATH")
-# Posées par l'app pour elle-même (__main__ : QSG_RENDER_LOOP) : ni le CLI ni xdg-open n'en héritent.
+# Set by the app for itself (__main__: QSG_RENDER_LOOP): neither the CLI nor xdg-open inherits them.
 APP_VARS = set()
 
 
 def child_environment():
-    """Environnement des process lancés (CLI, xdg-open) : celui du système sans les fuites du bundle gelé ni
-    les réglages du CLI hérités ; sous Windows HOME = USERPROFILE (le CLI lit HOME avant USERPROFILE, Claude
-    Code et Codex écrivent sous USERPROFILE)."""
+    """Environment of launched processes (CLI, xdg-open): the system's, without the frozen bundle's leaks or
+    the inherited CLI settings; on Windows HOME = USERPROFILE (the CLI reads HOME before USERPROFILE, Claude
+    Code and Codex write under USERPROFILE)."""
     env = QProcessEnvironment.systemEnvironment()
     if getattr(sys, "frozen", False):
         for name in env.keys():
@@ -41,7 +41,7 @@ def child_environment():
                 env.remove(name)
         for name in _BUNDLE_VARS:
             env.remove(name)
-        if env.contains("LD_LIBRARY_PATH_ORIG"):   # valeur d'avant le bootloader
+        if env.contains("LD_LIBRARY_PATH_ORIG"):   # value from before the bootloader
             env.insert("LD_LIBRARY_PATH", env.value("LD_LIBRARY_PATH_ORIG"))
             env.remove("LD_LIBRARY_PATH_ORIG")
         else:
@@ -54,7 +54,7 @@ def child_environment():
 
 
 def _first_error(text):
-    """Ligne utile d'un stderr (« Error: … », sinon la première non vide), tronquée comme dans Burn.qml."""
+    """Useful line of a stderr ("Error: …", otherwise the first non-empty one), truncated as in Burn.qml."""
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     line = next((x for x in lines if x.startswith("Error: ")), lines[0] if lines else "")
     return line if len(line) <= 160 else line[:159] + "…"
@@ -97,8 +97,8 @@ class QuickshellGlobal(QObject):
 
     @Slot(list)
     def execDetached(self, command):
-        # « xdg-open » des QML Linux : l'Explorateur sous Windows. Ailleurs xdg-open lui-même, avec
-        # child_environment() : QDesktopServices lui passerait l'environnement du bundle gelé.
+        # "xdg-open" of the Linux QML: File Explorer on Windows. Elsewhere xdg-open itself, with
+        # child_environment(): QDesktopServices would pass it the frozen bundle's environment.
         if command[0] == "xdg-open" and sys.platform == "win32":
             QDesktopServices.openUrl(QUrl.fromUserInput(command[1]))
             return
@@ -108,7 +108,7 @@ class QuickshellGlobal(QObject):
         p.setProcessEnvironment(child_environment())
         p.setWorkingDirectory(self._data)
         if not p.startDetached():
-            log.warning("%s : lancement impossible", " ".join(command))
+            log.warning("%s: cannot launch", " ".join(command))
 
 
 class StdioCollector(QObject):
@@ -135,10 +135,10 @@ class Process(QObject):
         self._stdout = None
         self._stderr = None
         self._since = 0.0
-        self._pending = False   # running posé sans command : lancé après le chargement
+        self._pending = False   # running set without command: launched after loading
 
     def _set_running(self, running):
-        # Comme qs, qui ne lance qu'après le chargement : running: true écrit avant command: attend celui-ci.
+        # Like qs, which only launches after loading: running: true written before command: waits for it.
         self._pending = running and not self._command
         if self._pending:
             QTimer.singleShot(0, self, lambda: self._pending and self._command and self._set_running(True))
@@ -146,21 +146,21 @@ class Process(QObject):
             if self._process:
                 self._process.terminate()
             return
-        if self._process or not self._command or _closing:   # app qui ferme : un run lancé serait tué
+        if self._process or not self._command or _closing:   # app closing: a launched run would be killed
             return
         p = self._process = QProcess(self)
-        env = child_environment()   # + environnement demandé par le QML (null = retiré)
+        env = child_environment()   # + environment requested by the QML (null = removed)
         for name, value in self._environment.items():
             if value is None:
                 env.remove(name)
             else:
                 env.insert(name, str(value))
         p.setProcessEnvironment(env)
-        if _global is not None:   # dossier courant sans ./.agent-burn/ (config que le CLI y lirait)
+        if _global is not None:   # working directory without ./.agent-burn/ (config the CLI would read there)
             p.setWorkingDirectory(_global.dataDir)
-        # Fonctions anonymes, pas de méthodes liées : PySide ajouterait des slots à l'objet, en conflit
-        # avec les propriétés que le QML lui déclare (component Cli: Process { property … }) → signaux
-        # perdus. Ignorées une fois l'un des deux détruit (fermeture de l'app pendant un run).
+        # Anonymous functions, not bound methods: PySide would add slots to the object, clashing
+        # with the properties the QML declares on it (component Cli: Process { property … }) → lost
+        # signals. Ignored once either of the two is destroyed (app closing during a run).
         def relay(handler):
             return lambda *args: shiboken6.isValid(self) and shiboken6.isValid(p) and handler(*args)
 
@@ -177,7 +177,7 @@ class Process(QObject):
     stdout = Property(QObject, lambda self: self._stdout, lambda self, v: setattr(self, "_stdout", v))
     stderr = Property(QObject, lambda self: self._stderr, lambda self, v: setattr(self, "_stderr", v))
 
-    # shortcut : exec() pendant un run ne relance rien à sa fin (jamais fait par les QML partagés).
+    # shortcut: exec() during a run relaunches nothing when it ends (never done by the shared QML).
     @Slot(dict)
     def exec(self, context):
         self._set_running(False)
@@ -187,7 +187,7 @@ class Process(QObject):
             self.environment = context["environment"]
         self._set_running(True)
 
-    # shortcut : tout signal tue le process (seul signal(9) sert, et Windows n'a pas de signaux).
+    # shortcut: any signal kills the process (only signal(9) is used, and Windows has no signals).
     @Slot(int)
     def signal(self, _signal):
         if self._process:
@@ -208,21 +208,21 @@ class Process(QObject):
                 collector._text = text
                 collector.dataChanged.emit()
                 collector.streamFinished.emit()
-        # Arguments (nos options et chemins) et taille seulement : le stdout porte l'usage de l'utilisateur.
+        # Arguments (our options and paths) and size only: stdout carries the user's usage.
         crashed = status != QProcess.ExitStatus.NormalExit
         cmd = " ".join(self._command)
-        log.info("%s : code %d%s, %.2f s, %d octets", cmd, code, " (arrêt forcé)" if crashed else "",
+        log.info("%s: code %d%s, %.2f s, %d bytes", cmd, code, " (killed)" if crashed else "",
                  time.monotonic() - self._since, len(out))
         if code or crashed:
-            log.warning("%s : %s", cmd, _first_error(err) or "stderr vide")
-        # Journal détaillé : fin du stderr de chaque run, masquée par les handlers de l'app comme le reste.
-        log.debug("%s : stderr\n%s", cmd, err.strip()[-4000:] or "vide")
+            log.warning("%s: %s", cmd, _first_error(err) or "empty stderr")
+        # Detailed log: stderr tail of each run, redacted by the app's handlers like the rest.
+        log.debug("%s: stderr\n%s", cmd, err.strip()[-4000:] or "empty")
         self.exited.emit(code, status.value)
         self.runningChanged.emit()
 
     def _error(self, error):
         if error == QProcess.ProcessError.FailedToStart:
-            log.warning("%s : lancement impossible (%s)", " ".join(self._command), self._process.errorString())
+            log.warning("%s: cannot launch (%s)", " ".join(self._command), self._process.errorString())
             _runs.discard(self._process)
             self._process.deleteLater()
             self._process = None
@@ -230,7 +230,7 @@ class Process(QObject):
 
 
 def _accepted():
-    # Réglage de qs accepté sans effet : ici lectures et écritures sont toujours synchrones.
+    # qs setting accepted without effect: reads and writes are always synchronous here.
     return Property(bool, lambda self: True, lambda self, v: None)
 
 
@@ -240,7 +240,7 @@ class FileView(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._path = ""
-        self._text = None   # None : pas encore lu
+        self._text = None   # None: not read yet
 
     def _set_path(self, path):
         if path != self._path:
@@ -259,7 +259,7 @@ class FileView(QObject):
         if self._text is None:
             try:
                 self._text = Path(self._path).read_bytes().decode("utf-8", "replace")
-            except OSError:   # absent ou illisible : vide, comme qs
+            except OSError:   # missing or unreadable: empty, like qs
                 self._text = ""
         return self._text
 
@@ -270,7 +270,7 @@ class FileView(QObject):
     @Slot(str)
     def setText(self, text):
         Path(self._path).parent.mkdir(parents=True, exist_ok=True)
-        f = QSaveFile(self._path)   # fichier temporaire renommé : jamais de JSON à moitié écrit
+        f = QSaveFile(self._path)   # temporary file renamed: never a half-written JSON
         if f.open(QIODevice.OpenModeFlag.WriteOnly):
             f.write(text.encode("utf-8"))
             f.commit()
@@ -278,7 +278,7 @@ class FileView(QObject):
 
 
 class IpcHandler(QObject):
-    # Pas d'IPC hors de qs : cible gardée, fonctions déclarées en QML appelables depuis Python.
+    # No IPC outside qs: target kept, functions declared in QML callable from Python.
     def __init__(self, parent=None):
         super().__init__(parent)
         self._target = ""
@@ -293,13 +293,13 @@ class IdleMonitor(QObject):
         super().__init__(parent)
         self._timeout = 0.0
         self._idle = False
-        # Windows : dernière saisie sondée toutes les 5 s.
-        # shortcut : ailleurs jamais inactif, l'app de bureau Linux continue ses relevés pendant l'inactivité ;
-        # brancher ext-idle-notify (Wayland) ou XScreenSaver (X11) si cette consommation compte.
-        # shortcut : inhibiteurs ignorés sous Windows (vidéo sans saisie = inactif, contrairement à
-        # respectInhibitors de qs), à revoir si l'icône se fige pendant une vidéo.
+        # Windows: last input polled every 5 s.
+        # shortcut: never idle elsewhere, the Linux desktop app keeps taking readings while idle;
+        # hook up ext-idle-notify (Wayland) or XScreenSaver (X11) if that usage matters.
+        # shortcut: inhibitors ignored on Windows (video without input = idle, unlike the
+        # respectInhibitors of qs), to review if the icon freezes during a video.
         if sys.platform == "win32":
-            self._poll = QTimer(self, interval=5000, timeout=lambda: self._check())   # pas de méthode liée : cf. Process
+            self._poll = QTimer(self, interval=5000, timeout=lambda: self._check())   # no bound method: see Process
             self._poll.start()
 
     timeout = Property(float, lambda self: self._timeout, lambda self, v: setattr(self, "_timeout", v))
@@ -313,13 +313,13 @@ class IdleMonitor(QObject):
             self.isIdleChanged.emit()
 
 
-_global = None   # instance du singleton « Quickshell », gardée en vie
+_global = None   # instance of the "Quickshell" singleton, kept alive
 
 
 def wait_for_runs(timeout_ms):
-    """Fermeture de l'app, avant de détruire le moteur QML : attend au plus timeout_ms la fin des runs du CLI
-    en cours (tué, il peut perdre le jeton Claude qu'il vient de renouveler), puis n'en lance plus aucun, même
-    depuis leur exited. True si tous ont fini."""
+    """App closing, before destroying the QML engine: waits at most timeout_ms for the CLI runs in progress
+    to end (killed, a run may lose the Claude token it just renewed), then launches none, not even
+    from their exited. True if all have ended."""
     global _closing
     _closing = True
     end = time.monotonic() + timeout_ms / 1000
@@ -329,7 +329,7 @@ def wait_for_runs(timeout_ms):
 
 
 def register(qml_dir, data_dir):
-    """Enregistre les types sous les URI de Quickshell ; Quickshell.Widgets vient de qml_dir/widgets."""
+    """Registers the types under the Quickshell URIs; Quickshell.Widgets comes from qml_dir/widgets."""
     global _global
     for uri, types in (("Quickshell", (Scope, Singleton)),
                        ("Quickshell.Io", (Process, StdioCollector, FileView, IpcHandler)),

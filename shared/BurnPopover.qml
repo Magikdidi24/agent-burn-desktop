@@ -2,18 +2,18 @@ pragma ComponentBehavior: Bound
 import Quickshell.Widgets
 import QtQuick
 
-// Contenu du popover Agent Burn (le popover de barre de menus de l'app Mac) : onglet Général +
-// un onglet par agent, pied « mis à jour », accès au dashboard. Sans fenêtre : BurnPill l'héberge
-// dans son PopupWindow, un harnais de test peut l'afficher seul.
+// Content of the Agent Burn popover (the menu bar popover of the Mac app): General tab +
+// one tab per agent, "updated" footer, access to the dashboard. No window: BurnPill hosts it
+// in its PopupWindow, a test harness can show it alone.
 Item {
     id: root
 
-    // Un onglet par agent à quota, comme l'app Mac : les autres n'ont rien à y montrer et restent
-    // dans Général. Burn.agents est trié par coût.
+    // One tab per agent with a quota, like the Mac app: the others have nothing to show there and stay
+    // in General. Burn.agents is sorted by cost.
     readonly property var quotaAgents: Burn.agents.filter(a => Burn.subEntry(a) || (a === "claude" && Burn.account))
-    // "general" ou un agent ; par défaut le plus coûteux.
+    // "general" or an agent; by default the most expensive one.
     property string tab: quotaAgents.length > 0 ? quotaAgents[0] : "general"
-    // Le porteur ferme le popover (après « Ouvrir le dashboard »).
+    // The host closes the popover (after "Open dashboard").
     signal closeRequested()
 
     implicitWidth: 440
@@ -24,32 +24,32 @@ Item {
     Timer { interval: 60000; repeat: true; running: root.visible; onTriggered: Burn.poke() }
 
     function sum(series, key) { return series.reduce((s, d) => s + (d[key] ?? 0), 0); }
-    // Dépense des `days` derniers jours d'une série Burn.dailySeries, aujourd'hui inclus : null (« — »)
-    // pour un agent sans aucun jour connu, ou pour des tokens sans prix.
+    // Spend of the last `days` days of a Burn.dailySeries series, today included: null ("—")
+    // for an agent without any known day, or for tokens without a price.
     function spent(series, days) {
         const t = new Date(), from = Burn.iso(new Date(t.getFullYear(), t.getMonth(), t.getDate() - days + 1));
         const s = series.filter(d => d.date >= from);
         return series.length ? Burn.priced(sum(s, "cost"), sum(s, "tokens")) : null;
     }
-    // Teinte d'un état de Burn.providerState : le mot reste écrit à côté.
+    // Tint of a Burn.providerState state: the word stays written next to it.
     function stateTone(s) { return Burn.tone({ live: "good", stale: "warn", expired: "danger", unavailable: "danger" }[s] ?? ""); }
 
     component Txt: Text {
         id: txt
-        property bool spoken: true   // false : déjà dit ailleurs (libellé d'un bouton, Accessible.name explicite)
+        property bool spoken: true   // false: already said elsewhere (a button's label, explicit Accessible.name)
         color: Colors.foreground
         font.family: "JetBrainsMono Nerd Font"
         font.pixelSize: 12
         textFormat: Text.PlainText
-        // Lecteurs d'écran : un Text n'est exposé qu'avec un rôle et un nom. Posés en JS et seulement avec
-        // Burn.accessibleText (app de bureau) : la barre Quickshell garde ses Text sans objet Accessible.
+        // Screen readers: a Text is exposed only with a role and a name. Set in JS and only with
+        // Burn.accessibleText (desktop app): the Quickshell bar keeps its Text items without an Accessible object.
         readonly property bool exposed: spoken && Burn.accessibleText === true
         onExposedChanged: if (exposed && !Accessible.ignored) {
             Accessible.role = Accessible.StaticText;
             Accessible.name = Qt.binding(() => txt.text);
         }
     }
-    // Chiffre clé : intitulé, valeur en gros, détail.
+    // Key figure: title, large value, detail.
     component Stat: Column {
         id: stat
         property string title
@@ -68,15 +68,15 @@ Item {
             wrapMode: Text.WordWrap
         }
     }
-    // Icône de marque arrondie ; les logos détourés reposent sur une tuile teintée.
+    // Rounded brand icon; cut-out logos sit on a tinted tile.
     component AgentIcon: ClippingRectangle {
         id: tile
         property string agent
-        readonly property color brand: Burn.agentColor(agent)   // chaîne "#rrggbb" → couleur (withAlpha lit .r/.g/.b)
+        readonly property color brand: Burn.agentColor(agent)   // "#rrggbb" string → color (withAlpha reads .r/.g/.b)
         color: Colors.withAlpha(brand, 0.25)
         Image { anchors.fill: parent; source: Burn.agentIcon(tile.agent); mipmap: true }
     }
-    // Bandeau d'alerte sur fond teinté, texte en couleur normale ; caché sans texte.
+    // Alert banner on a tinted background, text in the normal color; hidden without text.
     component Banner: Rectangle {
         id: banner
         property string text
@@ -104,7 +104,7 @@ Item {
         width: parent.width - 32
         spacing: 14
 
-        // En-tête : flamme + titre, rafraîchissement forcé à droite.
+        // Header: flame + title, forced refresh on the right.
         Item {
             width: parent.width
             height: 28
@@ -132,8 +132,8 @@ Item {
                 width: 28
                 height: 28
                 radius: 8
-                reach: 6   // cible de 40 px
-                tip: "Rafraîchir"
+                reach: 6   // 40 px target
+                tip: "Refresh"
                 color: refresh.hovered ? Colors.withAlpha(Colors.muted, 0.2) : "transparent"
                 opacity: Burn.loading ? 0.4 : 1
                 Behavior on opacity { NumberAnimation { duration: 150 } }
@@ -147,8 +147,8 @@ Item {
             }
         }
 
-        // Onglets segmentés : la pastille active glisse d'un onglet à l'autre. Flèches gauche / droite :
-        // onglet voisin, sélectionné et focalisé.
+        // Segmented tabs: the active highlight slides from one tab to the next. Left / right arrows:
+        // neighboring tab, selected and focused.
         Rectangle {
             id: tabs
             readonly property var ids: ["general"].concat(root.quotaAgents)
@@ -158,7 +158,7 @@ Item {
             radius: 10
             color: Colors.withAlpha(Colors.muted, 0.12)
             Accessible.role: Accessible.PageTabList
-            Accessible.name: "Onglets"
+            Accessible.name: "Tabs"
 
             function step(d) {
                 const i = Math.max(0, ids.indexOf(root.tab)) + d;
@@ -189,7 +189,7 @@ Item {
                         width: tabs.tabW
                         height: tabs.height - 6
                         radius: 8
-                        ring: tabItem.active ? Colors.background : Colors.accent   // sur la pastille accent
+                        ring: tabItem.active ? Colors.background : Colors.accent   // on the accent highlight
                         Accessible.role: Accessible.PageTab
                         Accessible.name: tabLabel.text
                         Accessible.checkable: true
@@ -203,7 +203,7 @@ Item {
                             width: parent.width - 12
                             horizontalAlignment: Text.AlignHCenter
                             elide: Text.ElideRight
-                            text: tabItem.modelData === "general" ? "Général" : Burn.agentName(tabItem.modelData)
+                            text: tabItem.modelData === "general" ? "General" : Burn.agentName(tabItem.modelData)
                             color: tabItem.active ? Colors.background : tabItem.hovered ? Colors.foreground : Colors.muted
                             font.bold: tabItem.active
                             spoken: false
@@ -213,14 +213,14 @@ Item {
             }
         }
 
-        // Hors ligne ou LiteLLM injoignable, le CLI compte 0 $ : montants « — » ou partiels.
+        // Offline or with LiteLLM unreachable, the CLI counts $0: amounts are "—" or partial.
         Banner {
             width: parent.width
             tint: Colors.warn
-            text: Burn.pricingMissing ? "Tarifs indisponibles : montants incomplets (réseau coupé ou tarifs non téléchargés)" : ""
+            text: Burn.pricingMissing ? "Pricing unavailable: amounts incomplete (network down or pricing not downloaded)" : ""
         }
 
-        // Contenu créé à l'ouverture seulement : caché, il ne suit plus l'horloge de Burn.
+        // Content created only when open: hidden, it no longer follows Burn's clock.
         Loader {
             id: body
             width: parent.width
@@ -231,8 +231,8 @@ Item {
 
         Rectangle { width: parent.width; height: 1; color: Colors.withAlpha(Colors.muted, 0.25) }
 
-        // Fraîcheur en toutes lettres : en direct, en cache (relu du disque, dernier appel en échec ou
-        // trop ancien) ou indisponible.
+        // Freshness spelled out: live, cached (read back from disk, last call failed or
+        // too old) or unavailable.
         Row {
             spacing: 8
             Rectangle {
@@ -244,8 +244,8 @@ Item {
                      : Burn.loading ? Colors.muted : Colors.danger
             }
             Txt {
-                text: Burn.dataState !== "unavailable" ? Burn.stateText(Burn.dataState) + " · mis à jour " + Burn.ago(Burn.updatedAt)
-                    : Burn.loading ? "Mise à jour…" : Burn.stateText(Burn.dataState)
+                text: Burn.dataState !== "unavailable" ? Burn.stateText(Burn.dataState) + " · updated " + Burn.ago(Burn.updatedAt)
+                    : Burn.loading ? "Updating…" : Burn.stateText(Burn.dataState)
                 color: Colors.muted
                 font.pixelSize: 11
             }
@@ -253,7 +253,7 @@ Item {
         Txt {
             width: parent.width
             visible: text !== ""
-            // CLI absent : le remède de l'hôte (install.sh, réinstallation de l'app) plutôt que le chemin.
+            // Missing CLI: the host's fix (install.sh, reinstalling the app) rather than the path.
             text: Burn.cliMissing ? Burn.cliHint : Burn.error
             color: Colors.danger
             font.pixelSize: 11
@@ -270,7 +270,7 @@ Item {
             border.color: Colors.withAlpha(Colors.muted, 0.18)
             scale: dash.pressed ? 0.98 : 1
             Behavior on scale { NumberAnimation { duration: 100 } }
-            Accessible.name: "Ouvrir le dashboard"
+            Accessible.name: "Open dashboard"
             onClicked: {
                 Burn.openDashboard(root.tab === "general" ? "all" : root.tab);
                 root.closeRequested();
@@ -279,7 +279,7 @@ Item {
                 anchors.left: parent.left
                 anchors.leftMargin: 14
                 anchors.verticalCenter: parent.verticalCenter
-                text: "Ouvrir le dashboard"
+                text: "Open dashboard"
                 font.bold: true
                 spoken: false
             }
@@ -295,7 +295,7 @@ Item {
         }
     }
 
-    // Onglet agent : forfait, dépense, limites (la plus parlante en grand) et rythme.
+    // Agent tab: plan, spend, limits (the most telling one shown large) and pace.
     Component {
         id: agentView
         Column {
@@ -303,7 +303,7 @@ Item {
             readonly property string agent: root.tab
             readonly property var sub: Burn.subEntry(agent)
             readonly property var wins: Burn.windows(agent)
-            // Fenêtre en vedette : l'hebdo, sinon la plus contraignante.
+            // Featured window: the weekly one, otherwise the tightest.
             readonly property var main: wins.find(w => w.key === "weekly")
                 ?? wins.reduce((a, w) => !a || w.remaining < a.remaining ? w : a, null)
             readonly property var pace: main ? Burn.pace(agent, main.key) : null
@@ -312,7 +312,7 @@ Item {
             readonly property var series: Burn.dailySeries(agent)
             spacing: 16
 
-            // Identité : icône, nom, forfait + provenance des limites.
+            // Identity: icon, name, plan + source of the limits.
             Item {
                 width: parent.width
                 height: 40
@@ -346,7 +346,7 @@ Item {
                         elide: Text.ElideRight
                     }
                 }
-                // Couleur sur le point seul : le texte coloré se lit mal sur le fond clair du popover.
+                // Color on the dot only: colored text reads poorly on the popover's light background.
                 Rectangle {
                     id: badge
                     readonly property color c: root.stateTone(av.provider.state)
@@ -366,13 +366,13 @@ Item {
                 }
             }
 
-            // Limites refusées : connexion expirée, ou réseau coupé avec un jeton expiré (sortie de veille).
-            // Sans limites gardées, « Quota indisponible » plus bas le dit déjà.
+            // Limits refused: sign-in expired, or network down with an expired token (waking from sleep).
+            // Without saved limits, "Quota unavailable" below already says so.
             Banner {
                 width: parent.width
-                text: av.provider.state === "expired" && av.main ? av.provider.detail + " Dernières valeurs enregistrées affichées." : ""
+                text: av.provider.state === "expired" && av.main ? av.provider.detail + " Showing the last saved values." : ""
             }
-            // Échec du dernier harness de cet agent (page du dashboard) : affiché ici seulement.
+            // Failure of this agent's last harness (dashboard page): shown here only.
             Banner {
                 width: parent.width
                 text: av.provider.error
@@ -383,46 +383,46 @@ Item {
                 Stat {
                     id: spend
                     width: parent.width * 0.58
-                    title: "Dépense"
+                    title: "Spend"
                     value: Burn.money(root.spent(av.series, 30))
-                    detail: "30 derniers jours · équivalent API"
+                    detail: "Last 30 days · API equivalent"
                 }
                 Stat {
                     visible: typeof av.sub?.pricePerMonth === "number"
                     width: parent.width - spend.width
-                    title: "Forfait mensuel"
+                    title: "Monthly plan"
                     value: Burn.money(av.sub?.pricePerMonth)
                     detail: av.sub?.plan ?? ""
                 }
             }
 
-            // Aucune limite connue (agent sans abonnement, ou 1er chargement).
+            // No known limit (agent without a subscription, or 1st load).
             Column {
                 visible: !av.main
                 width: parent.width
                 spacing: 6
                 Txt {
-                    text: Burn.loading ? "Lecture de l'usage…" : "Quota indisponible"
+                    text: Burn.loading ? "Reading usage…" : "Quota unavailable"
                     font.pixelSize: 20
                     font.bold: true
                 }
-                // Pourquoi : non connecté ou hors ligne (Claude), relevé absent ou expiré (logs Codex de plus de 7 j).
+                // Why: not signed in or offline (Claude), reading missing or expired (Codex logs older than 7 d).
                 Txt {
                     width: parent.width
-                    text: Burn.loading ? "Chargement des limites d'abonnement." : av.provider.detail
+                    text: Burn.loading ? "Loading subscription limits." : av.provider.detail
                     color: Colors.muted
                     wrapMode: Text.WordWrap
                 }
             }
 
-            // Restant de la fenêtre en vedette : grand chiffre, fenêtre et reset à droite.
+            // What is left of the featured window: big number, window and reset on the right.
             Item {
                 visible: !!av.main
                 width: parent.width
                 height: big.implicitHeight
                 Txt {
                     id: big
-                    text: av.main ? Math.round(av.main.remaining) : ""
+                    text: av.main ? Math.round(av.main.remaining) + "%" : ""
                     font.pixelSize: 44
                     font.bold: true
                 }
@@ -430,7 +430,7 @@ Item {
                     anchors.left: big.right
                     anchors.leftMargin: 8
                     anchors.baseline: big.baseline
-                    text: "% restant"
+                    text: "left"
                     color: Colors.muted
                     font.pixelSize: 16
                 }
@@ -447,14 +447,14 @@ Item {
                     Txt {
                         anchors.right: parent.right
                         visible: (av.main?.resetsAtMs ?? 0) > 0
-                        text: "réinit. " + Burn.until(av.main?.resetsAtMs ?? 0)
+                        text: "resets " + Burn.until(av.main?.resetsAtMs ?? 0)
                         color: Colors.muted
                         font.pixelSize: 11
                     }
                 }
             }
 
-            // Autres fenêtres (session 5 h, limites par modèle).
+            // Other windows (5-hour session, per-model limits).
             Column {
                 id: others
                 width: parent.width
@@ -474,14 +474,14 @@ Item {
                         Txt {
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
-                            text: Burn.pct(win.modelData.remaining) + " restant"
-                                + (win.modelData.resetsAtMs > 0 ? " · réinit. " + Burn.until(win.modelData.resetsAtMs) : "")
+                            text: Burn.pct(win.modelData.remaining) + " left"
+                                + (win.modelData.resetsAtMs > 0 ? " · resets " + Burn.until(win.modelData.resetsAtMs) : "")
                         }
                     }
                 }
             }
 
-            // Rythme : la fenêtre en vedette tient-elle jusqu'au reset ?
+            // Pace: does the featured window last until the reset?
             Column {
                 visible: !!av.pace
                 width: parent.width
@@ -525,7 +525,7 @@ Item {
             Txt {
                 visible: !!av.main
                 width: parent.width
-                text: "Ton historique de quota se construit à chaque rafraîchissement."
+                text: "Your quota history builds up with each refresh."
                 color: Colors.muted
                 font.pixelSize: 11
                 wrapMode: Text.WordWrap
@@ -533,9 +533,9 @@ Item {
         }
     }
 
-    // Onglet Général : dépense et tokens tous agents, liste des agents, 14 derniers jours. Tout vient
-    // de l'archive, comme le dashboard : hors ligne le CLI met les coûts à 0, et Claude Code purge
-    // ses logs de plus de 30 jours.
+    // General tab: spend and tokens across all agents, list of agents, last 14 days. Everything comes
+    // from the archive, like the dashboard: offline, the CLI sets costs to 0, and Claude Code purges
+    // its logs older than 30 days.
     Component {
         id: generalView
         Column {
@@ -543,12 +543,12 @@ Item {
             readonly property var all: Burn.dailySeries("")
             spacing: 16
 
-            // Sans données ni erreur ; l'erreur (CLI absent…) s'affiche seule sous le pied.
+            // No data and no error; an error (missing CLI…) shows on its own under the footer.
             Txt {
                 visible: gv.all.length === 0 && (Burn.loading || Burn.error === "")
                 width: parent.width
-                text: Burn.loading ? "Lecture de tes logs locaux…"
-                    : "Aucune donnée d'usage : lance une session d'agent puis rafraîchis."
+                text: Burn.loading ? "Reading your local logs…"
+                    : "No usage data: start an agent session, then refresh."
                 color: Colors.muted
                 wrapMode: Text.WordWrap
             }
@@ -556,9 +556,9 @@ Item {
             Stat {
                 visible: gv.all.length > 0
                 width: parent.width
-                title: "Dépense totale"
+                title: "Total spend"
                 value: Burn.money(Burn.priced(root.sum(gv.all, "cost"), root.sum(gv.all, "tokens")))
-                detail: "Tous agents · équivalent API"
+                detail: "All agents · API equivalent"
                 size: 36
             }
             Row {
@@ -568,14 +568,14 @@ Item {
                     width: parent.width / 2
                     title: "Tokens"
                     value: Burn.tokens(root.sum(gv.all, "tokens"))
-                    detail: "Entrée, sortie et cache"
+                    detail: "Input, output and cache"
                     size: 22
                 }
                 Stat {
                     width: parent.width / 2
-                    title: "Aujourd'hui"
+                    title: "Today"
                     value: Burn.money(root.spent(gv.all, 1))
-                    detail: "Dépense du jour"
+                    detail: "Today's spend"
                     size: 22
                 }
             }
@@ -596,10 +596,10 @@ Item {
                         height: 40
                         radius: 10
                         color: Colors.withAlpha(Colors.muted, 0.08)
-                        // Agent à quota : la ligne ouvre son onglet (app Mac : « Busiest agents »).
+                        // Agent with a quota: the row opens its tab (Mac app: "Busiest agents").
                         enabled: root.quotaAgents.includes(agentRow.modelData)
                         Accessible.role: agentRow.enabled ? Accessible.Button : Accessible.ListItem
-                        Accessible.name: Burn.agentName(agentRow.modelData) + " : " + agentRow.tokensText + ", " + agentRow.costText
+                        Accessible.name: Burn.agentName(agentRow.modelData) + ": " + agentRow.tokensText + ", " + agentRow.costText
                         onClicked: root.tab = agentRow.modelData
                         AgentIcon {
                             id: rowIcon
@@ -649,7 +649,7 @@ Item {
                 height: 16
                 Txt {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "14 derniers jours"
+                    text: "Last 14 days"
                     font.bold: true
                 }
                 Txt {
@@ -666,7 +666,7 @@ Item {
                 width: parent.width
                 compact: true
                 points: spark.lastDays(gv.all, 14)
-                unit: ""   // total des 14 jours déjà en en-tête
+                unit: ""   // 14-day total already in the header
             }
         }
     }

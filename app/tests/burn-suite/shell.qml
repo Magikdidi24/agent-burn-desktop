@@ -2,14 +2,14 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 
-// Test headless de Burn.qml (aucune fenêtre), sous qs et sous le shim de l'app de bureau : mêmes résultats
-// attendus. Fixtures de tests/fixtures (racine du dépôt) servies par un faux CLI (fake/). Depuis ce dossier :
-//   qs   : sur une copie de ce fichier et de shared/Burn.qml, XDG_* jetables : docs/DEVELOPMENT.md, « Suite du
-//          cœur » (qs sort en 0 même en échec : lire la ligne RESULT)
-//   shim : python ../run_burn_suite.py   (python du venv PySide6 ; code 1 si un test échoue)
-// BURN_TEST=corrupt : fichiers persistés illisibles → copie .bak, puis états des agents sans compte.
-// BURN_TEST=timeout : CLI bloqué → summary et relevé léger tués par le chien de garde, délai abaissé à 10 s.
-// Burn n'est référencé qu'après l'écriture des fichiers de départ (singleton créé au 1er accès).
+// Headless test of Burn.qml (no window), under qs and under the desktop app's shim: same expected
+// results. Fixtures from tests/fixtures (repo root) served by a fake CLI (fake/). From this directory:
+//   qs:   on a copy of this file and of shared/Burn.qml, disposable XDG_*: docs/DEVELOPMENT.md, "Core
+//         suite (Burn.qml)" (qs exits with 0 even on failure: read the RESULT line)
+//   shim: python ../run_burn_suite.py   (python from the PySide6 venv; code 1 if a test fails)
+// BURN_TEST=corrupt: unreadable persisted files → .bak copy, then agent states without an account.
+// BURN_TEST=timeout: stuck CLI → summary and light reading killed by the watchdog, timeout lowered to 10 s.
+// Burn is referenced only after the seed files are written (singleton created on 1st access).
 Scope {
     id: t
 
@@ -17,7 +17,7 @@ Scope {
     readonly property string fake: String(Quickshell.env("AGENT_BURN_BIN")).replace(/\/[^\/]*$/, "")
     readonly property bool corrupt: Quickshell.env("BURN_TEST") === "corrupt"
     readonly property bool slow: Quickshell.env("BURN_TEST") === "timeout"
-    readonly property string garbage: "{pas du json " + Date.now()   // unique : un vieux .bak ne masque rien
+    readonly property string garbage: "{not json " + Date.now()   // unique: an old .bak hides nothing
     property int step: 0
     property int passed: 0
     property int failed: 0
@@ -26,25 +26,25 @@ Scope {
     property real burnAt: 0
     property real mark: 0
 
-    // console.log est masqué par le niveau de log par défaut de qs : assert (ERROR) et info.
+    // console.log is hidden by qs's default log level: assert (ERROR) and info.
     function check(ok, msg) {
         if (ok) passed++;
         else failed++;
-        console.assert(ok, "FAIL [étape " + step + "] " + msg);
+        console.assert(ok, "FAIL [step " + step + "] " + msg);
     }
     function eq(a, b, msg) {
-        check(a === b, msg + " : attendu " + JSON.stringify(b) + ", obtenu " + JSON.stringify(a));
+        check(a === b, msg + ": expected " + JSON.stringify(b) + ", got " + JSON.stringify(a));
     }
     function near(a, b, eps, msg) {
-        check(typeof a === "number" && Math.abs(a - b) <= eps, msg + " : attendu ≈" + b + ", obtenu " + a);
+        check(typeof a === "number" && Math.abs(a - b) <= eps, msg + ": expected ≈" + b + ", got " + a);
     }
     function read(path) { rd.path = path; rd.reload(); return rd.text(); }
     function rawCalls() { return read(fake + "/calls.log").split("\n").filter(l => l); }
-    // --config sur chaque appel (vérifié à la fin) : retiré pour comparer le reste.
+    // --config on every call (checked at the end): removed to compare the rest.
     function calls() { return rawCalls().map(l => l.replace(" --config " + Burn.cliConfig, "")); }
     function summaryCalls() { return calls().filter(l => l.startsWith("summary") && l.indexOf("--since") < 0); }
     function last() { return Burn.recentErrors[Burn.recentErrors.length - 1] ?? {}; }
-    // Date locale à J+offset, séparateur au choix (indépendant de Burn).
+    // Local date at today+offset, chosen separator (independent of Burn).
     function date(offset, sep) {
         var d = new Date();
         d.setDate(d.getDate() + offset);
@@ -60,7 +60,7 @@ Scope {
     }
     function refreshed() { return !Burn.loading && summaryCalls().length > mark; }
     function finish() {
-        console.info("RESULT: " + passed + " ok, " + failed + " échec(s)");
+        console.info("RESULT: " + passed + " ok, " + failed + " failed");
         step = -1;
         Qt.quit();
     }
@@ -87,7 +87,7 @@ Scope {
                            weeklyResetsAtMs: n + 3 * day, scoped: [], observedAtMs: n - 7200000 },
                 samples: { "claude:weekly": [{ t: n - 9 * day, used: 10 }, { t: n - 7200000, used: 50 }] }
             }));
-            // Dernier summary réussi d'une session précédente : maison vide (rien d'installé).
+            // Last successful summary from a previous session: empty home (nothing installed).
             sumSeed.setText(JSON.stringify({ at: n - 3 * 3600000, data: JSON.parse(read(fake + "/summary-empty.json")) }));
         }
         next();
@@ -96,39 +96,39 @@ Scope {
     Timer {
         interval: 100; repeat: true; running: t.step > 0
         onTriggered: {
-            try { t.tick(); } catch (e) { t.check(false, "exception : " + e + " " + e.stack); t.next(); }
-            if (t.step > 0 && t.waited(t.slow ? 30000 : 8000)) { t.check(false, "délai dépassé"); t.finish(); }
+            try { t.tick(); } catch (e) { t.check(false, "exception: " + e + " " + e.stack); t.next(); }
+            if (t.step > 0 && t.waited(t.slow ? 30000 : 8000)) { t.check(false, "timed out"); t.finish(); }
         }
     }
 
     function tick() {
         var w, p, l, ps, u;
         switch (step) {
-        case 1:   // 1er accès à Burn : état persisté chargé, avant le 1er refresh (3 s)
+        case 1:   // 1st access to Burn: persisted state loaded, before the 1st refresh (3 s)
             burnAt = Date.now();
             if (corrupt) {
-                eq(Burn.historyDays, 0, "archive illisible → vide");
-                eq(Burn.account, null, "quota illisible → pas de compte");
-                eq(read(Quickshell.dataPath("burn-history.json.bak")), garbage, "archive brute copiée en .bak");
-                eq(read(Quickshell.dataPath("burn-quota.json.bak")), garbage, "quota brut copié en .bak");
-                eq(read(Quickshell.dataPath("burn-summary.json.bak")), garbage, "summary brut copié en .bak");
-                eq(Burn.summary, null, "summary illisible → aucun");
-                eq(Burn.summaryCached, false, "rien en cache");
-                eq(Burn.dataState, "unavailable", "dataState sans summary");
-                eq(Burn.stateText(Burn.dataState), "Indisponible", "stateText unavailable");
+                eq(Burn.historyDays, 0, "unreadable archive → empty");
+                eq(Burn.account, null, "unreadable quota → no account");
+                eq(read(Quickshell.dataPath("burn-history.json.bak")), garbage, "raw archive copied to .bak");
+                eq(read(Quickshell.dataPath("burn-quota.json.bak")), garbage, "raw quota copied to .bak");
+                eq(read(Quickshell.dataPath("burn-summary.json.bak")), garbage, "raw summary copied to .bak");
+                eq(Burn.summary, null, "unreadable summary → none");
+                eq(Burn.summaryCached, false, "nothing cached");
+                eq(Burn.dataState, "unavailable", "dataState without summary");
+                eq(Burn.stateText(Burn.dataState), "Unavailable", "stateText unavailable");
                 ps = Burn.providerState("claude");
-                eq(ps.state, "unknown", "claude avant le 1er rapport");
-                eq(ps.label, "Inconnu", "label unknown");
-                eq(ps.at, 0, "unknown : aucun relevé");
-                mode.setText("fail\n");   // 1er summary du minuteur : en échec
+                eq(ps.state, "unknown", "claude before the 1st report");
+                eq(ps.label, "Unknown", "label unknown");
+                eq(ps.at, 0, "unknown: no reading");
+                mode.setText("fail\n");   // the timer's 1st summary: failed
                 step = 79;
                 next();
                 return;
             }
             if (slow) {
-                Burn.cliTimeoutMs = 10000;   // 120 s dans l'app : même chien de garde, sans 2 min d'attente
-                mode.setText("slow\n");   // avant le 1er refresh (3 s)
-                Burn.loadQuota();          // relevé léger bloqué lui aussi
+                Burn.cliTimeoutMs = 10000;   // 120 s in the app: same watchdog, without a 2-min wait
+                mode.setText("slow\n");   // before the 1st refresh (3 s)
+                Burn.loadQuota();          // light reading stuck too
                 step = 89;
                 next();
                 return;
@@ -136,109 +136,109 @@ Scope {
             eq(Burn.money(null), "—", "money(null)");
             eq(Burn.money(undefined), "—", "money(undefined)");
             eq(Burn.money(831.8660224199998), "$831.87", "money");
-            eq(Burn.money(1075.4374865599998), "$1,075.44", "money milliers");
+            eq(Burn.money(1075.4374865599998), "$1,075.44", "money thousands");
             eq(Burn.money(0), "$0.00", "money(0)");
-            eq(Burn.priced(0, 5), null, "priced : tokens sans prix → inconnu");
-            eq(Burn.priced(0, 0), 0, "priced : rien d'utilisé → 0");
-            eq(Burn.priced(1.5, 10), 1.5, "priced : coût gardé");
+            eq(Burn.priced(0, 5), null, "priced: unpriced tokens → unknown");
+            eq(Burn.priced(0, 0), 0, "priced: nothing used → 0");
+            eq(Burn.priced(1.5, 10), 1.5, "priced: cost kept");
             eq(Burn.priced(null, 10), null, "priced(null)");
-            eq(Burn.money(Burn.priced(0, 5)), "—", "jamais $0.00 sans prix");
+            eq(Burn.money(Burn.priced(0, 5)), "—", "never $0.00 without a price");
             eq(Burn.tokens(2005632865), "2.01B", "tokens B");
             eq(Burn.tokens(181976274), "181.98M", "tokens M");
             eq(Burn.tokens(21404), "21.4K", "tokens K");
             eq(Burn.tokens(950), "950", "tokens");
             eq(Burn.tokens(null), "—", "tokens(null)");
-            eq(Burn.pct(75), "75 %", "pct");
-            eq(Burn.pct(74.6), "75 %", "pct arrondi");
+            eq(Burn.pct(75), "75%", "pct");
+            eq(Burn.pct(74.6), "75%", "pct rounded");
             eq(Burn.pct(null), "—", "pct(null)");
             var n = Burn.now;
-            eq(Burn.ago(0), "jamais", "ago(0)");
-            eq(Burn.ago(n), "à l'instant", "ago(now)");
-            eq(Burn.ago(n - 12000), "il y a 12 s", "ago s");
-            eq(Burn.ago(n - 180000), "il y a 3 min", "ago min");
-            eq(Burn.ago(n - 7200000), "il y a 2 h", "ago h");
-            eq(Burn.ago(n - 3 * day), "il y a 3 j", "ago j");
-            eq(Burn.until(n + (4 * 3600 + 12 * 60 + 30) * 1000), "dans 4 h 12", "until h");
-            eq(Burn.until(n + (4 * 3600 + 5 * 60) * 1000), "dans 4 h 05", "until h 0x");
-            eq(Burn.until(n + (2 * 86400 + 3 * 3600 + 30) * 1000), "dans 2 j 3 h", "until j");
-            eq(Burn.until(n + 12 * 60000 + 5000), "dans 12 min", "until min");
-            eq(Burn.until(n - 1000), "maintenant", "until passé");
+            eq(Burn.ago(0), "never", "ago(0)");
+            eq(Burn.ago(n), "just now", "ago(now)");
+            eq(Burn.ago(n - 12000), "12 s ago", "ago s");
+            eq(Burn.ago(n - 180000), "3 min ago", "ago min");
+            eq(Burn.ago(n - 7200000), "2 h ago", "ago h");
+            eq(Burn.ago(n - 3 * day), "3 d ago", "ago d");
+            eq(Burn.until(n + (4 * 3600 + 12 * 60 + 30) * 1000), "in 4 h 12 min", "until h");
+            eq(Burn.until(n + (4 * 3600 + 5 * 60) * 1000), "in 4 h 05 min", "until h 0x");
+            eq(Burn.until(n + (2 * 86400 + 3 * 3600 + 30) * 1000), "in 2 d 3 h", "until d");
+            eq(Burn.until(n + 12 * 60000 + 5000), "in 12 min", "until min");
+            eq(Burn.until(n - 1000), "now", "until past");
             eq(Burn.until(0), "—", "until(0)");
             eq(Burn.agentName("claude"), "Claude Code", "agentName");
             eq(Burn.agentName("opencode"), "OpenCode", "agentName opencode");
-            eq(Burn.agentName("zz"), "zz", "agentName inconnu");
+            eq(Burn.agentName("zz"), "zz", "agentName unknown");
             check(String(Burn.agentIcon("claude")).endsWith("assets/burn/claude.png"), "agentIcon " + Burn.agentIcon("claude"));
-            eq(Burn.agentIcon("zz"), "", "agentIcon inconnu");
+            eq(Burn.agentIcon("zz"), "", "agentIcon unknown");
             eq(String(Burn.agentColor("claude")), "#d97757", "agentColor");
             eq(String(Burn.agentColor("codex")), "#10a37f", "agentColor codex");
-            eq(String(Burn.agentColor("pi")), "#6b7280", "agentColor sans marque");
-            eq(String(Burn.agentColor("zz")), "#6b7280", "agentColor défaut");
+            eq(String(Burn.agentColor("pi")), "#6b7280", "agentColor without brand");
+            eq(String(Burn.agentColor("zz")), "#6b7280", "agentColor default");
             eq(Object.keys(Burn.providers).join(","), "claude,codex,cursor,opencode,gemini,pi,droid,openclaw,kimi,amp,qwen",
-               "registre des fournisseurs");
-            eq(Object.keys(Burn.providers).filter(a => Burn.providers[a].harness).join(","), "claude,codex", "harness : claude|codex");
-            eq(Burn.names.qwen, "Qwen", "names lu du registre");
+               "provider registry");
+            eq(Object.keys(Burn.providers).filter(a => Burn.providers[a].harness).join(","), "claude,codex", "harness: claude|codex");
+            eq(Burn.names.qwen, "Qwen", "names read from the registry");
             eq(JSON.stringify(Burn.knownProviders), '["claude","codex"]', "knownProviders");
-            eq(Burn.stateText("live"), "En direct", "stateText live");
-            eq(Burn.stateText("cached"), "En cache", "stateText cached");
-            eq(Burn.stateText("unavailable"), "Indisponible", "stateText unavailable");
-            eq(Burn.cliHint, "CLI agent-burn introuvable (~/.local/bin/agent-burn) : relance install.sh", "cliHint par défaut");
-            eq(Burn.cliConfig, Quickshell.dataPath("agent-burn-cli.json"), "cliConfig dans le dossier de données");
-            eq(Burn.refreshInterval, 300000, "cadence par défaut 5 min");
-            eq(Burn.accessibleText, false, "textes non exposés par défaut (barre : boucle de rendu threaded)");
+            eq(Burn.stateText("live"), "Live", "stateText live");
+            eq(Burn.stateText("cached"), "Cached", "stateText cached");
+            eq(Burn.stateText("unavailable"), "Unavailable", "stateText unavailable");
+            eq(Burn.cliHint, "agent-burn CLI not found (~/.local/bin/agent-burn): rerun install.sh", "default cliHint");
+            eq(Burn.cliConfig, Quickshell.dataPath("agent-burn-cli.json"), "cliConfig in the data folder");
+            eq(Burn.refreshInterval, 300000, "default cadence 5 min");
+            eq(Burn.accessibleText, false, "texts not exposed by default (bar: threaded render loop)");
 
-            check(Burn.summary !== null && Burn.summary.agents.length === 0, "summary en cache relu au démarrage");
+            check(Burn.summary !== null && Burn.summary.agents.length === 0, "cached summary reread at startup");
             eq(Burn.summaryCached, true, "summaryCached");
-            eq(Burn.updatedAt, seedAt - 3 * 3600000, "updatedAt du summary en cache");
-            eq(Burn.dataState, "cached", "dataState : en cache");
-            eq(Burn.stateText(Burn.dataState), "En cache", "stateText du summary en cache");
-            eq(Burn.pricingMissing, false, "maison vide : pas de tarif manquant");
-            eq(Burn.recentErrors.length, 0, "aucun échec");
-            eq(JSON.stringify(Burn.harnessErrors), "{}", "aucun échec de harness");
-            eq(JSON.stringify(Burn.agents), '["claude"]', "agents : ceux de l'archive avant le 1er summary");
-            eq(Burn.account.weeklyUsedPercent, 50, "compte persisté");
+            eq(Burn.updatedAt, seedAt - 3 * 3600000, "updatedAt of the cached summary");
+            eq(Burn.dataState, "cached", "dataState: cached");
+            eq(Burn.stateText(Burn.dataState), "Cached", "stateText of the cached summary");
+            eq(Burn.pricingMissing, false, "empty home: no missing pricing");
+            eq(Burn.recentErrors.length, 0, "no failure");
+            eq(JSON.stringify(Burn.harnessErrors), "{}", "no harness failure");
+            eq(JSON.stringify(Burn.agents), '["claude"]', "agents: those of the archive before the 1st summary");
+            eq(Burn.account.weeklyUsedPercent, 50, "persisted account");
             ps = Burn.providerState("claude");
-            eq(ps.state, "stale", "claude : compte persisté vieux de 2 h");
-            eq(ps.label, "Relevé ancien", "label stale");
-            eq(ps.at, seedAt - 7200000, "at = relevé du compte");
-            eq(ps.error, "", "claude sans erreur");
+            eq(ps.state, "stale", "claude: persisted account 2 h old");
+            eq(ps.label, "Stale reading", "label stale");
+            eq(ps.at, seedAt - 7200000, "at = account reading");
+            eq(ps.error, "", "claude without error");
             ps = Burn.providerState("codex");
-            eq(ps.state, "none", "codex : ni usage ni abonnement");
-            eq(ps.label, "Non détecté", "label none");
-            eq(ps.at, seedAt - 3 * 3600000, "at = summary en cache");
+            eq(ps.state, "none", "codex: no usage and no subscription");
+            eq(ps.label, "Not detected", "label none");
+            eq(ps.at, seedAt - 3 * 3600000, "at = cached summary");
             w = Burn.windows("claude");
-            eq(w.map(x => x.key).join(","), "session,weekly", "fenêtres du compte persisté");
-            eq(w[0].used, 0, "session passée → réinitialisée");
-            eq(w[0].remaining, 100, "session réinitialisée → 100 % restant");
-            eq(w[0].resetsAtMs, 0, "session : prochain reset inconnu");
+            eq(w.map(x => x.key).join(","), "session,weekly", "windows of the persisted account");
+            eq(w[0].used, 0, "past session → reset");
+            eq(w[0].remaining, 100, "reset session → 100% left");
+            eq(w[0].resetsAtMs, 0, "session: next reset unknown");
             eq(w[1].used, 50, "weekly used");
             eq(w[1].remaining, 50, "weekly remaining");
             eq(w[1].resetsAtMs, seedAt + 3 * day, "weekly resetsAtMs");
             eq(w[1].startMs, seedAt - 4 * day, "weekly startMs");
             eq(w[1].durationMin, 10080, "weekly durationMin");
-            eq(Burn.windows("codex").length, 0, "codex sans abonnement");
+            eq(Burn.windows("codex").length, 0, "codex without subscription");
             eq(Burn.remaining, 50, "remaining");
-            eq(Burn.remainingKey, "sem.", "remainingKey");
+            eq(Burn.remainingKey, "wk", "remainingKey");
             eq(Burn.remainingAgent, "claude", "remainingAgent");
             eq(Burn.remainingWindow, "weekly", "remainingWindow");
             p = Burn.pace("claude", "weekly");
-            eq(p.status, "good", "pace persisté");
+            eq(p.status, "good", "persisted pace");
             eq(p.used, 50, "pace used");
-            near(p.elapsed, 94 / 168, 1e-6, "pace elapsed (au relevé)");
+            near(p.elapsed, 94 / 168, 1e-6, "pace elapsed (at the reading)");
             near(p.projected, 50 * 168 / 94, 1e-3, "pace projected");
-            eq(p.exhaustAtMs, 0, "pas d'épuisement");
-            eq(p.title, "De la marge pour continuer", "pace title");
-            eq(Burn.pace("claude", "session").status, "good", "session réinitialisée → good");
-            eq(Burn.pace("claude", "session").projected, -1, "session sans usage → pas de projection");
-            eq(Burn.pace("claude", "nope").status, "unknown", "fenêtre inconnue");
-            eq(Burn.pace("claude", "nope").used, null, "fenêtre inconnue : used null");
+            eq(p.exhaustAtMs, 0, "no exhaustion");
+            eq(p.title, "Room to keep going", "pace title");
+            eq(Burn.pace("claude", "session").status, "good", "reset session → good");
+            eq(Burn.pace("claude", "session").projected, -1, "session without usage → no projection");
+            eq(Burn.pace("claude", "nope").status, "unknown", "unknown window");
+            eq(Burn.pace("claude", "nope").used, null, "unknown window: used null");
             l = Burn.quotaSamples("claude", "weekly");
-            eq(l.length, 1, "échantillon hors fenêtre exclu");
-            eq(l.length && l[0].used, 50, "échantillon persisté");
-            eq(Burn.historyDays, 1, "archive persistée, summary en cache non fusionné");
+            eq(l.length, 1, "sample outside the window excluded");
+            eq(l.length && l[0].used, 50, "persisted sample");
+            eq(Burn.historyDays, 1, "persisted archive, cached summary not merged");
             eq(Burn.dailySeries("").length && Burn.dailySeries("")[0].date, "2026-08-01", "dailySeries archive");
-            eq(Burn.dailySeries("codex").length, 0, "dailySeries agent absent");
+            eq(Burn.dailySeries("codex").length, 0, "dailySeries missing agent");
             check(Burn.dataDir.length > 0, "dataDir");
-            // Dashboard ouvert au lancement : summary tout de suite, harness demandé pendant qu'il tourne.
+            // Dashboard open at launch: summary right away, harness requested while it runs.
             mode.setText("delay\n");
             Burn.poke();
             Burn.loadHarness("claude");
@@ -246,90 +246,90 @@ Scope {
             break;
         case 2:
             if (calls().length === 0) return;
-            check(Burn.loading && !calls().some(c => c.startsWith("harness")), "harness différé pendant le summary : " + calls());
+            check(Burn.loading && !calls().some(c => c.startsWith("harness")), "harness deferred during the summary: " + calls());
             next();
             break;
-        case 3:   // 1er summary (fixture A) puis le harness différé ; minuteur des 3 s passé
+        case 3:   // 1st summary (fixture A) then the deferred harness; 3-s timer elapsed
             if (Burn.summaryCached || !Burn.harnesses.claude || Burn.loading || Date.now() - burnAt < 3600) return;
             mode.setText("ok\n");
             eq(JSON.stringify(calls()), JSON.stringify(["summary --value --json --no-color FORCE=0",
-                "harness claude --value --json --no-color FORCE=0"]), "un seul summary au démarrage, puis le harness");
-            near(Burn.summary.totals.totalCost, 831.866, 0.001, "summary chargé");
-            eq(Burn.summaryCached, false, "summary en direct");
+                "harness claude --value --json --no-color FORCE=0"]), "a single summary at startup, then the harness");
+            near(Burn.summary.totals.totalCost, 831.866, 0.001, "summary loaded");
+            eq(Burn.summaryCached, false, "live summary");
             eq(Burn.dataState, "live", "dataState live");
-            eq(Burn.pricingMissing, false, "tarifs présents");
+            eq(Burn.pricingMissing, false, "pricing present");
             ps = Burn.providerState("claude");
-            eq(ps.state, "live", "claude en direct");
-            eq(ps.label, "En direct", "label live");
-            eq(ps.at, Burn.account.observedAtMs, "at = relevé du compte");
-            eq(Burn.providerState("codex").state, "none", "codex toujours absent");
+            eq(ps.state, "live", "claude live");
+            eq(ps.label, "Live", "label live");
+            eq(ps.at, Burn.account.observedAtMs, "at = account reading");
+            eq(Burn.providerState("codex").state, "none", "codex still absent");
             eq(JSON.stringify(Burn.agents), '["claude"]', "agents");
             eq(Burn.agentEntry("claude").totalTokens, 2005632865, "agentEntry");
-            eq(Burn.agentEntry("zz"), null, "agentEntry absent");
+            eq(Burn.agentEntry("zz"), null, "agentEntry missing");
             eq(Burn.subEntry("claude").plan, "Max 5×", "subEntry");
-            eq(Burn.subEntry("zz"), null, "subEntry absent");
-            eq(Burn.error, "", "pas d'erreur");
-            eq(Burn.cliMissing, false, "CLI présent");
+            eq(Burn.subEntry("zz"), null, "subEntry missing");
+            eq(Burn.error, "", "no error");
+            eq(Burn.cliMissing, false, "CLI present");
             w = Burn.windows("claude");
-            eq(w.map(x => x.key).join(","), "session,weekly,scoped:Fable", "clés");
-            eq(w.map(x => x.label).join(","), "Session 5 h,Semaine,Fable · semaine", "libellés");
-            eq(w.map(x => x.short).join(","), "5 h,sem.,Fable", "courts");
+            eq(w.map(x => x.key).join(","), "session,weekly,scoped:Fable", "keys");
+            eq(w.map(x => x.label).join(","), "5-hour session,Week,Fable · week", "labels");
+            eq(w.map(x => x.short).join(","), "5 h,wk,Fable", "short labels");
             eq(w[0].used, 3, "session used");
             eq(w[0].durationMin, 300, "session 300 min");
             eq(w[0].startMs, w[0].resetsAtMs - 300 * 60000, "session startMs");
             eq(w[1].remaining, 25, "weekly remaining");
-            eq(w[2].durationMin, 10080, "scoped hebdo");
-            eq(Burn.remaining, 25, "remaining = fenêtre la plus contraignante");
-            eq(Burn.remainingKey, "sem.", "remainingKey");
+            eq(w[2].durationMin, 10080, "scoped weekly");
+            eq(Burn.remaining, 25, "remaining = tightest window");
+            eq(Burn.remainingKey, "wk", "remainingKey");
             eq(Burn.remainingWindow, "weekly", "remainingWindow");
             p = Burn.pace("claude", "weekly");
-            eq(p.status, "warn", "épuisement avant reset → warn");
-            near(p.projected, 102.122, 0.01, "projection (= estimate du CLI)");
-            near(p.exhaustAtMs, w[1].resetsAtMs - 12569600, 60000, "épuisement ≈ 3 h 30 avant reset");
-            eq(p.title, "Rythme un peu trop rapide", "title warn");
-            check(p.detail.indexOf("%/jour") > 0, "detail : rythme conseillé par jour — " + p.detail);
-            console.info("pace weekly : " + p.title + " — " + p.detail);
+            eq(p.status, "warn", "exhaustion before reset → warn");
+            near(p.projected, 102.122, 0.01, "projection (= CLI estimate)");
+            near(p.exhaustAtMs, w[1].resetsAtMs - 12569600, 60000, "exhaustion ≈ 3 h 30 min before reset");
+            eq(p.title, "Pace slightly too fast", "title warn");
+            check(p.detail.indexOf("%/day") > 0, "detail: advised pace per day — " + p.detail);
+            console.info("pace weekly: " + p.title + " — " + p.detail);
             p = Burn.pace("claude", "session");
             eq(p.status, "good", "session good");
             near(p.projected, 15, 0.01, "session projected");
-            eq(Burn.historyDays, 16, "archive : 15 jours + 1 ancien");
-            near(Burn.history[date(0, "-")].cost, 102.055, 0.001, "archive aujourd'hui");
-            eq(Burn.history["2026-08-01"].cost, 5, "jour ancien conservé");
+            eq(Burn.historyDays, 16, "archive: 15 days + 1 old");
+            near(Burn.history[date(0, "-")].cost, 102.055, 0.001, "archive today");
+            eq(Burn.history["2026-08-01"].cost, 5, "old day kept");
             l = Burn.dailySeries("");
-            eq(l.length, 16, "dailySeries tous agents");
-            check(l.every((d, i) => i === 0 || l[i - 1].date < d.date), "dailySeries trié");
+            eq(l.length, 16, "dailySeries all agents");
+            check(l.every((d, i) => i === 0 || l[i - 1].date < d.date), "dailySeries sorted");
             eq(Burn.dailySeries("claude").length, 16, "dailySeries claude");
-            near(Burn.spendSince("", 7), 806.578, 0.001, "spendSince 7 j");
-            near(Burn.spendSince("claude", 1), 102.055, 0.001, "spendSince aujourd'hui");
-            eq(Burn.spendSince("codex", 7), 0, "spendSince agent absent");
+            near(Burn.spendSince("", 7), 806.578, 0.001, "spendSince 7 d");
+            near(Burn.spendSince("claude", 1), 102.055, 0.001, "spendSince today");
+            eq(Burn.spendSince("codex", 7), 0, "spendSince missing agent");
             l = Burn.quotaSamples("claude", "weekly");
-            eq(l.length, 2, "échantillon ajouté");
-            check(l.length === 2 && l[0].t < l[1].t && l[1].used === 75, "échantillons triés");
-            eq(Burn.quotaSamples("claude", "session").length, 1, "échantillon session");
-            eq(Burn.quotaSamples("claude", "scoped:Fable").length, 1, "échantillon scoped");
-            Burn.poke();              // summary frais : ignoré
+            eq(l.length, 2, "sample added");
+            check(l.length === 2 && l[0].t < l[1].t && l[1].used === 75, "samples sorted");
+            eq(Burn.quotaSamples("claude", "session").length, 1, "session sample");
+            eq(Burn.quotaSamples("claude", "scoped:Fable").length, 1, "scoped sample");
+            Burn.poke();              // fresh summary: ignored
             mark = Burn.updatedAt;
             Burn.refresh(true);
-            Burn.refresh(false);      // déjà en cours : ignoré
+            Burn.refresh(false);      // already running: ignored
             next();
             break;
-        case 4:   // 2e summary (fixture B : vieux jours supprimés, aujourd'hui 150 $, hier à 0 $)
+        case 4:   // 2nd summary (fixture B: old days deleted, today $150, yesterday at $0)
             if (Burn.updatedAt === mark || Burn.loading) return;
             l = summaryCalls();
-            eq(l.length, 2, "poke et refresh concurrent ignorés");
-            eq(l[0], "summary --value --json --no-color FORCE=0", "arguments comme l'app Mac");
+            eq(l.length, 2, "poke and concurrent refresh ignored");
+            eq(l[0], "summary --value --json --no-color FORCE=0", "arguments like the Mac app");
             eq(l[1], "summary --value --json --no-color FORCE=1", "force → AGENT_BURN_FORCE_REFRESH=1");
-            eq(Burn.historyDays, 16, "jours sortis des logs conservés");
-            check(Burn.history[date(-25, "-")] !== undefined, "plus vieux jour conservé");
-            near(Burn.history[date(0, "-")].cost, 150, 0.001, "jour présent remplacé");
-            near(Burn.history[date(-1, "-")].cost, 489.289, 0.001, "coût 0 à tokens > 0 ignoré");
-            eq(Burn.history[date(-1, "-")].tokens, 1199324996, "tokens d'hier");
-            eq(Burn.summary.daily.length, 13, "summary remplacé");
-            near(Burn.spendSince("", 7), 806.578 - 102.055 + 150, 0.001, "spendSince après fusion");
-            eq(Burn.quotaSamples("claude", "weekly").length, 2, "même observedAtMs → pas de doublon");
+            eq(Burn.historyDays, 16, "days gone from the logs kept");
+            check(Burn.history[date(-25, "-")] !== undefined, "oldest day kept");
+            near(Burn.history[date(0, "-")].cost, 150, 0.001, "present day replaced");
+            near(Burn.history[date(-1, "-")].cost, 489.289, 0.001, "cost 0 with tokens > 0 ignored");
+            eq(Burn.history[date(-1, "-")].tokens, 1199324996, "yesterday's tokens");
+            eq(Burn.summary.daily.length, 13, "summary replaced");
+            near(Burn.spendSince("", 7), 806.578 - 102.055 + 150, 0.001, "spendSince after merge");
+            eq(Burn.quotaSamples("claude", "weekly").length, 2, "same observedAtMs → no duplicate");
             Burn.setRange("7d");
             eq(Burn.range, "7d", "range");
-            eq(Burn.rangeSummary, null, "rangeSummary null pendant son 1er chargement");
+            eq(Burn.rangeSummary, null, "rangeSummary null during its 1st load");
             next();
             break;
         case 5:   // run --since
@@ -340,42 +340,42 @@ Scope {
             mark = l.length;
             Burn.setRange("all");
             check(Burn.rangeSummary === Burn.summary, "all → summary");
-            Burn.setRange("7d");      // en cache : pas de nouveau run
-            near(Burn.rangeSummary.totals.totalCost, 999.99, 0.001, "rangeSummary en cache");
+            Burn.setRange("7d");      // cached: no new run
+            near(Burn.rangeSummary.totals.totalCost, 999.99, 0.001, "cached rangeSummary");
             Burn.setRange("bogus");
-            eq(Burn.range, "7d", "plage inconnue ignorée");
+            eq(Burn.range, "7d", "unknown range ignored");
             next();
             break;
         case 6:
             if (!waited(400)) return;
-            eq(calls().length, mark, "plage en cache : pas de run");
-            Burn.loadHarness("claude");   // chargé à l'étape 3, frais : ignoré
-            Burn.loadHarness("cursor");   // CLI : claude|codex seulement
+            eq(calls().length, mark, "cached range: no run");
+            Burn.loadHarness("claude");   // loaded at step 3, fresh: ignored
+            Burn.loadHarness("cursor");   // CLI: claude|codex only
             next();
             break;
         case 7:
             if (!Burn.harnesses.claude) return;
-            eq(Burn.harnesses.claude.plan, "Max 5×", "harness chargé");
+            eq(Burn.harnesses.claude.plan, "Max 5×", "harness loaded");
             eq(Burn.harnesses.claude.window.windowMinutes, 10080, "harness window");
             mark = calls().length;
-            Burn.loadHarness("claude");   // frais : ignoré
+            Burn.loadHarness("claude");   // fresh: ignored
             next();
             break;
-        case 8:   // fichiers persistés (sauvegarde différée 1 s)
+        case 8:   // persisted files (save deferred by 1 s)
             if (!waited(1500)) return;
-            eq(calls().length, mark, "harness frais : pas de run");
-            check(!calls().some(c => c.startsWith("harness cursor")), "harness cursor jamais lancé");
+            eq(calls().length, mark, "fresh harness: no run");
+            check(!calls().some(c => c.startsWith("harness cursor")), "harness cursor never launched");
             var h = JSON.parse(read(Quickshell.dataPath("burn-history.json")));
-            eq(Object.keys(h).length, 16, "archive écrite");
-            near(h[date(-1, "-")].cost, 489.289, 0.001, "archive écrite : hier");
-            eq(h["2026-08-01"].agents.claude.tokens, 1000, "archive écrite : jour ancien");
+            eq(Object.keys(h).length, 16, "archive written");
+            near(h[date(-1, "-")].cost, 489.289, 0.001, "archive written: yesterday");
+            eq(h["2026-08-01"].agents.claude.tokens, 1000, "archive written: old day");
             var q = JSON.parse(read(Quickshell.dataPath("burn-quota.json")));
-            eq(q.account.observedAtMs, Burn.account.observedAtMs, "compte écrit");
-            eq(q.samples["claude:weekly"].length, 2, "échantillon > 8 j purgé");
-            eq(q.samples["claude:session"].length, 1, "échantillons session écrits");
+            eq(q.account.observedAtMs, Burn.account.observedAtMs, "account written");
+            eq(q.samples["claude:weekly"].length, 2, "sample > 8 d purged");
+            eq(q.samples["claude:session"].length, 1, "session samples written");
             var s = JSON.parse(read(Quickshell.dataPath("burn-summary.json")));
-            eq(s.at, Burn.updatedAt, "summary écrit : instant du run");
-            eq(s.data.daily.length, 13, "summary écrit : le dernier (B)");
+            eq(s.at, Burn.updatedAt, "summary written: time of the run");
+            eq(s.data.daily.length, 13, "summary written: the latest (B)");
             mode.setText("fail\n");
             mark = Burn.updatedAt;
             Burn.refresh(false);
@@ -383,61 +383,61 @@ Scope {
             break;
         case 9:
             if (Burn.loading || Burn.error === "") return;
-            eq(Burn.error, "agent-burn a échoué (code 3)", "code de sortie, stderr vide");
-            check(Burn.summary !== null && Burn.updatedAt === mark, "summary conservé sur échec");
-            check(Burn.account !== null, "compte conservé sur échec");
-            eq(Burn.dataState, "cached", "dernier summary en échec → en cache");
-            eq(last().source, "summary", "recentErrors : source");
-            eq(last().msg, Burn.error, "recentErrors : message");
-            check(last().t > 0 && Date.now() - last().t < 5000, "recentErrors : instant");
+            eq(Burn.error, "agent-burn failed (code 3)", "exit code, empty stderr");
+            check(Burn.summary !== null && Burn.updatedAt === mark, "summary kept on failure");
+            check(Burn.account !== null, "account kept on failure");
+            eq(Burn.dataState, "cached", "last summary failed → cached");
+            eq(last().source, "summary", "recentErrors: source");
+            eq(last().msg, Burn.error, "recentErrors: message");
+            check(last().t > 0 && Date.now() - last().t < 5000, "recentErrors: time");
             mode.setText("err1\n");
             Burn.refresh(false);
             next();
             break;
-        case 10:   // code 1 : WARN puis Error: CliError("…") (CLAUDE_CONFIG_DIR invalide, sortie réelle)
+        case 10:   // code 1: WARN then Error: CliError("…") (invalid CLAUDE_CONFIG_DIR, real output)
             if (Burn.loading || Burn.error.indexOf("code 1") < 0) return;
-            var head = "agent-burn a échoué (code 1) : ";
+            var head = "agent-burn failed (code 1): ";
             check(Burn.error.startsWith(head + "No valid Claude data directories found in CLAUDE_CONFIG_DIR."),
-                  "détail : ligne Error: déballée, WARN ignoré — " + Burn.error);
-            eq(Burn.error.length - head.length, 160, "détail tronqué à 160 caractères");
-            check(Burn.error.endsWith("…") && Burn.error.indexOf("CliError") < 0, "détail tronqué et déballé");
+                  "detail: Error: line unwrapped, WARN ignored — " + Burn.error);
+            eq(Burn.error.length - head.length, 160, "detail truncated to 160 characters");
+            check(Burn.error.endsWith("…") && Burn.error.indexOf("CliError") < 0, "detail truncated and unwrapped");
             mode.setText("err2\n");
             Burn.refresh(false);
             next();
             break;
-        case 11:   // code 2 : option inconnue (CLI d'une autre version)
-            if (Burn.loading || Burn.error.indexOf("incompatible") < 0) return;
-            eq(Burn.error, "CLI agent-burn incompatible : Unknown summary option '--frobnicate'", "code 2 : 1re ligne du stderr");
+        case 11:   // code 2: unknown option (CLI of another version)
+            if (Burn.loading || Burn.error.indexOf("Incompatible") < 0) return;
+            eq(Burn.error, "Incompatible agent-burn CLI: Unknown summary option '--frobnicate'", "code 2: 1st stderr line");
             mode.setText("garbage\n");
             Burn.refresh(false);
             next();
             break;
         case 12:
-            if (Burn.loading || Burn.error.indexOf("illisible") < 0) return;
-            check(Burn.error.indexOf("illisible") >= 0, "erreur JSON : " + Burn.error);
-            eq(Burn.cliMissing, false, "CLI présent");
-            check(JSON.stringify(Burn.recentErrors).indexOf("pas du json") < 0, "recentErrors sans le stdout");
+            if (Burn.loading || Burn.error.indexOf("unreadable") < 0) return;
+            check(Burn.error.indexOf("unreadable") >= 0, "JSON error: " + Burn.error);
+            eq(Burn.cliMissing, false, "CLI present");
+            check(JSON.stringify(Burn.recentErrors).indexOf("not json") < 0, "recentErrors without the stdout");
             refreshWith("leak");
             next();
             break;
-        case 13:   // AGENT_BURN_QUOTA_ONLY hérité : JSON valide sans agents[]
+        case 13:   // inherited AGENT_BURN_QUOTA_ONLY: valid JSON without agents[]
             if (!refreshed()) return;
-            eq(Burn.error, "Rapport illisible renvoyé par agent-burn.", "rapport sans agents[] → illisible");
-            eq(Burn.summary.daily.length, 13, "summary B gardé");
+            eq(Burn.error, "agent-burn returned an unreadable report.", "report without agents[] → unreadable");
+            eq(Burn.summary.daily.length, 13, "summary B kept");
             Burn.bin = "/nonexistent/agent-burn";
             Burn.refresh(false);
             next();
             break;
         case 14:
             if (!Burn.cliMissing) return;
-            check(Burn.error.indexOf("introuvable") >= 0, "erreur CLI absent : " + Burn.error);
+            check(Burn.error.indexOf("not found") >= 0, "missing CLI error: " + Burn.error);
             ps = Burn.providerState("claude");
-            eq(ps.state, "unavailable", "CLI absent → unavailable");
-            eq(ps.label, "CLI introuvable", "label unavailable");
-            eq(ps.detail, Burn.cliHint, "detail = remède de l'hôte");
-            eq(ps.at, 0, "unavailable : aucun relevé");
-            eq(last().source, "cli", "recentErrors : CLI absent");
-            eq(Burn.dataState, "cached", "CLI absent → en cache");
+            eq(ps.state, "unavailable", "missing CLI → unavailable");
+            eq(ps.label, "CLI not found", "label unavailable");
+            eq(ps.detail, Burn.cliHint, "detail = host's remedy");
+            eq(ps.at, 0, "unavailable: no reading");
+            eq(last().source, "cli", "recentErrors: missing CLI");
+            eq(Burn.dataState, "cached", "missing CLI → cached");
             Burn.bin = Quickshell.env("AGENT_BURN_BIN");
             mode.setText("ok\n");
             mark = Burn.updatedAt;
@@ -446,34 +446,34 @@ Scope {
             break;
         case 15:
             if (Burn.cliMissing || Burn.loading || Burn.updatedAt === mark) return;
-            eq(Burn.error, "", "erreur effacée au succès");
-            eq(Burn.dataState, "live", "succès → en direct");
+            eq(Burn.error, "", "error cleared on success");
+            eq(Burn.dataState, "live", "success → live");
             u = Burn.updatedAt;
-            Burn.refreshInterval = 1000;   // < 1 min : compté 1 min
+            Burn.refreshInterval = 1000;   // < 1 min: counted as 1 min
             Burn.now = Date.now();
             Burn.updatedAt = Burn.now - 3600000 - 190000;
-            eq(Burn.dataState, "cached", "plus vieux qu'1 h + cadence (plancher 1 min) + 2 min de run → en cache");
+            eq(Burn.dataState, "cached", "older than 1 h + cadence (1 min floor) + 2 min of run → cached");
             Burn.updatedAt = Burn.now - 3600000 - 170000;
-            eq(Burn.dataState, "live", "1 h 2 min 50 s : summary horaire en cours, encore en direct");
+            eq(Burn.dataState, "live", "1 h 2 min 50 s: hourly summary running, still live");
             Burn.refreshInterval = 300000;
             Burn.updatedAt = u;
-            // Relevé Claude ancien après 2 tours de fond, 10 min au moins.
+            // Claude reading stale after 2 background rounds, 10 min at least.
             var acc = Burn.account;
             Burn.account = Object.assign({}, acc, { observedAtMs: Burn.now - 11 * 60000 });
-            eq(Burn.limitsStale, true, "cadence 5 min : relevé de 11 min ancien");
-            eq(Burn.providerState("claude").detail, "Dernières limites connues : aucun relevé depuis plus de 10 min.",
-               "détail : seuil de 10 min");
+            eq(Burn.limitsStale, true, "cadence 5 min: 11-min-old reading is stale");
+            eq(Burn.providerState("claude").detail, "Last known limits: no reading for more than 10 min.",
+               "detail: 10-min threshold");
             Burn.refreshInterval = 900000;
-            eq(Burn.limitsStale, false, "cadence 15 min : relevé de 11 min encore récent");
+            eq(Burn.limitsStale, false, "cadence 15 min: 11-min-old reading still recent");
             Burn.account = Object.assign({}, acc, { observedAtMs: Burn.now - 31 * 60000 });
-            eq(Burn.limitsStale, true, "cadence 15 min : ancien après 2 tours");
-            eq(Burn.providerState("claude").detail, "Dernières limites connues : aucun relevé depuis plus de 30 min.",
-               "détail : seuil de 2 tours");
+            eq(Burn.limitsStale, true, "cadence 15 min: stale after 2 rounds");
+            eq(Burn.providerState("claude").detail, "Last known limits: no reading for more than 30 min.",
+               "detail: 2-round threshold");
             Burn.refreshInterval = 300000;
             Burn.account = acc;
-            eq(Burn.limitsStale, false, "relevé récent rétabli");
-            eq(Burn.dashboardOpen, false, "dashboard fermé");
-            // Rejoués depuis exited : running doit y être déjà faux (sinon rien n'est relancé).
+            eq(Burn.limitsStale, false, "recent reading restored");
+            eq(Burn.dashboardOpen, false, "dashboard closed");
+            // Replayed from exited: running must already be false there (otherwise nothing is relaunched).
             mark = summaryCalls().length;
             Burn.refresh(false);
             Burn.refresh(true);
@@ -482,119 +482,120 @@ Scope {
         case 16:
             if (Burn.loading || !waited(1500)) return;
             eq(JSON.stringify(summaryCalls().slice(mark)), JSON.stringify(["summary --value --json --no-color FORCE=0",
-                "summary --value --json --no-color FORCE=1"]), "refresh(true) pendant un run : rejoué forcé à sa fin");
-            eq(Burn.pendingForce, false, "pendingForce consommé");
+                "summary --value --json --no-color FORCE=1"]), "refresh(true) during a run: replayed forced at its end");
+            eq(Burn.pendingForce, false, "pendingForce consumed");
             mark = calls().length;
             Burn.setRange("30d");
-            Burn.setRange("today");   // pendant le run --since des 30 jours
+            Burn.setRange("today");   // during the 30-day --since run
             next();
             break;
         case 17:
             if (Burn.loading || !waited(1500)) return;
             eq(JSON.stringify(calls().slice(mark)), JSON.stringify(["summary --value --json --no-color --since " + date(-29, "")
                 + " FORCE=0", "summary --value --json --no-color --since " + date(0, "") + " FORCE=0"]),
-               "plage changée pendant un run : relancée sur la nouvelle à sa fin");
-            check(Burn.rangeSummary !== null, "rangeSummary de la nouvelle plage");
+               "range changed during a run: relaunched on the new one at its end");
+            check(Burn.rangeSummary !== null, "rangeSummary of the new range");
             refreshWith("codex");
             next();
             break;
-        case 18:   // Claude + Codex (limites Codex des logs récents)
+        case 18:   // Claude + Codex (Codex limits from recent logs)
             if (!refreshed()) return;
-            check(Burn.agents.indexOf("codex") >= 0, "codex dans les agents");
+            check(Burn.agents.indexOf("codex") >= 0, "codex among the agents");
             w = Burn.windows("codex");
-            eq(w.map(x => x.key).join(","), "session,weekly", "fenêtres codex");
+            eq(w.map(x => x.key).join(","), "session,weekly", "codex windows");
             eq(w.map(x => x.used).join(","), "12,34", "codex used");
-            near(w[1].resetsAtMs, Burn.updatedAt + (10080 - Burn.subEntry("codex").window.elapsedMinutes) * 60000, 1, "codex reset hebdo");
+            near(w[1].resetsAtMs, Burn.updatedAt + (10080 - Burn.subEntry("codex").window.elapsedMinutes) * 60000, 1, "codex weekly reset");
             ps = Burn.providerState("codex");
-            eq(ps.state, "live", "codex en direct");
+            eq(ps.state, "live", "codex live");
             eq(ps.at, Burn.updatedAt, "codex at = summary");
-            eq(ps.error, "", "codex sans erreur");
-            eq(Burn.providerState("claude").state, "live", "claude toujours en direct");
-            eq(Burn.quotaSamples("codex", "weekly").length, 1, "relevé codex enregistré");
-            Burn.loadHarness("codex");   // pas de fixture : échec
+            eq(ps.error, "", "codex without error");
+            eq(Burn.providerState("claude").state, "live", "claude still live");
+            eq(Burn.quotaSamples("codex", "weekly").length, 1, "codex reading recorded");
+            Burn.loadHarness("codex");   // no fixture: failure
             next();
             break;
         case 19:
             if (Burn.loading || !Burn.harnessErrors.codex) return;
-            eq(Burn.harnessErrors.codex, 'agent-burn a échoué (code 1) : pas de fixture "harness-codex.json" dans C:\\fake',
-               "erreur harness : CliError déballée, \\\" et \\\\ rétablis");
-            eq(Burn.error, "", "erreur harness hors de l'erreur globale");
-            eq(Burn.providerState("codex").error, Burn.harnessErrors.codex, "erreur sur l'agent concerné");
-            eq(Burn.providerState("claude").error, "", "les autres agents restent propres");
-            eq(last().source, "harness:codex", "recentErrors : harness");
-            eq(Burn.harnesses.codex, undefined, "pas de harness codex");
+            eq(Burn.harnessErrors.codex, 'agent-burn failed (code 1): no fixture "harness-codex.json" in C:\\fake',
+               "harness error: CliError unwrapped, \\\" and \\\\ restored");
+            eq(Burn.error, "", "harness error kept out of the global error");
+            eq(Burn.providerState("codex").error, Burn.harnessErrors.codex, "error on the agent concerned");
+            eq(Burn.providerState("claude").error, "", "the other agents stay clean");
+            eq(last().source, "harness:codex", "recentErrors: harness");
+            eq(Burn.harnesses.codex, undefined, "no codex harness");
             codexHarness.setText(read(fake + "/harness-codex.json.next"));
             Burn.loadHarness("codex");
             next();
             break;
         case 20:
             if (Burn.loading || !Burn.harnesses.codex) return;
-            eq(Burn.harnesses.codex.plan, "Plus", "harness codex chargé");
-            check(!Burn.harnessErrors.hasOwnProperty("codex"), "erreur codex effacée au succès");
-            eq(Burn.providerState("codex").error, "", "codex propre");
+            eq(Burn.harnesses.codex.plan, "Plus", "codex harness loaded");
+            check(!Burn.harnessErrors.hasOwnProperty("codex"), "codex error cleared on success");
+            eq(Burn.providerState("codex").error, "", "codex clean");
             refreshWith("codex-stale");
             next();
             break;
-        case 21:   // logs Codex de 9-10 jours : liveLimits vrai, semaine écoulée
+        case 21:   // Codex logs 9-10 days old: liveLimits true, week over
             if (!refreshed()) return;
-            eq(Burn.windows("codex").length, 0, "relevé expiré : ni semaine ni session");
-            eq(Burn.subEntry("codex").window.usedPercent, 91, "le rapport garde le vieux relevé");
+            eq(Burn.windows("codex").length, 0, "expired reading: neither week nor session");
+            eq(Burn.subEntry("codex").window.usedPercent, 91, "the report keeps the old reading");
             ps = Burn.providerState("codex");
-            eq(ps.state, "local", "codex : usage sans limites");
-            eq(ps.label, "Usage local", "label local");
-            eq(Burn.remainingAgent, "claude", "pill : jamais le vieux % de Codex");
+            eq(ps.state, "local", "codex: usage without limits");
+            eq(ps.label, "Local usage", "label local");
+            eq(Burn.remainingAgent, "claude", "pill: never Codex's old %");
             refreshWith("expired");
             next();
             break;
-        case 22:   // connexion expirée (ou jeton expiré sans réseau) et tarifs embarqués à 0 $
+        case 22:   // sign-in expired (or expired token without network) and bundled pricing at $0
             if (!refreshed()) return;
             eq(Burn.signInExpired, true, "signInExpired");
-            eq(Burn.limitsStale, true, "limites signalées anciennes");
+            eq(Burn.limitsStale, true, "limits flagged stale");
             ps = Burn.providerState("claude");
-            eq(ps.state, "expired", "claude : connexion à vérifier");
-            eq(ps.label, "Connexion à vérifier", "label expired");
-            check(ps.detail.indexOf("réseau") >= 0 && ps.detail.indexOf("/login") >= 0, "detail : réseau ou /login — " + ps.detail);
-            eq(ps.at, Burn.account.observedAtMs, "expired : relevé gardé");
-            eq(Burn.pricingMissing, true, "tokens à 0 $ → tarifs manquants");
-            eq(Burn.priced(Burn.summary.totals.totalCost, Burn.summary.totals.totalTokens), null, "total sans prix → inconnu");
-            eq(Burn.dataState, "live", "données fraîches malgré les tarifs");
+            eq(ps.state, "expired", "claude: check sign-in");
+            eq(ps.label, "Check sign-in", "label expired");
+            check(ps.detail.indexOf("network") >= 0 && ps.detail.indexOf("/login") >= 0, "detail: network or /login — " + ps.detail);
+            eq(ps.at, Burn.account.observedAtMs, "expired: reading kept");
+            eq(Burn.pricingMissing, true, "tokens at $0 → missing pricing");
+            eq(Burn.priced(Burn.summary.totals.totalCost, Burn.summary.totals.totalTokens), null, "total without price → unknown");
+            eq(Burn.dataState, "live", "fresh data despite the pricing");
             Burn.loadQuota();
             next();
             break;
-        case 23:   // relevé léger (AGENT_BURN_QUOTA_ONLY)
+        case 23:   // light reading (AGENT_BURN_QUOTA_ONLY)
             if (Burn.account.weeklyUsedPercent !== 3) return;
             var r = JSON.parse(read(fake + "/quota-claude.json"));
-            eq(calls()[calls().length - 1], "harness claude --json --no-color FORCE=0 QUOTA=1", "relevé léger : arguments et env");
-            eq(Burn.account.observedAtMs, r.observedAt, "relevé daté");
-            near(Burn.account.weeklyResetsAtMs, r.observedAt + (100 - r.window.elapsedPercent) * r.window.windowMinutes * 600, 1, "reset hebdo");
-            eq(Burn.account.sessionUsedPercent, 22, "session du relevé");
-            eq(Burn.signInExpired, false, "relevé direct : connexion rétablie");
-            eq(Burn.providerState("claude").state, "live", "claude de nouveau en direct");
+            eq(calls()[calls().length - 1], "harness claude --json --no-color FORCE=0 QUOTA=1", "light reading: arguments and env");
+            eq(Burn.account.observedAtMs, r.observedAt, "reading dated");
+            near(Burn.account.weeklyResetsAtMs, r.observedAt + (100 - r.window.elapsedPercent) * r.window.windowMinutes * 600, 1,
+                 "weekly reset");
+            eq(Burn.account.sessionUsedPercent, 22, "session of the reading");
+            eq(Burn.signInExpired, false, "direct reading: sign-in restored");
+            eq(Burn.providerState("claude").state, "live", "claude live again");
             mode.setText("fail\n");
             mark = Burn.recentErrors.length;
             Burn.loadQuota();
             next();
             break;
-        case 24:   // relevé léger en échec : muet
+        case 24:   // failed light reading: silent
             if (Burn.recentErrors.length === mark) return;
-            eq(last().source, "quota", "échec noté");
-            eq(last().msg, "agent-burn a échoué (code 3)", "message du relevé");
-            eq(Burn.error, "", "UI muette");
-            eq(Burn.account.weeklyUsedPercent, 3, "dernier relevé gardé");
+            eq(last().source, "quota", "failure noted");
+            eq(last().msg, "agent-burn failed (code 3)", "reading message");
+            eq(Burn.error, "", "silent UI");
+            eq(Burn.account.weeklyUsedPercent, 3, "last reading kept");
             mode.setText("ok\n");
             Burn.bin = "/nonexistent/agent-burn";
             mark = Burn.recentErrors.length;
             Burn.loadQuota();
             next();
             break;
-        case 25:   // relevé léger sans CLI : muet aussi, cliMissing laissé au summary
+        case 25:   // light reading without CLI: silent too, cliMissing left to the summary
             if (Burn.recentErrors.length === mark) return;
-            eq(last().source, "quota", "lancement impossible noté");
-            check(last().msg.indexOf("introuvable") >= 0, "message : " + last().msg);
+            eq(last().source, "quota", "launch failure noted");
+            check(last().msg.indexOf("not found") >= 0, "message: " + last().msg);
             eq(Burn.cliMissing, false, "cliMissing intact");
-            eq(Burn.error, "", "UI muette");
+            eq(Burn.error, "", "silent UI");
             Burn.bin = Quickshell.env("AGENT_BURN_BIN");
-            // Dashboard ouvert pendant un summary : plage chargée à sa fin, jamais en parallèle (429).
+            // Dashboard opened during a summary: range loaded at its end, never in parallel (429).
             mode.setText("delay\n");
             Burn.rangeCache = ({});
             mark = calls().length;
@@ -605,18 +606,18 @@ Scope {
         case 26:
             if (calls().length === mark) return;
             check(Burn.loading && !calls().slice(mark).some(c => c.indexOf("--since") >= 0),
-                  "plage différée pendant le summary : " + calls().slice(mark));
+                  "range deferred during the summary: " + calls().slice(mark));
             next();
             break;
         case 27:
             l = calls().slice(mark);
             if (Burn.loading || !l.some(c => c.indexOf("--since") >= 0)) return;
             check(l[0].startsWith("summary --value --json --no-color FORCE=0") && l[0].indexOf("--since") < 0,
-                  "summary d'abord, plage ensuite : " + l);
-            // Ouvert comme le font les fenêtres (dashboardOpen puis le poke() de leur load()), données et plage périmées.
+                  "summary first, range next: " + l);
+            // Opened the way the windows do it (dashboardOpen then the poke() of their load()), data and range outdated.
             Burn.dashboardOpen = false;
             Burn.rangeCache = ({});
-            Burn.updatedAt = Date.now() - 120000;   // plus d'1 min : poke() relance le summary
+            Burn.updatedAt = Date.now() - 120000;   // more than 1 min: poke() relaunches the summary
             mark = calls().length;
             Burn.dashboardOpen = true;
             Burn.poke();
@@ -625,15 +626,15 @@ Scope {
         case 28:
             if (calls().length === mark || !waited(300)) return;
             check(Burn.loading && JSON.stringify(calls().slice(mark)) === JSON.stringify(["summary --value --json --no-color FORCE=0"]),
-                  "ouverture : summary seul, plage différée : " + calls().slice(mark));
+                  "opening: summary alone, range deferred: " + calls().slice(mark));
             next();
             break;
         case 29:
             l = calls().slice(mark);
             if (Burn.loading || l.length < 2) return;
             eq(JSON.stringify(l), JSON.stringify(["summary --value --json --no-color FORCE=0",
-                "summary --value --json --no-color --since " + date(0, "") + " FORCE=0"]), "ouverture : summary, puis la plage à sa fin");
-            // Plage en cours puis refresh() (minuteur, Actualiser) : summary différé à la fin de la plage, forcé une fois.
+                "summary --value --json --no-color --since " + date(0, "") + " FORCE=0"]), "opening: summary, then the range at its end");
+            // Range running then refresh() (timer, Refresh): summary deferred to the end of the range, forced once.
             Burn.rangeCache = ({});
             mark = calls().length;
             Burn.setRange("7d");
@@ -645,16 +646,16 @@ Scope {
             if (calls().length === mark || !waited(300)) return;
             l = calls().slice(mark);
             check(Burn.loading && l.length === 1 && l[0].indexOf("--since " + date(-6, "")) > 0,
-                  "refresh pendant la plage : différé : " + l);
-            eq(Burn.pendingRefresh, true, "summary en attente de la plage");
+                  "refresh during the range: deferred: " + l);
+            eq(Burn.pendingRefresh, true, "summary waiting for the range");
             next();
             break;
         case 31:
             l = calls().slice(mark);
             if (Burn.loading || l.length < 2) return;
-            eq(l[1], "summary --value --json --no-color FORCE=1", "plage d'abord, summary forcé à sa fin");
-            eq(l.filter(c => c.startsWith("summary") && c.indexOf("--since") < 0).length, 1, "un seul summary rejoué");
-            check(!Burn.pendingRefresh && !Burn.pendingForce, "attentes consommées");
+            eq(l[1], "summary --value --json --no-color FORCE=1", "range first, forced summary at its end");
+            eq(l.filter(c => c.startsWith("summary") && c.indexOf("--since") < 0).length, 1, "a single summary replayed");
+            check(!Burn.pendingRefresh && !Burn.pendingForce, "pending requests consumed");
             mode.setText("ok\n");
             Burn.dashboardOpen = false;
             ipc.running = true;
@@ -665,59 +666,59 @@ Scope {
             check(true, "IPC burn dashboard");
             l = rawCalls();
             check(l.length > 15 && l.every(c => c.indexOf(" --config " + Burn.cliConfig + " ") > 0),
-                  "--config sur chaque appel (" + l.length + ") : " + l.filter(c => c.indexOf("--config") < 0));
-            eq(read(Burn.cliConfig), "", "config du CLI jamais créée");
+                  "--config on every call (" + l.length + "): " + l.filter(c => c.indexOf("--config") < 0));
+            eq(read(Burn.cliConfig), "", "CLI config never created");
             for (var i = 0; i < 25; i++) Burn.note("test", "n" + i);
-            eq(Burn.recentErrors.length, 20, "recentErrors : 20 au plus");
-            eq(last().msg, "n24", "le plus récent en dernier");
+            eq(Burn.recentErrors.length, 20, "recentErrors: 20 at most");
+            eq(last().msg, "n24", "most recent last");
             finish();
             break;
-        case 80:   // corrupt : 1er summary du minuteur (rien n'a tourné) en échec, toujours aucun rapport
+        case 80:   // corrupt: the timer's 1st summary (nothing ran) failed, still no report
             if (Burn.loading || Burn.error === "") return;
-            check(Date.now() - burnAt >= 2900, "1er refresh à ~3 s (" + (Date.now() - burnAt) + " ms)");
-            eq(Burn.summary, null, "aucun summary");
+            check(Date.now() - burnAt >= 2900, "1st refresh at ~3 s (" + (Date.now() - burnAt) + " ms)");
+            eq(Burn.summary, null, "no summary");
             ps = Burn.providerState("claude");
-            eq(ps.state, "unavailable", "claude : rapport en échec");
-            eq(ps.label, "Rapport en échec", "label du rapport en échec");
-            eq(ps.detail, "agent-burn a échoué (code 3)", "detail = erreur du CLI");
-            eq(ps.at, 0, "rapport en échec : aucun relevé");
-            refreshWith("empty");   // maison vide
+            eq(ps.state, "unavailable", "claude: report failed");
+            eq(ps.label, "Report failed", "failed report label");
+            eq(ps.detail, "agent-burn failed (code 3)", "detail = CLI error");
+            eq(ps.at, 0, "failed report: no reading");
+            refreshWith("empty");   // empty home
             next();
             break;
-        case 81:   // maison vide
+        case 81:   // empty home
             if (!refreshed()) return;
-            eq(Burn.dataState, "live", "summary en direct");
+            eq(Burn.dataState, "live", "live summary");
             ps = Burn.providerState("claude");
-            eq(ps.state, "none", "claude : ni usage, ni abonnement, ni compte");
-            eq(ps.at, Burn.updatedAt, "none : instant du summary");
+            eq(ps.state, "none", "claude: no usage, no subscription, no account");
+            eq(ps.at, Burn.updatedAt, "none: time of the summary");
             eq(Burn.providerState("codex").state, "none", "codex absent");
             refreshWith("noauth");
             next();
             break;
-        case 82:   // usage Claude sans compte (non connecté ou hors ligne), Codex avec limites
+        case 82:   // Claude usage without account (not signed in or offline), Codex with limits
             if (!refreshed()) return;
             ps = Burn.providerState("claude");
-            eq(ps.state, "local", "claude : usage local");
-            check(ps.detail.indexOf("non connecté") >= 0, "detail : non connecté ou hors ligne — " + ps.detail);
-            eq(Burn.providerState("codex").state, "live", "codex en direct");
+            eq(ps.state, "local", "claude: local usage");
+            check(ps.detail.indexOf("not signed in") >= 0, "detail: not signed in or offline — " + ps.detail);
+            eq(Burn.providerState("codex").state, "live", "codex live");
             refreshWith("installed");
             next();
             break;
-        case 83:   // connecté, aucun log : compte sans usage
+        case 83:   // signed in, no log: account without usage
             if (!refreshed()) return;
-            eq(Burn.providerState("claude").state, "live", "claude : compte sans usage → en direct");
-            eq(Burn.providerState("codex").state, "none", "codex connu de l'archive seule → non détecté");
+            eq(Burn.providerState("claude").state, "live", "claude: account without usage → live");
+            eq(Burn.providerState("codex").state, "none", "codex known from the archive only → not detected");
             finish();
             break;
-        case 90:  // CLI bloqué : summary et relevé léger tués par le watchdog
+        case 90:  // stuck CLI: summary and light reading killed by the watchdog
             if (Burn.error === "") return;
             var dt = Date.now() - burnAt;
-            check(Burn.error.indexOf("en 10 s") >= 0, "erreur de délai : " + Burn.error);
-            check(dt >= 13000 && dt <= 20000, "tué vers 3 s + 10 s (" + dt + " ms)");
-            check(Burn.summaryCached && Burn.dataState === "cached", "summary en cache gardé");
-            eq(Burn.loading, false, "plus de run en cours");
-            check(Burn.recentErrors.some(e => e.source === "quota" && e.msg.indexOf("en 10 s") >= 0), "relevé léger tué à 10 s");
-            eq(Burn.account.observedAtMs, seedAt - 7200000, "dernier relevé gardé");
+            check(Burn.error.indexOf("within 10 s") >= 0, "timeout error: " + Burn.error);
+            check(dt >= 13000 && dt <= 20000, "killed around 3 s + 10 s (" + dt + " ms)");
+            check(Burn.summaryCached && Burn.dataState === "cached", "cached summary kept");
+            eq(Burn.loading, false, "no run in progress");
+            check(Burn.recentErrors.some(e => e.source === "quota" && e.msg.indexOf("within 10 s") >= 0), "light reading killed at 10 s");
+            eq(Burn.account.observedAtMs, seedAt - 7200000, "last reading kept");
             finish();
             break;
         }

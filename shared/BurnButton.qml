@@ -1,14 +1,14 @@
 import QtQuick
 
-// Bouton des vues Agent Burn : clic, ou Tab puis Entrée / Espace ; lecteurs d'écran par Accessible.*
-// (rôle Button par défaut, nom = tip sauf mention contraire), anneau de focus, info-bulle facultative.
-// Info-bulle maison : QtQuick.Controls n'est chargé ni par la barre ni par l'app de bureau.
+// Button for the Agent Burn views: click, or Tab then Enter / Space; screen readers through Accessible.*
+// (Button role by default, name = tip unless stated otherwise), focus ring, optional tooltip.
+// Homemade tooltip: QtQuick.Controls is loaded by neither the bar nor the desktop app.
 Rectangle {
     id: btn
 
-    property string tip                  // info-bulle au survol ou au focus, à gauche du bouton
-    property color ring: Colors.accent   // anneau de focus ; autre teinte sur un fond déjà accent
-    property real reach: 0               // cible de clic agrandie de reach px de chaque côté
+    property string tip                  // tooltip on hover or focus, left of the button
+    property color ring: Colors.accent   // focus ring; another tint on a background that is already accent
+    property real reach: 0               // click target enlarged by reach px on each side
     readonly property bool hovered: area.containsMouse
     readonly property bool pressed: area.pressed
     signal clicked()
@@ -32,7 +32,7 @@ Rectangle {
         cursorShape: Qt.PointingHandCursor
         onClicked: btn.clicked()
     }
-    // Tracé dans les bords (un parent qui découpe ne le rogne pas), par-dessus le contenu.
+    // Drawn inside the edges (a clipping parent does not crop it), over the content.
     Rectangle {
         z: 1
         anchors.fill: parent
@@ -42,7 +42,7 @@ Rectangle {
         border.width: 2
         border.color: btn.ring
     }
-    // À gauche : les boutons à icône seule sont au bord droit de leur vue, la bulle reste dedans.
+    // On the left: icon-only buttons sit at the right edge of their view, so the tooltip stays inside.
     Rectangle {
         z: 2
         visible: btn.tip !== "" && (btn.hovered || btn.activeFocus)
@@ -63,7 +63,7 @@ Rectangle {
             font.family: "JetBrainsMono Nerd Font"
             font.pixelSize: 11
             textFormat: Text.PlainText
-            Accessible.ignored: true   // déjà le nom du bouton
+            Accessible.ignored: true   // already the button's name
         }
     }
 }

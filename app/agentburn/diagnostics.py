@@ -1,6 +1,6 @@
-# Singleton QML « Desktop » : versions (app, CLI, build), plateforme, dossiers ; ouvre journaux, données et
-# licences ; texte de diagnostic à copier. Jamais de variables d'environnement ni de contenu de fichier
-# dans ce texte, et les secrets y sont masqués comme dans le journal.
+# QML singleton "Desktop": versions (app, CLI, build), platform, directories; opens logs, data and
+# licenses; diagnostics text to copy. Never any environment variables or file contents
+# in this text, and secrets are redacted in it as in the log.
 import datetime
 import json
 import logging
@@ -18,21 +18,21 @@ from agentburn import __version__, logs, shim
 
 log = logging.getLogger("agentburn")
 BUILD_KEYS = ("appVersion", "cliRev", "cliVersion", "target", "builtAt")
-PROBE_MS = 10000   # agent-burn --version bloqué : tué au bout de ce délai
-# État de Burn lu dans le contexte de Main.qml, sérialisé en JSON : aucune conversion de valeurs JS par PySide.
+PROBE_MS = 10000   # agent-burn --version stuck: killed after this timeout
+# Burn state read in the Main.qml context, serialized to JSON: no conversion of JS values by PySide.
 _BURN = """JSON.stringify({ data: Burn.stateText(Burn.dataState), updatedAt: Burn.updatedAt, errors: Burn.recentErrors,
     providers: Array.from(new Set(Burn.knownProviders.concat(Burn.agents)))
         .map(a => Object.assign({ name: Burn.agentName(a) }, Burn.providerState(a))) })"""
 
 
 def build_info():
-    """Gelé : build-info.json posé à côté de l'exe par le build ; dev : CLI épinglé dans cli.env."""
+    """Frozen: build-info.json placed next to the exe by the build; dev: pinned CLI in cli.env."""
     info = {"appVersion": __version__, "target": "dev"}
     if getattr(sys, "frozen", False):
         try:
             found = json.loads((Path(sys.executable).parent / "build-info.json").read_text(encoding="utf-8"))
         except (OSError, ValueError) as e:
-            log.warning("build-info.json illisible : %s", e)
+            log.warning("build-info.json unreadable: %s", e)
             found = {}
         info = {"appVersion": __version__, **(found if isinstance(found, dict) else {})}
     else:
@@ -45,8 +45,8 @@ def build_info():
 
 
 def open_path(path):
-    """Dossier ouvert dans le gestionnaire de fichiers. Linux : xdg-open avec l'environnement nettoyé du shim
-    (QDesktopServices lui passerait celui du bundle gelé)."""
+    """Directory opened in the file manager. Linux: xdg-open with the environment cleaned by the shim
+    (QDesktopServices would pass it the frozen bundle's one)."""
     if sys.platform == "win32":
         ok = QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
     else:
@@ -56,11 +56,11 @@ def open_path(path):
         p.setProcessEnvironment(shim.child_environment())
         ok = p.startDetached()
     if not ok:
-        log.warning("%s : ouverture impossible", path)
+        log.warning("%s: cannot open", path)
 
 
 def _time(ms):
-    return datetime.datetime.fromtimestamp(ms / 1000).astimezone().strftime("%Y-%m-%d %H:%M:%S") if ms else "jamais"
+    return datetime.datetime.fromtimestamp(ms / 1000).astimezone().strftime("%Y-%m-%d %H:%M:%S") if ms else "never"
 
 
 class Desktop(QObject):
@@ -69,12 +69,12 @@ class Desktop(QObject):
     def __init__(self, bin, data_dir, settings_file, log_dir, cache_dir):
         super().__init__()
         self._bin = str(bin)
-        # settings_file None : réglages en mémoire (selftest), aucun dossier réel à nommer.
-        config = "en mémoire" if settings_file is None else str(Path(settings_file).parent)
+        # settings_file None: settings in memory (selftest), no real directory to name.
+        config = "in memory" if settings_file is None else str(Path(settings_file).parent)
         self._dirs = {"data": str(data_dir), "config": config, "log": str(log_dir), "cache": str(cache_dir)}
-        self._cli = ""        # "" : version pas encore lue
+        self._cli = ""        # "": version not read yet
         self._probe = None
-        self._tray = False    # icône posée dans une zone de notification
+        self._tray = False    # icon placed in a system tray
         self._root = None
         self._build = build_info()
         exe = Path(sys.executable).parent / "licenses"
@@ -84,7 +84,7 @@ class Desktop(QObject):
         app.screenRemoved.connect(lambda *_: self.changed.emit())
 
     def attach(self, root):
-        """Racine Main.qml : son contexte donne accès à Burn pour le diagnostic."""
+        """Main.qml root: its context gives access to Burn for the diagnostics."""
         self._root = root
 
     def setTrayAvailable(self, on):
@@ -103,7 +103,8 @@ class Desktop(QObject):
     cliVersion = Property(str, lambda self: self._cli, notify=changed)
     trayAvailable = Property(bool, lambda self: self._tray, notify=changed)
     screens = Property(str, lambda self: ", ".join(
-        f"{s.name() or 'écran'} {s.size().width()}×{s.size().height()} ×{s.devicePixelRatio():g}" for s in QGuiApplication.screens()),
+        f"{s.name() or 'screen'} {s.size().width()}×{s.size().height()} ×{s.devicePixelRatio():g}"
+        for s in QGuiApplication.screens()),
         notify=changed)
     dataDir = Property(str, lambda self: self._dirs["data"], constant=True)
     configDir = Property(str, lambda self: self._dirs["config"], constant=True)
@@ -113,24 +114,24 @@ class Desktop(QObject):
 
     @Slot()
     def probeCli(self):
-        """agent-burn --version en tâche de fond (jamais d'attente dans l'interface) ; relancé à l'ouverture
-        des réglages, après une réinstallation du CLI par exemple."""
+        """agent-burn --version in the background (never any waiting in the UI); rerun when the settings
+        open, after a CLI reinstall for example."""
         if self._probe:
             return
         p = self._probe = QProcess(self)
         p.setProcessEnvironment(shim.child_environment())
-        p.setWorkingDirectory(self._dirs["data"])   # comme les runs de Burn : pas de ./.agent-burn/ lu
+        p.setWorkingDirectory(self._dirs["data"])   # like Burn's runs: no ./.agent-burn/ read
         hung = []
 
         def done(code=0, status=None, failed=False):
-            # Ignoré si l'un des deux est détruit (process tué à la fermeture de l'app).
+            # Ignored if either one is destroyed (process killed when the app closes).
             if not (shiboken6.isValid(self) and shiboken6.isValid(p)) or self._probe is not p:
                 return
             self._probe = None
             out = bytes(p.readAllStandardOutput()).decode("utf-8", "replace").strip()
-            text = ("introuvable" if failed else f"sans réponse ({PROBE_MS // 1000} s)" if hung
-                    else out or "illisible" if code == 0 and status == QProcess.ExitStatus.NormalExit
-                    else f"en échec (code {code})")
+            text = ("not found" if failed else f"no response ({PROBE_MS // 1000} s)" if hung
+                    else out or "unreadable" if code == 0 and status == QProcess.ExitStatus.NormalExit
+                    else f"failed (code {code})")
             p.deleteLater()
             if text != self._cli:
                 self._cli = text
@@ -138,22 +139,22 @@ class Desktop(QObject):
 
         p.finished.connect(done)
         p.errorOccurred.connect(lambda e: e == QProcess.ProcessError.FailedToStart and done(failed=True))
-        QTimer.singleShot(PROBE_MS, p, lambda: (hung.append(True), p.kill()))   # finished suit, avec arrêt forcé
+        QTimer.singleShot(PROBE_MS, p, lambda: (hung.append(True), p.kill()))   # finished follows, after the kill
         p.start(self._bin, ["--version"])
 
     def facts(self):
-        """(intitulé, valeur) du diagnostic, aussi la ligne de démarrage du journal."""
+        """(label, value) pairs of the diagnostics, also the startup line of the log."""
         b = self._build
         return [("Agent Burn", f"{__version__} ({b['target'] or 'build'}{', ' + b['builtAt'] if b['builtAt'] else ''})"),
-                ("CLI épinglé", f"{b['cliVersion'] or '—'}, révision {b['cliRev'][:12] or '—'}"),
-                ("CLI", f"{self._bin} ({self._cli or ('lecture en cours' if self._probe else 'version non lue')})"),
-                ("Système", self.os),
-                ("Qt", f"{qVersion()}, plateforme {self.platformName}"),
-                ("Bureau", f"{self.desktopEnv or '—'}, session {self.sessionType or '—'}"),
-                ("Écrans", self.screens or "aucun"),
-                ("Zone de notification", "oui" if self._tray else "non"),
-                ("Données", self._dirs["data"]), ("Réglages", self._dirs["config"]),
-                ("Journaux", self._dirs["log"]), ("Cache", self._dirs["cache"])]
+                ("Pinned CLI", f"{b['cliVersion'] or '—'}, revision {b['cliRev'][:12] or '—'}"),
+                ("CLI", f"{self._bin} ({self._cli or ('being read' if self._probe else 'version not read')})"),
+                ("System", self.os),
+                ("Qt", f"{qVersion()}, platform {self.platformName}"),
+                ("Desktop", f"{self.desktopEnv or '—'}, session {self.sessionType or '—'}"),
+                ("Screens", self.screens or "none"),
+                ("System tray", "yes" if self._tray else "no"),
+                ("Data", self._dirs["data"]), ("Settings", self._dirs["config"]),
+                ("Logs", self._dirs["log"]), ("Cache", self._dirs["cache"])]
 
     def _burn(self):
         if self._root is None:
@@ -166,17 +167,18 @@ class Desktop(QObject):
 
     @Slot(result=str)
     def diagnosticsText(self):
-        lines = [f"{k} : {v}" for k, v in self.facts()]
+        lines = [f"{k}: {v}" for k, v in self.facts()]
         burn = self._burn()
         if burn is None:
-            lines.append("Données agent-burn : non lues")
+            lines.append("agent-burn data: not read")
         else:
-            lines.append(f"Données agent-burn : {burn['data']}, mises à jour {_time(burn['updatedAt'])}")
+            lines.append(f"agent-burn data: {burn['data']}, updated {_time(burn['updatedAt'])}")
             for p in burn["providers"]:
-                lines.append(f"{p['name']} : {p['label']}. {p['detail']}" + (f" Relevé {_time(p['at'])}." if p["at"] else "")
-                             + (f" Erreur : {p['error']}" if p["error"] else ""))
-            lines.append("Dernières erreurs :" + ("" if burn["errors"] else " aucune"))
-            lines += [f"  {_time(e['t'])} {e['source']} : {e['msg']}" for e in reversed(burn["errors"])]
+                lines.append(f"{p['name']}: {p['label']}. {p['detail']}"
+                             + (f" Last reading {_time(p['at'])}." if p["at"] else "")
+                             + (f" Error: {p['error']}" if p["error"] else ""))
+            lines.append("Recent errors:" + ("" if burn["errors"] else " none"))
+            lines += [f"  {_time(e['t'])} {e['source']}: {e['msg']}" for e in reversed(burn["errors"])]
         return logs.redact("\n".join(lines))
 
     @Slot()

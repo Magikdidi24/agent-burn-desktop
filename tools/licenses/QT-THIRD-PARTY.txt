@@ -1,718 +1,718 @@
-Qt 6.12.0 et PySide6 6.12.0 : composants tiers compilés dans les bibliothèques et plugins livrés avec Agent
-Burn (dossier PySide6/), avec leur licence (identifiant SPDX), leur copyright et le texte de leur licence.
+Qt 6.12.0 and PySide6 6.12.0: third-party components compiled into the libraries and plugins shipped with Agent
+Burn (PySide6/ folder), with their license (SPDX identifier), their copyright and the text of their license.
 
-Relevés dans les fichiers qt_attribution.json et les textes de licence des sources v6.12.0 de qtbase,
-qtdeclarative, qtwayland et pyside-setup. Seuls figurent les composants présents dans les fichiers livrés,
-vérifiés sur les binaires : ni libjpeg, libtiff ou libwebp (leurs plugins ne sont pas livrés), ni SQLite.
-Sous Linux, zlib et FreeType sont ceux du système ; sous Windows, ICU est celui du système (icuuc.dll).
-Sources de Qt, de PySide6 et de ces composants : voir NOTICE-Qt-PySide6.txt.
+Collected from the qt_attribution.json files and the license texts of the v6.12.0 sources of qtbase,
+qtdeclarative, qtwayland and pyside-setup. Only the components present in the shipped files are listed,
+checked against the binaries: no libjpeg, libtiff or libwebp (their plugins are not shipped), no SQLite.
+On Linux, zlib and FreeType are the system ones; on Windows, ICU is the system one (icuuc.dll).
+Sources of Qt, PySide6 and these components: see NOTICE-Qt-PySide6.txt.
 
 ICU 73.2
-  Plateformes : Linux
-  Dans : libicuuc.so.73, libicui18n.so.73, libicudata.so.73
-  Licence : Unicode-DFS-2016 AND ICU AND BSD-3-Clause AND NAIST-2003
-  Copyright : Copyright (c) 2016-2023 Unicode, Inc. et autres (voir le texte)
-  Site : https://icu.unicode.org/
+  Platforms: Linux
+  In: libicuuc.so.73, libicui18n.so.73, libicudata.so.73
+  License: Unicode-DFS-2016 AND ICU AND BSD-3-Clause AND NAIST-2003
+  Copyright: Copyright (c) 2016-2023 Unicode, Inc. and others (see the text)
+  Website: https://icu.unicode.org/
 
 D3D12 Memory Allocator v3.1.0
-  Plateformes : Windows
-  Dans : Qt6Gui
-  Licence : MIT
-  Copyright : Copyright (c) 2019-2026 Advanced Micro Devices, Inc. All rights reserved.
-  Site : https://github.com/GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator
+  Platforms: Windows
+  In: Qt6Gui
+  License: MIT
+  Copyright: Copyright (c) 2019-2026 Advanced Micro Devices, Inc. All rights reserved.
+  Website: https://github.com/GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator
 
 Vulkan Memory Allocator 3.3.0
-  Plateformes : Linux, Windows
-  Dans : Qt6Gui
-  Licence : MIT
-  Copyright : Copyright (c) 2017-2025 Advanced Micro Devices, Inc. All rights reserved.
-  Site : https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+  Platforms: Linux, Windows
+  In: Qt6Gui
+  License: MIT
+  Copyright: Copyright (c) 2017-2025 Advanced Micro Devices, Inc. All rights reserved.
+  Website: https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
 
 BLAKE2 (reference implementation) ed1974ea83433eba7b2d95c5dcd9ac33cb847913
-  Plateformes : Linux, Windows
-  Dans : Qt6Core
-  Licence : CC0-1.0 OR Apache-2.0
-  Copyright : Copyright 2012, Samuel Neves <sneves@dei.uc.pt>
-  Site : https://blake2.net/
+  Platforms: Linux, Windows
+  In: Qt6Core
+  License: CC0-1.0 OR Apache-2.0
+  Copyright: Copyright 2012, Samuel Neves <sneves@dei.uc.pt>
+  Website: https://blake2.net/
 
 Efficient Binary-Decimal and Decimal-Binary Conversion Routines for IEEE Doubles 3.4.0
-  Plateformes : Linux, Windows
-  Dans : Qt6Core
-  Licence : BSD-3-Clause
-  Copyright : Copyright 2006-2012, the V8 project authors
-  Site : https://github.com/google/double-conversion
+  Platforms: Linux, Windows
+  In: Qt6Core
+  License: BSD-3-Clause
+  Copyright: Copyright 2006-2012, the V8 project authors
+  Website: https://github.com/google/double-conversion
 
 Easing Equations by Robert Penner
-  Plateformes : Linux, Windows
-  Dans : Qt6Core
-  Licence : BSD-3-Clause
-  Copyright : Copyright (c) 2001 Robert Penner
-  Site : http://robertpenner.com/easing/
+  Platforms: Linux, Windows
+  In: Qt6Core
+  License: BSD-3-Clause
+  Copyright: Copyright (c) 2001 Robert Penner
+  Website: http://robertpenner.com/easing/
 
 Emoji Segmenter 0.4.0
-  Plateformes : Linux, Windows
-  Dans : Qt6Gui
-  Licence : Apache-2.0
-  Copyright : Copyright 2019 Google LLC
-  Site : https://github.com/google/emoji-segmenter
+  Platforms: Linux, Windows
+  In: Qt6Gui
+  License: Apache-2.0
+  Copyright: Copyright 2019 Google LLC
+  Website: https://github.com/google/emoji-segmenter
 
 forkfd
-  Plateformes : Linux
-  Dans : Qt6Core
-  Licence : MIT
-  Copyright : Copyright (C) 2016 Intel Corporation
-              Copyright (C) 2015 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  Platforms: Linux
+  In: Qt6Core
+  License: MIT
+  Copyright: Copyright (C) 2016 Intel Corporation
+             Copyright (C) 2015 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
 
 Freetype 2 2.14.3
-  Plateformes : Windows
-  Dans : Qt6Gui
-  Licence : FTL OR GPL-2.0-only
-  Copyright : Copyright (c) 2007-2014 Adobe Systems Incorporated
-              Copyright (c) 2004-2026 Albert Chin-A-Young
-              Copyright (c) 2018-2026 Armin Hasitzka, David Turner, Robert Wilhelm, and Werner Lemberg
-              Copyright (c) 2000 Computing Research Labs, New Mexico State University
-              Copyright (c) 1996-2026 David Turner, Robert Wilhelm, Dominik Röttsches, and Werner Lemberg
-              Copyright (c) 2004-2026 David Turner, Robert Wilhelm, Werner Lemberg and George Williams
-              Copyright (c) 2022-2026 David Turner, Robert Wilhelm, Werner Lemberg, and Moazin Khatti
-              Copyright (c) 2008-2026 David Turner, Robert Wilhelm, Werner Lemberg, and suzuki toshiya
-              Copyright (c) 2003-2026 David Turner, Robert Wilhelm, and Werner Lemberg
-              Copyright (c) 2005-2026 David Turner
-              Copyright (c) 2007-2026 Derek Clegg and Michael Toftdal
-              Copyright (c) 2007 Dmitry Timoshkov for Codeweavers
-              Copyright (c) 2001-2015 Francesco Zappa Nardelli
-              Copyright (c) 2005, 2007, 2008, 2013 George Williams
-              Copyright (c) 2013-2026 Google, Inc. Google Author(s) Behdad Esfahbod and Stuart Gill
-              Copyright (c) 2013-2022 Google, Inc.
-              Copyright (c) 2003 Huw D M Davies for Codeweavers
-              Copyright (c) 2010-2026 Joel Klinghed
-              Copyright (c) 1996-2026 Just van Rossum, David Turner, Robert Wilhelm, and Werner Lemberg
-              Copyright (c) 2003-2026 Masatake YAMATO and Redhat K.K.
-              Copyright (c) 2004-2026 Masatake YAMATO, Redhat K.K, David Turner, Robert Wilhelm, and Werner Lemberg
-              Copyright (c) 2019-2026 Nikhil Ramakrishnan, David Turner, Robert Wilhelm, and Werner Lemberg
-              Copyright (c) 2009-2026 Oran Agra and Mickey Gabel
-              Copyright (c) 2007-2026 Rahul Bhalerao <rahul.bhalerao@redhat.com>
-              Copyright (c) 2002-2026 Roberto Alameda
-              Copyright (c) 2015-2026 Werner Lemberg
-              Copyright (c) 2004-2026 suzuki toshiya, Masatake YAMATO, Red Hat K.K., David Turner, Robert Wilhelm, and Werner Lemberg
-              Copyright (c) 2019 nyorain
-              Copyright (c) 2022-2026 David Turner, Robert Wilhelm, Werner Lemberg, George Williams, and Dominik Röttsches
-              Copyright (C) 2009, 2023  Red Hat, Inc.
-  Site : http://www.freetype.org
+  Platforms: Windows
+  In: Qt6Gui
+  License: FTL OR GPL-2.0-only
+  Copyright: Copyright (c) 2007-2014 Adobe Systems Incorporated
+             Copyright (c) 2004-2026 Albert Chin-A-Young
+             Copyright (c) 2018-2026 Armin Hasitzka, David Turner, Robert Wilhelm, and Werner Lemberg
+             Copyright (c) 2000 Computing Research Labs, New Mexico State University
+             Copyright (c) 1996-2026 David Turner, Robert Wilhelm, Dominik Röttsches, and Werner Lemberg
+             Copyright (c) 2004-2026 David Turner, Robert Wilhelm, Werner Lemberg and George Williams
+             Copyright (c) 2022-2026 David Turner, Robert Wilhelm, Werner Lemberg, and Moazin Khatti
+             Copyright (c) 2008-2026 David Turner, Robert Wilhelm, Werner Lemberg, and suzuki toshiya
+             Copyright (c) 2003-2026 David Turner, Robert Wilhelm, and Werner Lemberg
+             Copyright (c) 2005-2026 David Turner
+             Copyright (c) 2007-2026 Derek Clegg and Michael Toftdal
+             Copyright (c) 2007 Dmitry Timoshkov for Codeweavers
+             Copyright (c) 2001-2015 Francesco Zappa Nardelli
+             Copyright (c) 2005, 2007, 2008, 2013 George Williams
+             Copyright (c) 2013-2026 Google, Inc. Google Author(s) Behdad Esfahbod and Stuart Gill
+             Copyright (c) 2013-2022 Google, Inc.
+             Copyright (c) 2003 Huw D M Davies for Codeweavers
+             Copyright (c) 2010-2026 Joel Klinghed
+             Copyright (c) 1996-2026 Just van Rossum, David Turner, Robert Wilhelm, and Werner Lemberg
+             Copyright (c) 2003-2026 Masatake YAMATO and Redhat K.K.
+             Copyright (c) 2004-2026 Masatake YAMATO, Redhat K.K, David Turner, Robert Wilhelm, and Werner Lemberg
+             Copyright (c) 2019-2026 Nikhil Ramakrishnan, David Turner, Robert Wilhelm, and Werner Lemberg
+             Copyright (c) 2009-2026 Oran Agra and Mickey Gabel
+             Copyright (c) 2007-2026 Rahul Bhalerao <rahul.bhalerao@redhat.com>
+             Copyright (c) 2002-2026 Roberto Alameda
+             Copyright (c) 2015-2026 Werner Lemberg
+             Copyright (c) 2004-2026 suzuki toshiya, Masatake YAMATO, Red Hat K.K., David Turner, Robert Wilhelm, and Werner Lemberg
+             Copyright (c) 2019 nyorain
+             Copyright (c) 2022-2026 David Turner, Robert Wilhelm, Werner Lemberg, George Williams, and Dominik Röttsches
+             Copyright (C) 2009, 2023  Red Hat, Inc.
+  Website: http://www.freetype.org
 
 Freetype 2 - zlib
-  Plateformes : Windows
-  Dans : Qt6Gui
-  Licence : Zlib
-  Copyright : Copyright (C) 1995-2024 Jean-loup Gailly and Mark Adler
-  Site : http://www.freetype.org
+  Platforms: Windows
+  In: Qt6Gui
+  License: Zlib
+  Copyright: Copyright (C) 1995-2024 Jean-loup Gailly and Mark Adler
+  Website: http://www.freetype.org
 
 Freetype 2 - Bitmap Distribution Format (BDF) support
-  Plateformes : Windows
-  Dans : Qt6Gui
-  Licence : MIT
-  Copyright : Copyright (c) 2000 Computing Research Labs, New Mexico State University
-              Copyright (c) 2001-2014 Francesco Zappa Nardelli
-  Site : http://www.freetype.org
+  Platforms: Windows
+  In: Qt6Gui
+  License: MIT
+  Copyright: Copyright (c) 2000 Computing Research Labs, New Mexico State University
+             Copyright (c) 2001-2014 Francesco Zappa Nardelli
+  Website: http://www.freetype.org
 
 Freetype 2 - Portable Compiled Format (PCF) support
-  Plateformes : Windows
-  Dans : Qt6Gui
-  Licence : MIT AND MIT-open-group
-  Copyright : Copyright (c) 2001, 2012 David Turner, Robert Wilhelm, and Werner Lemberg
-              Copyright (c) 2000-2014 Francesco Zappa Nardelli
-              Copyright (c) 1990, 1994, 1998 The Open Group
-  Site : http://www.freetype.org
+  Platforms: Windows
+  In: Qt6Gui
+  License: MIT AND MIT-open-group
+  Copyright: Copyright (c) 2001, 2012 David Turner, Robert Wilhelm, and Werner Lemberg
+             Copyright (c) 2000-2014 Francesco Zappa Nardelli
+             Copyright (c) 1990, 1994, 1998 The Open Group
+  Website: http://www.freetype.org
 
 HarfBuzz-NG 14.5.0
-  Plateformes : Linux, Windows
-  Dans : Qt6Gui
-  Licence : MIT
-  Copyright : Copyright © 2010-2022  Google, Inc.
-              Copyright © 2015-2020  Ebrahim Byagowi
-              Copyright © 2019,2020  Facebook, Inc.
-              Copyright © 2012,2015  Mozilla Foundation
-              Copyright © 2011  Codethink Limited
-              Copyright © 2008,2010  Nokia Corporation and/or its subsidiary(-ies)
-              Copyright © 2009  Keith Stribley
-              Copyright © 2011  Martin Hosken and SIL International
-              Copyright © 2007  Chris Wilson
-              Copyright © 2005,2006,2020,2021,2022,2023  Behdad Esfahbod
-              Copyright © 2004,2007,2008,2009,2010,2013,2021,2022,2023  Red Hat, Inc.
-              Copyright © 1998-2005  David Turner and Werner Lemberg
-              Copyright © 2016  Igalia S.L.
-              Copyright © 2022  Matthias Clasen
-              Copyright © 2018,2021  Khaled Hosny
-              Copyright © 2018,2019,2020  Adobe, Inc
-              Copyright © 2013-2015  Alexei Podtelezhnikov
-  Site : http://harfbuzz.org
+  Platforms: Linux, Windows
+  In: Qt6Gui
+  License: MIT
+  Copyright: Copyright © 2010-2022  Google, Inc.
+             Copyright © 2015-2020  Ebrahim Byagowi
+             Copyright © 2019,2020  Facebook, Inc.
+             Copyright © 2012,2015  Mozilla Foundation
+             Copyright © 2011  Codethink Limited
+             Copyright © 2008,2010  Nokia Corporation and/or its subsidiary(-ies)
+             Copyright © 2009  Keith Stribley
+             Copyright © 2011  Martin Hosken and SIL International
+             Copyright © 2007  Chris Wilson
+             Copyright © 2005,2006,2020,2021,2022,2023  Behdad Esfahbod
+             Copyright © 2004,2007,2008,2009,2010,2013,2021,2022,2023  Red Hat, Inc.
+             Copyright © 1998-2005  David Turner and Werner Lemberg
+             Copyright © 2016  Igalia S.L.
+             Copyright © 2022  Matthias Clasen
+             Copyright © 2018,2021  Khaled Hosny
+             Copyright © 2018,2019,2020  Adobe, Inc
+             Copyright © 2013-2015  Alexei Podtelezhnikov
+  Website: http://harfbuzz.org
 
 sRGB color profile icc file
-  Plateformes : Linux, Windows
-  Dans : Qt6Gui
-  Licence : LicenseRef-ICC-License
-  Copyright : Copyright International Color Consortium, 2015
-  Site : http://www.color.org/
+  Platforms: Linux, Windows
+  In: Qt6Gui
+  License: LicenseRef-ICC-License
+  Copyright: Copyright International Color Consortium, 2015
+  Website: http://www.color.org/
 
 LibPNG 1.6.58
-  Plateformes : Linux, Windows
-  Dans : Qt6Gui
-  Licence : Libpng AND libpng-2.0
-  Copyright : Copyright (c) 1995-2026 The PNG Reference Library Authors
-              Copyright (c) 2000-2026 Cosmin Truta
-              Copyright (c) 1998-2018 Glenn Randers-Pehrson
-              Copyright (c) 1996-1997 Andreas Dilger
-              Copyright (c) 1995-1996 Guy Eric Schalnat, Group 42, Inc.
-              Copyright (c) 2000-2017 Simon-Pierre Cadieux
-              Copyright (c) 2000-2017 Eric S. Raymond
-              Copyright (c) 2000-2017 Mans Rullgard
-              Copyright (c) 2000-2017 Gilles Vollant
-              Copyright (c) 2000-2017 James Yu
-              Copyright (c) 2000-2017 Mandar Sahastrabuddhe
-              Copyright (c) 1998-2000 Tom Lane
-              Copyright (c) 1998-2000 Willem van Schaik
-              Copyright (c) 1996-1997 John Bowler
-              Copyright (c) 1996-1997 Kevin Bracey
-              Copyright (c) 1996-1997 Sam Bushell
-              Copyright (c) 1996-1997 Magnus Holmgren
-              Copyright (c) 1996-1997 Greg Roelofs
-              Copyright (c) 1996-1997 Tom Tanner
-              Copyright (c) 1995-1996 Dave Martindale
-              Copyright (c) 1995-1996 Paul Schmidt
-              Copyright (c) 1995-1996 Tim Wegner
-  Site : http://www.libpng.org/pub/png/libpng.html
+  Platforms: Linux, Windows
+  In: Qt6Gui
+  License: Libpng AND libpng-2.0
+  Copyright: Copyright (c) 1995-2026 The PNG Reference Library Authors
+             Copyright (c) 2000-2026 Cosmin Truta
+             Copyright (c) 1998-2018 Glenn Randers-Pehrson
+             Copyright (c) 1996-1997 Andreas Dilger
+             Copyright (c) 1995-1996 Guy Eric Schalnat, Group 42, Inc.
+             Copyright (c) 2000-2017 Simon-Pierre Cadieux
+             Copyright (c) 2000-2017 Eric S. Raymond
+             Copyright (c) 2000-2017 Mans Rullgard
+             Copyright (c) 2000-2017 Gilles Vollant
+             Copyright (c) 2000-2017 James Yu
+             Copyright (c) 2000-2017 Mandar Sahastrabuddhe
+             Copyright (c) 1998-2000 Tom Lane
+             Copyright (c) 1998-2000 Willem van Schaik
+             Copyright (c) 1996-1997 John Bowler
+             Copyright (c) 1996-1997 Kevin Bracey
+             Copyright (c) 1996-1997 Sam Bushell
+             Copyright (c) 1996-1997 Magnus Holmgren
+             Copyright (c) 1996-1997 Greg Roelofs
+             Copyright (c) 1996-1997 Tom Tanner
+             Copyright (c) 1995-1996 Dave Martindale
+             Copyright (c) 1995-1996 Paul Schmidt
+             Copyright (c) 1995-1996 Tim Wegner
+  Website: http://www.libpng.org/pub/png/libpng.html
 
 The Public Suffix List 2026-05-14_08-35-31_UTC
-  Plateformes : Linux, Windows
-  Dans : Qt6Network
-  Licence : MPL-2.0
-  Copyright : The list was originally provided by Jo Hermans <jo.hermans@gmail.com>.
-              It is now maintained on github (https://github.com/publicsuffix/list).
-  Site : http://publicsuffix.org/
+  Platforms: Linux, Windows
+  In: Qt6Network
+  License: MPL-2.0
+  Copyright: The list was originally provided by Jo Hermans <jo.hermans@gmail.com>.
+             It is now maintained on github (https://github.com/publicsuffix/list).
+  Website: http://publicsuffix.org/
 
 libpsl - C library to handle the Public Suffix List 664f3dc85259ec65e30248a61fa1c45b7b0e4c3f
-  Plateformes : Linux, Windows
-  Dans : Qt6Network
-  Licence : BSD-3-Clause
-  Copyright : Copyright 2014-2016 The Chromium Authors. All rights reserved.
-  Site : https://github.com/rockdaboot/libpsl
+  Platforms: Linux, Windows
+  In: Qt6Network
+  License: BSD-3-Clause
+  Copyright: Copyright 2014-2016 The Chromium Authors. All rights reserved.
+  Website: https://github.com/rockdaboot/libpsl
 
 MD4
-  Plateformes : Linux, Windows
-  Dans : Qt6Core
-  Licence : CC0-1.0
-  Copyright : Written by Alexander Peslyak - better known as Solar Designer <solar@openwall.com> - in 2001, and placed in the public domain. There's absolutely no warranty.
+  Platforms: Linux, Windows
+  In: Qt6Core
+  License: CC0-1.0
+  Copyright: Written by Alexander Peslyak - better known as Solar Designer <solar@openwall.com> - in 2001, and placed in the public domain. There's absolutely no warranty.
 
 MD4C 0.5.3
-  Plateformes : Linux, Windows
-  Dans : Qt6Gui
-  Licence : MIT
-  Copyright : Copyright © 2016-2024 Martin Mitáš
-  Site : https://github.com/mity/md4c
+  Platforms: Linux, Windows
+  In: Qt6Gui
+  License: MIT
+  Copyright: Copyright © 2016-2024 Martin Mitáš
+  Website: https://github.com/mity/md4c
 
 MD5
-  Plateformes : Linux, Windows
-  Dans : Qt6Core
-  Licence : CC0-1.0
-  Copyright : Written by Colin Plumb in 1993, no copyright is claimed. Ian Jackson <ian@chiark.greenend.org.uk>.
+  Platforms: Linux, Windows
+  In: Qt6Core
+  License: CC0-1.0
+  Copyright: Written by Colin Plumb in 1993, no copyright is claimed. Ian Jackson <ian@chiark.greenend.org.uk>.
 
 PCRE2 10.48
-  Plateformes : Linux, Windows
-  Dans : Qt6Core
-  Licence : LicenseRef-BSD-3-Clause-with-PCRE2-Binary-Like-Packages-Exception
-  Copyright : Copyright (c) 1997-2007 University of Cambridge
-              Copyright (c) 2007-2024 Philip Hazel
-              Copyright (c) 2010-2024 Zoltan Herczeg
-  Site : http://www.pcre.org/
+  Platforms: Linux, Windows
+  In: Qt6Core
+  License: LicenseRef-BSD-3-Clause-with-PCRE2-Binary-Like-Packages-Exception
+  Copyright: Copyright (c) 1997-2007 University of Cambridge
+             Copyright (c) 2007-2024 Philip Hazel
+             Copyright (c) 2010-2024 Zoltan Herczeg
+  Website: http://www.pcre.org/
 
 PCRE2 - Stack-less Just-In-Time Compiler 10.48
-  Plateformes : Linux, Windows
-  Dans : Qt6Core
-  Licence : BSD-2-Clause
-  Copyright : Copyright Zoltan Herczeg
-  Site : http://www.pcre.org/
+  Platforms: Linux, Windows
+  In: Qt6Core
+  License: BSD-2-Clause
+  Copyright: Copyright Zoltan Herczeg
+  Website: http://www.pcre.org/
 
 Pixman 0.17.12
-  Plateformes : Windows ARM64
-  Dans : Qt6Gui
-  Licence : MIT
-  Copyright : Copyright © 2009 Nokia Corporation
-  Site : http://www.pixman.org/
+  Platforms: Windows ARM64
+  In: Qt6Gui
+  License: MIT
+  Copyright: Copyright © 2009 Nokia Corporation
+  Website: http://www.pixman.org/
 
 Secure Hash Algorithms SHA-384 and SHA-512
-  Plateformes : Linux, Windows
-  Dans : Qt6Core
-  Licence : BSD-3-Clause
-  Copyright : Copyright (c) 2011 IETF Trust and the persons identified as authors of the code.
+  Platforms: Linux, Windows
+  In: Qt6Core
+  License: BSD-3-Clause
+  Copyright: Copyright (c) 2011 IETF Trust and the persons identified as authors of the code.
 
 Secure Hash Algorithm SHA-1
-  Plateformes : Linux, Windows
-  Dans : Qt6Core
-  Licence : LicenseRef-SHA1-Public-Domain
-  Copyright : Copyright (C) Dominik Reichl <dominik.reichl@t-online.de>
-              Copyright (C) 2016 The Qt Company Ltd
-  Site : http://www.dominik-reichl.de/projects/csha1/
+  Platforms: Linux, Windows
+  In: Qt6Core
+  License: LicenseRef-SHA1-Public-Domain
+  Copyright: Copyright (C) Dominik Reichl <dominik.reichl@t-online.de>
+             Copyright (C) 2016 The Qt Company Ltd
+  Website: http://www.dominik-reichl.de/projects/csha1/
 
 Secure Hash Algorithm SHA-3 - brg_endian 1.0.0
-  Plateformes : Linux, Windows
-  Dans : Qt6Core
-  Licence : BSD-2-Clause
-  Copyright : Copyright (c) 1998-2013, Brian Gladman, Worcester, UK. All rights reserved.
+  Platforms: Linux, Windows
+  In: Qt6Core
+  License: BSD-2-Clause
+  Copyright: Copyright (c) 1998-2013, Brian Gladman, Worcester, UK. All rights reserved.
 
 Secure Hash Algorithm SHA-3 - Keccak 3.2
-  Plateformes : Linux, Windows
-  Dans : Qt6Core
-  Licence : CC0-1.0
-  Copyright : Guido Bertoni, Joan Daemen, Michaël Peeters and Gilles Van Assche.
-              To the extent possible under law, the implementers have waived all copyright
-              and related or neighboring rights to the source code in this file.
+  Platforms: Linux, Windows
+  In: Qt6Core
+  License: CC0-1.0
+  Copyright: Guido Bertoni, Joan Daemen, Michaël Peeters and Gilles Van Assche.
+             To the extent possible under law, the implementers have waived all copyright
+             and related or neighboring rights to the source code in this file.
 
 SipHash Algorithm
-  Plateformes : Linux, Windows
-  Dans : Qt6Core
-  Licence : CC0-1.0
-  Copyright : Copyright (C) 2012-2014 Jean-Philippe Aumasson
-              Copyright (C) 2012-2014 Daniel J. Bernstein <djb@cr.yp.to>
-              Copyright (C) 2016 Intel Corporation
-  Site : https://131002.net/siphash/
+  Platforms: Linux, Windows
+  In: Qt6Core
+  License: CC0-1.0
+  Copyright: Copyright (C) 2012-2014 Jean-Philippe Aumasson
+             Copyright (C) 2012-2014 Daniel J. Bernstein <djb@cr.yp.to>
+             Copyright (C) 2016 Intel Corporation
+  Website: https://131002.net/siphash/
 
 TinyCBOR 7.0
-  Plateformes : Linux, Windows
-  Dans : Qt6Core
-  Licence : MIT
-  Copyright : Copyright (C) 2015-2025 Intel Corporation
-  Site : https://github.com/intel/tinycbor
+  Platforms: Linux, Windows
+  In: Qt6Core
+  License: MIT
+  Copyright: Copyright (C) 2015-2025 Intel Corporation
+  Website: https://github.com/intel/tinycbor
 
 Wayland KDE DBus Menu Protocol 1
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : LGPL-2.1-or-later
-  Copyright : Copyright 2017 David Edmundson
-  Site : https://kde.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: LGPL-2.1-or-later
+  Copyright: Copyright 2017 David Edmundson
+  Website: https://kde.org
 
 Wayland Color Management Protocol 1
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright 2019 Sebastian Wick
-              Copyright 2019 Erwin Burema
-              Copyright 2020 AMD
-              Copyright 2020-2024 Collabora, Ltd.
-              Copyright 2024 Xaver Hugl
-              Copyright 2022-2025 Red Hat, Inc.
-  Site : https://wayland.freedesktop.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright 2019 Sebastian Wick
+             Copyright 2019 Erwin Burema
+             Copyright 2020 AMD
+             Copyright 2020-2024 Collabora, Ltd.
+             Copyright 2024 Xaver Hugl
+             Copyright 2022-2025 Red Hat, Inc.
+  Website: https://wayland.freedesktop.org
 
 Wayland Fractional Scale Protocol 1
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright © 2022 Kenny Levinsen
-  Site : https://wayland.freedesktop.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright © 2022 Kenny Levinsen
+  Website: https://wayland.freedesktop.org
 
 Wayland Fullscreen Shell Protocol unstable v1
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright © 2016 Yong Bakos
-              Copyright © 2015 Jason Ekstrand
-              Copyright © 2015 Jonas Ådahl
-  Site : https://wayland.freedesktop.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright © 2016 Yong Bakos
+             Copyright © 2015 Jason Ekstrand
+             Copyright © 2015 Jonas Ådahl
+  Website: https://wayland.freedesktop.org
 
 Wayland Linux Dmabuf V1 Protocol v1, version 5
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright © 2014, 2015 Collabora, Ltd.
-  Site : https://wayland.freedesktop.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright © 2014, 2015 Collabora, Ltd.
+  Website: https://wayland.freedesktop.org
 
 Wayland Linux Dmabuf Unstable V1 Protocol unstable v1, version 3
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright © 2014, 2015 Collabora, Ltd.
-  Site : https://wayland.freedesktop.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright © 2014, 2015 Collabora, Ltd.
+  Website: https://wayland.freedesktop.org
 
 Wayland Pointer Gestures Protocol unstable v1, version 2
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright © 2015, 2016 Red Hat
-  Site : https://wayland.freedesktop.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright © 2015, 2016 Red Hat
+  Website: https://wayland.freedesktop.org
 
 Wayland Pointer Warp Protocol version 1
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright © 2024 Neal Gompa
-              Copyright © 2024 Xaver Hugl
-              Copyright © 2024 Matthias Klumpp
-              Copyright © 2024 Vlad Zahorodnii
-  Site : https://wayland.freedesktop.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright © 2024 Neal Gompa
+             Copyright © 2024 Xaver Hugl
+             Copyright © 2024 Matthias Klumpp
+             Copyright © 2024 Vlad Zahorodnii
+  Website: https://wayland.freedesktop.org
 
 Presentation Time Protocol 1
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright © 2013, 2014 Collabora, Ltd.
-  Site : https://wayland.freedesktop.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright © 2013, 2014 Collabora, Ltd.
+  Website: https://wayland.freedesktop.org
 
 Wayland Scaler Protocol 2
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright © 2013-2014 Collabora, Ltd.
-  Site : https://wayland.freedesktop.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright © 2013-2014 Collabora, Ltd.
+  Website: https://wayland.freedesktop.org
 
 Wayland Session Management Protocol experimental V1
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright 2018 Mike Blumenkrantz
-              Copyright 2018 Samsung Electronics Co., Ltd
-              Copyright 2018 Red Hat Inc.
-  Site : https://wayland.freedesktop.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright 2018 Mike Blumenkrantz
+             Copyright 2018 Samsung Electronics Co., Ltd
+             Copyright 2018 Red Hat Inc.
+  Website: https://wayland.freedesktop.org
 
 Wayland Tablet Protocol unstable v2, version 1
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright 2014 © Stephen "Lyude" Chandler Paul
-              Copyright 2015-2016 © Red Hat, Inc.
-  Site : https://wayland.freedesktop.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright 2014 © Stephen "Lyude" Chandler Paul
+             Copyright 2015-2016 © Red Hat, Inc.
+  Website: https://wayland.freedesktop.org
 
 Wayland Text Input Protocol v1 unstable v1
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright © 2012, 2013 Intel Corporation
-  Site : https://wayland.freedesktop.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright © 2012, 2013 Intel Corporation
+  Website: https://wayland.freedesktop.org
 
 Wayland Text Input Protocol v2 unstable v2
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : HPND
-  Copyright : Copyright © 2012, 2013 Intel Corporation
-              Copyright © 2015, 2016 Jan Arne Petersen
-  Site : https://wayland.freedesktop.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: HPND
+  Copyright: Copyright © 2012, 2013 Intel Corporation
+             Copyright © 2015, 2016 Jan Arne Petersen
+  Website: https://wayland.freedesktop.org
 
 Wayland Text Input Protocol unstable v3
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright © 2012, 2013 Intel Corporation
-              Copyright © 2015, 2016 Jan Arne Petersen
-              Copyright © 2017, 2018 Red Hat, Inc.
-              Copyright © 2018       Purism SPC
-  Site : https://wayland.freedesktop.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright © 2012, 2013 Intel Corporation
+             Copyright © 2015, 2016 Jan Arne Petersen
+             Copyright © 2017, 2018 Red Hat, Inc.
+             Copyright © 2018       Purism SPC
+  Website: https://wayland.freedesktop.org
 
 Wayland Viewporter Protocol 1
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright © 2013-2016 Collabora, Ltd.
-  Site : https://wayland.freedesktop.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright © 2013-2016 Collabora, Ltd.
+  Website: https://wayland.freedesktop.org
 
 Wayland Protocol 1.24.0
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright © 2008-2011 Kristian Høgsberg
-              Copyright © 2010-2011 Intel Corporation
-              Copyright © 2012-2013 Collabora, Ltd.
-  Site : https://wayland.freedesktop.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright © 2008-2011 Kristian Høgsberg
+             Copyright © 2010-2011 Intel Corporation
+             Copyright © 2012-2013 Collabora, Ltd.
+  Website: https://wayland.freedesktop.org
 
 Wayland EGLStream Controller Protocol 1.1.1
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright (c) 2017, NVIDIA CORPORATION. All rights reserved.
-  Site : https://github.com/NVIDIA/egl-wayland
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright (c) 2017, NVIDIA CORPORATION. All rights reserved.
+  Website: https://github.com/NVIDIA/egl-wayland
 
 Wlr Data Control Unstable V1 Protocol 2
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright © 2018 Simon Ser
-              Copyright © 2019 Ivan Molodetskikht
-  Site : https://gitlab.freedesktop.org/wlroots/wlr-protocols/
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright © 2018 Simon Ser
+             Copyright © 2019 Ivan Molodetskikht
+  Website: https://gitlab.freedesktop.org/wlroots/wlr-protocols/
 
 Wayland Primary Selection Protocol 1
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright © 2015, 2016 Red Hat
-  Site : https://wayland.freedesktop.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright © 2015, 2016 Red Hat
+  Website: https://wayland.freedesktop.org
 
 Wayland xdg-activation Protocol unstable v1, version 1
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright © 2020 Aleix Pol Gonzalez &lt;aleixpol@kde.org&gt;
-              Copyright © 2020 Carlos Garnacho &lt;carlosg@gnome.org&gt;
-  Site : https://wayland.freedesktop.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright © 2020 Aleix Pol Gonzalez &lt;aleixpol@kde.org&gt;
+             Copyright © 2020 Carlos Garnacho &lt;carlosg@gnome.org&gt;
+  Website: https://wayland.freedesktop.org
 
 Wayland xdg-decoration Protocol unstable v1, version 1
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright © 2018 Simon Ser
-  Site : https://wayland.freedesktop.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright © 2018 Simon Ser
+  Website: https://wayland.freedesktop.org
 
 Wayland Dialog Protocol 1
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright © 2023 Carlos Garnacho
-  Site : https://wayland.freedesktop.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright © 2023 Carlos Garnacho
+  Website: https://wayland.freedesktop.org
 
 Wayland XDG Foreign Protocol 1
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright © 2015-2016 Red Hat Inc.
-  Site : https://wayland.freedesktop.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright © 2015-2016 Red Hat Inc.
+  Website: https://wayland.freedesktop.org
 
 Wayland XDG Output Protocol unstable v1, version 3
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright © 2017 Red Hat Inc.
-  Site : https://wayland.freedesktop.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright © 2017 Red Hat Inc.
+  Website: https://wayland.freedesktop.org
 
 Wayland XDG Shell Protocol 1.18
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright © 2008-2013 Kristian Høgsberg
-              Copyright © 2013      Rafael Antognolli
-              Copyright © 2013      Jasper St. Pierre
-              Copyright © 2010-2013 Intel Corporation
-              Copyright © 2015-2017 Samsung Electronics Co., Ltd
-              Copyright © 2015-2017 Red Hat Inc.
-  Site : https://gitlab.freedesktop.org/wayland/wayland-protocols/
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright © 2008-2013 Kristian Høgsberg
+             Copyright © 2013      Rafael Antognolli
+             Copyright © 2013      Jasper St. Pierre
+             Copyright © 2010-2013 Intel Corporation
+             Copyright © 2015-2017 Samsung Electronics Co., Ltd
+             Copyright © 2015-2017 Red Hat Inc.
+  Website: https://gitlab.freedesktop.org/wayland/wayland-protocols/
 
 Wayland XDG System Bell Protocol 1.18
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright © 2016, 2023 Red Hat
-  Site : https://gitlab.freedesktop.org/wayland/wayland-protocols/
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright © 2016, 2023 Red Hat
+  Website: https://gitlab.freedesktop.org/wayland/wayland-protocols/
 
 Wayland xdg-toplevel-icon Protocol version 1
-  Plateformes : Linux
-  Dans : Qt6WaylandClient et plugins Wayland
-  Licence : MIT
-  Copyright : Copyright © 2024 Matthias Klumpp 2024 David Edmundson
-  Site : https://wayland.freedesktop.org
+  Platforms: Linux
+  In: Qt6WaylandClient and Wayland plugins
+  License: MIT
+  Copyright: Copyright © 2024 Matthias Klumpp 2024 David Edmundson
+  Website: https://wayland.freedesktop.org
 
 Wintab API
-  Plateformes : Windows
-  Dans : plugin qwindows
-  Licence : LicenseRef-Lcs-Telegraphics
-  Copyright : Copyright 1991-1998 by LCS/Telegraphics.
+  Platforms: Windows
+  In: qwindows plugin
+  License: LicenseRef-Lcs-Telegraphics
+  Copyright: Copyright 1991-1998 by LCS/Telegraphics.
 
 XCB-XInput
-  Plateformes : Linux
-  Dans : Qt6XcbQpa (plugin xcb)
-  Licence : MIT
-  Copyright : Copyright (C) 2001-2006 Bart Massey, Jamey Sharp, and Josh Triplett.
-              Copyright (C) 2006 Peter Hutterer
-              Copyright (C) 2013 Daniel Martin
-  Site : https://xcb.freedesktop.org/
+  Platforms: Linux
+  In: Qt6XcbQpa (xcb plugin)
+  License: MIT
+  Copyright: Copyright (C) 2001-2006 Bart Massey, Jamey Sharp, and Josh Triplett.
+             Copyright (C) 2006 Peter Hutterer
+             Copyright (C) 2013 Daniel Martin
+  Website: https://xcb.freedesktop.org/
 
 Data Compression Library (zlib) 1.3.2
-  Plateformes : Windows
-  Dans : Qt6Core
-  Licence : Zlib
-  Copyright : (C) 1995-2026 Jean-loup Gailly and Mark Adler
-  Site : https://zlib.net/
+  Platforms: Windows
+  In: Qt6Core
+  License: Zlib
+  Copyright: (C) 1995-2026 Jean-loup Gailly and Mark Adler
+  Website: https://zlib.net/
 
 tl::expected 41d3e1f48d682992a2230b2a715bca38b848b269
-  Plateformes : Linux, Windows
-  Dans : Qt6Core et autres modules Qt
-  Licence : CC0-1.0
-  Copyright : To the extent possible under law, Sy Brand has waived all copyright and related or neighboring rights to the expected library. This work is published from: United Kingdom.
-  Site : https://github.com/TartanLlama/expected/
+  Platforms: Linux, Windows
+  In: Qt6Core and other Qt modules
+  License: CC0-1.0
+  Copyright: To the extent possible under law, Sy Brand has waived all copyright and related or neighboring rights to the expected library. This work is published from: United Kingdom.
+  Website: https://github.com/TartanLlama/expected/
 
 Apache Tika MimeType Definitions c29724782854bb5a319f4a1940d0828a58ace3f9
-  Plateformes : Linux, Windows
-  Dans : Qt6Core
-  Licence : Apache-2.0
-  Copyright : Copyright 2026 The Apache Software Foundation
-  Site : https://github.com/apache/tika/tree/main/tika-core/src/main/resources/org/apache/tika/mime
+  Platforms: Linux, Windows
+  In: Qt6Core
+  License: Apache-2.0
+  Copyright: Copyright 2026 The Apache Software Foundation
+  Website: https://github.com/apache/tika/tree/main/tika-core/src/main/resources/org/apache/tika/mime
 
 Unicode Character Database (UCD) 36
-  Plateformes : Linux, Windows
-  Dans : Qt6Core
-  Licence : Unicode-3.0
-  Copyright : Copyright (C) 1991-2025 Unicode, Inc.
-  Site : https://www.unicode.org/ucd/
+  Platforms: Linux, Windows
+  In: Qt6Core
+  License: Unicode-3.0
+  Copyright: Copyright (C) 1991-2025 Unicode, Inc.
+  Website: https://www.unicode.org/ucd/
 
 Unicode Common Locale Data Repository (CLDR) v48.2
-  Plateformes : Linux, Windows
-  Dans : Qt6Core
-  Licence : Unicode-3.0
-  Copyright : Copyright (C) 2004-2025 Unicode, Inc.
-  Site : https://cldr.unicode.org/
+  Platforms: Linux, Windows
+  In: Qt6Core
+  License: Unicode-3.0
+  Copyright: Copyright (C) 2004-2025 Unicode, Inc.
+  Website: https://cldr.unicode.org/
 
 libdbus-1 headers 1.13.12
-  Plateformes : Linux
-  Dans : Qt6DBus
-  Licence : AFL-2.1 OR GPL-2.0-or-later
-  Copyright : Copyright (C) 2002, 2003 CodeFactory AB
-              Copyright (C) 2004, 2005 Red Hat, Inc.
-  Site : https://www.freedesktop.org/wiki/Software/dbus/
+  Platforms: Linux
+  In: Qt6DBus
+  License: AFL-2.1 OR GPL-2.0-or-later
+  Copyright: Copyright (C) 2002, 2003 CodeFactory AB
+             Copyright (C) 2004, 2005 Red Hat, Inc.
+  Website: https://www.freedesktop.org/wiki/Software/dbus/
 
 OpenGL Headers Revision 27684
-  Plateformes : Linux, Windows
-  Dans : Qt6Gui
-  Licence : MIT
-  Copyright : Copyright (c) 2013-2014 The Khronos Group Inc.
-  Site : https://www.khronos.org/
+  Platforms: Linux, Windows
+  In: Qt6Gui
+  License: MIT
+  Copyright: Copyright (c) 2013-2014 The Khronos Group Inc.
+  Website: https://www.khronos.org/
 
 OpenGL ES 2 Headers Revision 27673
-  Plateformes : Linux, Windows
-  Dans : Qt6Gui
-  Licence : MIT
-  Copyright : Copyright (c) 2013-2014 The Khronos Group Inc.
-  Site : https://www.khronos.org/
+  Platforms: Linux, Windows
+  In: Qt6Gui
+  License: MIT
+  Copyright: Copyright (c) 2013-2014 The Khronos Group Inc.
+  Website: https://www.khronos.org/
 
 Anti-aliasing rasterizer from FreeType 2
-  Plateformes : Linux, Windows
-  Dans : Qt6Gui
-  Licence : FTL OR GPL-2.0-only
-  Copyright : Copyright 2000-2016 by David Turner, Robert Wilhelm, and Werner Lemberg.
-  Site : http://www.freetype.org
+  Platforms: Linux, Windows
+  In: Qt6Gui
+  License: FTL OR GPL-2.0-only
+  Copyright: Copyright 2000-2016 by David Turner, Robert Wilhelm, and Werner Lemberg.
+  Website: http://www.freetype.org
 
 Smooth Scaling Algorithm
-  Plateformes : Linux, Windows
-  Dans : Qt6Gui
-  Licence : BSD-2-Clause AND Imlib2
-  Copyright : Copyright (C) 2004, 2005 Daniel M. Duley.
-              (C) Carsten Haitzler and various contributors.
-              (C) Willem Monsuwe <willem@stack.nl>
+  Platforms: Linux, Windows
+  In: Qt6Gui
+  License: BSD-2-Clause AND Imlib2
+  Copyright: Copyright (C) 2004, 2005 Daniel M. Duley.
+             (C) Carsten Haitzler and various contributors.
+             (C) Willem Monsuwe <willem@stack.nl>
 
 X Server helper
-  Plateformes : Linux, Windows
-  Dans : Qt6Gui
-  Licence : X11 AND HPND
-  Copyright : Copyright (c) 1987, 1988 X Consortium
-              Copyright 1987, 1988 by Digital Equipment Corporation, Maynard, Massachusetts.
-  Site : https://www.x.org/
+  Platforms: Linux, Windows
+  In: Qt6Gui
+  License: X11 AND HPND
+  Copyright: Copyright (c) 1987, 1988 X Consortium
+             Copyright 1987, 1988 by Digital Equipment Corporation, Maynard, Massachusetts.
+  Website: https://www.x.org/
 
 Mipmap generator for D3D12 0aa79bad78992da0b6a8279ddb9002c1753cb849
-  Plateformes : Windows
-  Dans : Qt6Gui
-  Licence : MIT
-  Copyright : Copyright (c) 2015 Microsoft
-  Site : https://github.com/microsoft/DirectX-Graphics-Samples
+  Platforms: Windows
+  In: Qt6Gui
+  License: MIT
+  Copyright: Copyright (c) 2015 Microsoft
+  Website: https://github.com/microsoft/DirectX-Graphics-Samples
 
 Adobe Glyph List For New Fonts 1.7
-  Plateformes : Linux, Windows
-  Dans : Qt6Gui
-  Licence : BSD-3-Clause
-  Copyright : Copyright 2002, 2003, 2005, 2006, 2008, 2010, 2015 Adobe Systems
-  Site : https://github.com/adobe-type-tools/agl-aglfn
+  Platforms: Linux, Windows
+  In: Qt6Gui
+  License: BSD-3-Clause
+  Copyright: Copyright 2002, 2003, 2005, 2006, 2008, 2010, 2015 Adobe Systems
+  Website: https://github.com/adobe-type-tools/agl-aglfn
 
 XSVG
-  Plateformes : Linux, Windows
-  Dans : Qt6Gui
-  Licence : HPND-sell-variant
-  Copyright : Copyright 2002 USC/Information Sciences Institute
+  Platforms: Linux, Windows
+  In: Qt6Gui
+  License: HPND-sell-variant
+  Copyright: Copyright 2002 USC/Information Sciences Institute
 
 Vulkan API Registry 1.4.308
-  Plateformes : Linux, Windows
-  Dans : Qt6Gui
-  Licence : Apache-2.0 OR MIT
-  Copyright : Copyright (c) 2015-2025 The Khronos Group Inc.
-  Site : https://www.khronos.org/
+  Platforms: Linux, Windows
+  In: Qt6Gui
+  License: Apache-2.0 OR MIT
+  Copyright: Copyright (c) 2015-2025 The Khronos Group Inc.
+  Website: https://www.khronos.org/
 
 Cycle 3.3.11
-  Plateformes : Linux, Windows
-  Dans : Qt6Test
-  Licence : MIT
-  Copyright : Copyright (c) 2003, 2007-14 Matteo Frigo
-              Copyright (c) 2003, 2007-14 Massachusetts Institute of Technology
-  Site : http://fftw.org/
+  Platforms: Linux, Windows
+  In: Qt6Test
+  License: MIT
+  Copyright: Copyright (c) 2003, 2007-14 Matteo Frigo
+             Copyright (c) 2003, 2007-14 Massachusetts Institute of Technology
+  Website: http://fftw.org/
 
 Linux Performance Events 7.0
-  Plateformes : Linux
-  Dans : Qt6Test
-  Licence : GPL-2.0-only WITH Linux-syscall-note
-  Copyright : Copyright (C) 2008-2009, Linutronix GmbH, Thomas Gleixner <tglx@kernel.org>
-              Copyright (C) 2008-2011, Red Hat, Inc., Ingo Molnar
-              Copyright (C) 2008-2011, Red Hat, Inc., Peter Zijlstra
-  Site : https://www.kernel.org
+  Platforms: Linux
+  In: Qt6Test
+  License: GPL-2.0-only WITH Linux-syscall-note
+  Copyright: Copyright (C) 2008-2009, Linutronix GmbH, Thomas Gleixner <tglx@kernel.org>
+             Copyright (C) 2008-2011, Red Hat, Inc., Ingo Molnar
+             Copyright (C) 2008-2011, Red Hat, Inc., Peter Zijlstra
+  Website: https://www.kernel.org
 
 Valgrind 3.25.1
-  Plateformes : Linux
-  Dans : Qt6Test
-  Licence : BSD-4-Clause
-  Copyright : Copyright (C) 2000-2017 Julian Seward
-              Copyright (C) 2003-2017 Josef Weidendorfer.
-  Site : http://valgrind.org/
+  Platforms: Linux
+  In: Qt6Test
+  License: BSD-4-Clause
+  Copyright: Copyright (C) 2000-2017 Julian Seward
+             Copyright (C) 2003-2017 Josef Weidendorfer.
+  Website: http://valgrind.org/
 
 WebGradients
-  Plateformes : Linux, Windows
-  Dans : Qt6Gui
-  Licence : MIT
-  Copyright : Copyright (c) 2017 itmeo
-  Site : https://webgradients.com/
+  Platforms: Linux, Windows
+  In: Qt6Gui
+  License: MIT
+  Copyright: Copyright (c) 2017 itmeo
+  Website: https://webgradients.com/
 
 JavaScriptCore Macro Assembler
-  Plateformes : Linux, Windows
-  Dans : Qt6Qml
-  Licence : BSD-2-Clause
-  Copyright : Copyright (C) 2003-2018 Apple Inc. All rights reserved.
-              Copyright (C) 2007 Justin Haygood (jhaygood@reaktix.com)
-              Copyright (C) 2007-2009 Torch Mobile, Inc. All rights reserved. (http://www.torchmobile.com/)
-              Copyright (C) 2009, 2010 University of Szeged
-              Copyright (C) 2009-2011 STMicroelectronics. All rights reserved.
-              Copyright (C) 2010 MIPS Technologies, Inc. All rights reserved.
-              Copyright (C) 2010 Peter Varga (pvarga@inf.u-szeged.hu), University of Szeged
-              Copyright (C) 2010 MIPS Technologies, Inc. All rights reserved.
-              Copyright (C) 2010, 2011 Research In Motion Limited. All rights reserved.
-              Copyright (C) 2011 Google Inc. All rights reserved.
-              Copyright (C) 2013 Samsung Electronics. All rights reserved.
-              Copyright (C) 2015 Cisco Systems, Inc. All rights reserved.
-              Copyright (c) 2002-2009 Vivek Thampi
-  Site : https://trac.webkit.org/wiki/JavaScriptCore
+  Platforms: Linux, Windows
+  In: Qt6Qml
+  License: BSD-2-Clause
+  Copyright: Copyright (C) 2003-2018 Apple Inc. All rights reserved.
+             Copyright (C) 2007 Justin Haygood (jhaygood@reaktix.com)
+             Copyright (C) 2007-2009 Torch Mobile, Inc. All rights reserved. (http://www.torchmobile.com/)
+             Copyright (C) 2009, 2010 University of Szeged
+             Copyright (C) 2009-2011 STMicroelectronics. All rights reserved.
+             Copyright (C) 2010 MIPS Technologies, Inc. All rights reserved.
+             Copyright (C) 2010 Peter Varga (pvarga@inf.u-szeged.hu), University of Szeged
+             Copyright (C) 2010 MIPS Technologies, Inc. All rights reserved.
+             Copyright (C) 2010, 2011 Research In Motion Limited. All rights reserved.
+             Copyright (C) 2011 Google Inc. All rights reserved.
+             Copyright (C) 2013 Samsung Electronics. All rights reserved.
+             Copyright (C) 2015 Cisco Systems, Inc. All rights reserved.
+             Copyright (c) 2002-2009 Vivek Thampi
+  Website: https://trac.webkit.org/wiki/JavaScriptCore
 
 Yoga 2.0.1
-  Plateformes : Linux, Windows
-  Dans : Qt6QuickLayouts
-  Licence : MIT
-  Copyright : Copyright (c) Facebook, Inc. and its affiliates.
-              Copyright (c) Meta Platforms, Inc. and affiliates.
-  Site : https://www.yogalayout.dev/
+  Platforms: Linux, Windows
+  In: Qt6QuickLayouts
+  License: MIT
+  Copyright: Copyright (c) Facebook, Inc. and its affiliates.
+             Copyright (c) Meta Platforms, Inc. and affiliates.
+  Website: https://www.yogalayout.dev/
 
 Shadow values from Angular Material
-  Plateformes : Linux, Windows
-  Dans : Qt6QuickControls2Material
-  Licence : MIT
-  Copyright : Copyright (c) 2014-2016 Google, Inc
-  Site : https://angularjs.org/
+  Platforms: Linux, Windows
+  In: Qt6QuickControls2Material
+  License: MIT
+  Copyright: Copyright (c) 2014-2016 Google, Inc
+  Website: https://angularjs.org/
 
 Wayland IVI Extension Protocol 1.9.1
-  Plateformes : Linux
-  Dans : plugin Wayland ivi-shell
-  Licence : MIT
-  Copyright : Copyright (C) 2013 DENSO CORPORATION
-              Copyright (c) 2013 BMW Car IT GmbH
-  Site : https://at.projects.genivi.org/wiki/display/WIE/Wayland+IVI+Extension+Home
+  Platforms: Linux
+  In: Wayland ivi-shell plugin
+  License: MIT
+  Copyright: Copyright (C) 2013 DENSO CORPORATION
+             Copyright (c) 2013 BMW Car IT GmbH
+  Website: https://at.projects.genivi.org/wiki/display/WIE/Wayland+IVI+Extension+Home
 
-Python 3.7.0 (extraits dans Shiboken6)
-  Plateformes : Linux, Windows
-  Dans : shiboken6 (libshiboken6, module signature)
-  Licence : Python-2.0
-  Copyright : Copyright (c) 2001-2018 Python Software Foundation
-  Site : https://www.python.org/
-
-================================================================================
-Textes de licence
-================================================================================
+Python 3.7.0 (excerpts in Shiboken6)
+  Platforms: Linux, Windows
+  In: shiboken6 (libshiboken6, signature module)
+  License: Python-2.0
+  Copyright: Copyright (c) 2001-2018 Python Software Foundation
+  Website: https://www.python.org/
 
 ================================================================================
-Pour : D3D12 Memory Allocator v3.1.0
+License texts
+================================================================================
+
+================================================================================
+For: D3D12 Memory Allocator v3.1.0
 --------------------------------------------------------------------------------
 Copyright (c) 2019-2026 Advanced Micro Devices, Inc. All rights reserved.
 
@@ -735,7 +735,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 ================================================================================
-Pour : Vulkan Memory Allocator 3.3.0
+For: Vulkan Memory Allocator 3.3.0
 --------------------------------------------------------------------------------
 Copyright (c) 2017-2019 Advanced Micro Devices, Inc. All rights reserved.
 
@@ -758,7 +758,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 ================================================================================
-Pour : BLAKE2 (reference implementation) ed1974ea83433eba7b2d95c5dcd9ac33cb847913
+For: BLAKE2 (reference implementation) ed1974ea83433eba7b2d95c5dcd9ac33cb847913
 --------------------------------------------------------------------------------
 CC0 1.0 Universal
 
@@ -1081,7 +1081,7 @@ For more information, please see
    limitations under the License.
 
 ================================================================================
-Pour : Efficient Binary-Decimal and Decimal-Binary Conversion Routines for IEEE Doubles 3.4.0
+For: Efficient Binary-Decimal and Decimal-Binary Conversion Routines for IEEE Doubles 3.4.0
 --------------------------------------------------------------------------------
 Copyright 2006-2011, the V8 project authors. All rights reserved.
 Redistribution and use in source and binary forms, with or without
@@ -1111,7 +1111,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ================================================================================
-Pour : Easing Equations by Robert Penner
+For: Easing Equations by Robert Penner
 --------------------------------------------------------------------------------
 Copyright (c) 2001 Robert Penner
 All rights reserved.
@@ -1140,7 +1140,7 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ================================================================================
-Pour : Emoji Segmenter 0.4.0, Apache Tika MimeType Definitions c29724782854bb5a319f4a1940d0828a58ace3f9
+For: Emoji Segmenter 0.4.0, Apache Tika MimeType Definitions c29724782854bb5a319f4a1940d0828a58ace3f9
 --------------------------------------------------------------------------------
 Apache License
 Version 2.0, January 2004
@@ -1205,7 +1205,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 ================================================================================
-Pour : forkfd
+For: forkfd
 --------------------------------------------------------------------------------
 Copyright (C) 2016 Intel Corporation.
 Copyright (C) 2015 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
@@ -1229,7 +1229,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 ================================================================================
-Pour : Freetype 2 2.14.3, Anti-aliasing rasterizer from FreeType 2
+For: Freetype 2 2.14.3, Anti-aliasing rasterizer from FreeType 2
 --------------------------------------------------------------------------------
 FREETYPE LICENSES
 -----------------
@@ -1789,7 +1789,7 @@ Public License instead of this License.
 --- end of GPLv2.TXT ---
 
 ================================================================================
-Pour : Freetype 2 2.14.3, Anti-aliasing rasterizer from FreeType 2
+For: Freetype 2 2.14.3, Anti-aliasing rasterizer from FreeType 2
 --------------------------------------------------------------------------------
 The FreeType Project LICENSE
                     ----------------------------
@@ -1962,7 +1962,7 @@ Legal Terms
 --- end of FTL.TXT ---
 
 ================================================================================
-Pour : Freetype 2 - zlib
+For: Freetype 2 - zlib
 --------------------------------------------------------------------------------
 Copyright (C) 1995-2002 Jean-loup Gailly and Mark Adler
 
@@ -1986,7 +1986,7 @@ Jean-loup Gailly        Mark Adler
 jloup@gzip.org          madler@alumni.caltech.edu
 
 ================================================================================
-Pour : Freetype 2 - Bitmap Distribution Format (BDF) support
+For: Freetype 2 - Bitmap Distribution Format (BDF) support
 --------------------------------------------------------------------------------
 Copyright (C) 2001-2002 by Francesco Zappa Nardelli
 
@@ -2033,7 +2033,7 @@ OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
 THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ================================================================================
-Pour : Freetype 2 - Portable Compiled Format (PCF) support
+For: Freetype 2 - Portable Compiled Format (PCF) support
 --------------------------------------------------------------------------------
 Copyright (C) 2000 by Francesco Zappa Nardelli
 
@@ -2081,7 +2081,7 @@ used in advertising or otherwise to promote the sale, use or other dealings
 in this Software without prior written authorization from The Open Group.
 
 ================================================================================
-Pour : HarfBuzz-NG 14.5.0
+For: HarfBuzz-NG 14.5.0
 --------------------------------------------------------------------------------
 HarfBuzz is licensed under the so-called "Old MIT" license.  Details follow.
 For parts of HarfBuzz that are licensed under different licenses see individual
@@ -2127,7 +2127,7 @@ ON AN "AS IS" BASIS, AND THE COPYRIGHT HOLDER HAS NO OBLIGATION TO
 PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 
 ================================================================================
-Pour : sRGB color profile icc file
+For: sRGB color profile icc file
 --------------------------------------------------------------------------------
 For the file sRGB2014.icc:
 
@@ -2141,7 +2141,7 @@ shall not be misrepresented as the original profile.
 (original source location: http://www.color.org/srgbprofiles.xalter)
 
 ================================================================================
-Pour : LibPNG 1.6.58
+For: LibPNG 1.6.58
 --------------------------------------------------------------------------------
 COPYRIGHT NOTICE, DISCLAIMER, and LICENSE
 =========================================
@@ -2279,7 +2279,7 @@ this source code in a product, acknowledgment is not required but would
 be appreciated.
 
 ================================================================================
-Pour : The Public Suffix List 2026-05-14_08-35-31_UTC
+For: The Public Suffix List 2026-05-14_08-35-31_UTC
 --------------------------------------------------------------------------------
 Mozilla Public License Version 2.0
 ==================================
@@ -2656,7 +2656,7 @@ Exhibit B - "Incompatible With Secondary Licenses" Notice
   defined by the Mozilla Public License, v. 2.0.
 
 ================================================================================
-Pour : libpsl - C library to handle the Public Suffix List 664f3dc85259ec65e30248a61fa1c45b7b0e4c3f
+For: libpsl - C library to handle the Public Suffix List 664f3dc85259ec65e30248a61fa1c45b7b0e4c3f
 --------------------------------------------------------------------------------
 * The following License is for the source code files
   psl-make-dafsa and lookup_string_in_fixed_set.c.
@@ -2690,7 +2690,7 @@ Pour : libpsl - C library to handle the Public Suffix List 664f3dc85259ec65e3024
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ================================================================================
-Pour : MD4, MD5, SipHash Algorithm, tl::expected 41d3e1f48d682992a2230b2a715bca38b848b269
+For: MD4, MD5, SipHash Algorithm, tl::expected 41d3e1f48d682992a2230b2a715bca38b848b269
 --------------------------------------------------------------------------------
 Creative Commons Legal Code
 
@@ -2815,7 +2815,7 @@ express Statement of Purpose.
     this CC0 or use of the Work.
 
 ================================================================================
-Pour : MD4C 0.5.3
+For: MD4C 0.5.3
 --------------------------------------------------------------------------------
 # The MIT License (MIT)
 
@@ -2840,7 +2840,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 
 ================================================================================
-Pour : PCRE2 10.48
+For: PCRE2 10.48
 --------------------------------------------------------------------------------
 PCRE2 Licence
 =============
@@ -2948,7 +2948,7 @@ includes package A, the condition is not imposed on package B unless it uses
 PCRE2 independently.
 
 ================================================================================
-Pour : PCRE2 - Stack-less Just-In-Time Compiler 10.48
+For: PCRE2 - Stack-less Just-In-Time Compiler 10.48
 --------------------------------------------------------------------------------
 /*
  *    Stack-less Just-In-Time compiler
@@ -2977,7 +2977,7 @@ Pour : PCRE2 - Stack-less Just-In-Time Compiler 10.48
  */
 
 ================================================================================
-Pour : Pixman 0.17.12
+For: Pixman 0.17.12
 --------------------------------------------------------------------------------
 Copyright © 2009 Nokia Corporation
 
@@ -3001,7 +3001,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 ================================================================================
-Pour : Secure Hash Algorithms SHA-384 and SHA-512
+For: Secure Hash Algorithms SHA-384 and SHA-512
 --------------------------------------------------------------------------------
 Copyright (c) 2011 IETF Trust and the persons identified as
 authors of the code.  All rights reserved.
@@ -3039,14 +3039,14 @@ OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ================================================================================
-Pour : Secure Hash Algorithm SHA-1
+For: Secure Hash Algorithm SHA-1
 --------------------------------------------------------------------------------
 100% free public domain implementation of the SHA-1 algorithm
 by Dominik Reichl <dominik.reichl@t-online.de>
 Web: http://www.dominik-reichl.de/
 
 ================================================================================
-Pour : Secure Hash Algorithm SHA-3 - brg_endian 1.0.0
+For: Secure Hash Algorithm SHA-3 - brg_endian 1.0.0
 --------------------------------------------------------------------------------
 Copyright (c) 1998-2013, Brian Gladman, Worcester, UK. All rights reserved.
 
@@ -3064,7 +3064,7 @@ in respect of its operation, including, but not limited to, correctness
 and fitness for purpose.
 
 ================================================================================
-Pour : Secure Hash Algorithm SHA-3 - Keccak 3.2
+For: Secure Hash Algorithm SHA-3 - Keccak 3.2
 --------------------------------------------------------------------------------
 CREATIVE COMMONS CORPORATION IS NOT A LAW FIRM AND DOES NOT PROVIDE LEGAL SERVICES. DISTRIBUTION OF
 THIS DOCUMENT DOES NOT CREATE AN ATTORNEY-CLIENT RELATIONSHIP. CREATIVE COMMONS PROVIDES THIS
@@ -3167,7 +3167,7 @@ d. Affirmer understands and acknowledges that Creative Commons is not a party to
    has no duty or obligation with respect to this CC0 or use of the Work.
 
 ================================================================================
-Pour : TinyCBOR 7.0
+For: TinyCBOR 7.0
 --------------------------------------------------------------------------------
 MIT License
 
@@ -3192,7 +3192,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ================================================================================
-Pour : Wayland KDE DBus Menu Protocol 1
+For: Wayland KDE DBus Menu Protocol 1
 --------------------------------------------------------------------------------
 GNU LESSER GENERAL PUBLIC LICENSE
 
@@ -3664,7 +3664,7 @@ Ty Coon, President of Vice
 That's all there is to it!
 
 ================================================================================
-Pour : Wayland Color Management Protocol 1, Wayland Fractional Scale Protocol 1, Wayland Fullscreen Shell Protocol unstable v1, Wayland Linux Dmabuf V1 Protocol v1, version 5, Wayland Linux Dmabuf Unstable V1 Protocol unstable v1, version 3, Wayland Pointer Gestures Protocol unstable v1, version 2, Wayland Pointer Warp Protocol version 1, Presentation Time Protocol 1, Wayland Scaler Protocol 2, Wayland Session Management Protocol experimental V1, Wayland Tablet Protocol unstable v2, version 1, Wayland Text Input Protocol v1 unstable v1, Wayland Text Input Protocol unstable v3, Wayland Viewporter Protocol 1, Wayland Protocol 1.24.0, Wayland EGLStream Controller Protocol 1.1.1, Wlr Data Control Unstable V1 Protocol 2, Wayland Primary Selection Protocol 1, Wayland xdg-activation Protocol unstable v1, version 1, Wayland xdg-decoration Protocol unstable v1, version 1, Wayland Dialog Protocol 1, Wayland XDG Foreign Protocol 1, Wayland XDG Output Protocol unstable v1, version 3, Wayland XDG Shell Protocol 1.18, Wayland XDG System Bell Protocol 1.18, Wayland xdg-toplevel-icon Protocol version 1
+For: Wayland Color Management Protocol 1, Wayland Fractional Scale Protocol 1, Wayland Fullscreen Shell Protocol unstable v1, Wayland Linux Dmabuf V1 Protocol v1, version 5, Wayland Linux Dmabuf Unstable V1 Protocol unstable v1, version 3, Wayland Pointer Gestures Protocol unstable v1, version 2, Wayland Pointer Warp Protocol version 1, Presentation Time Protocol 1, Wayland Scaler Protocol 2, Wayland Session Management Protocol experimental V1, Wayland Tablet Protocol unstable v2, version 1, Wayland Text Input Protocol v1 unstable v1, Wayland Text Input Protocol unstable v3, Wayland Viewporter Protocol 1, Wayland Protocol 1.24.0, Wayland EGLStream Controller Protocol 1.1.1, Wlr Data Control Unstable V1 Protocol 2, Wayland Primary Selection Protocol 1, Wayland xdg-activation Protocol unstable v1, version 1, Wayland xdg-decoration Protocol unstable v1, version 1, Wayland Dialog Protocol 1, Wayland XDG Foreign Protocol 1, Wayland XDG Output Protocol unstable v1, version 3, Wayland XDG Shell Protocol 1.18, Wayland XDG System Bell Protocol 1.18, Wayland xdg-toplevel-icon Protocol version 1
 --------------------------------------------------------------------------------
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),
@@ -3686,7 +3686,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 ================================================================================
-Pour : Wayland Text Input Protocol v2 unstable v2
+For: Wayland Text Input Protocol v2 unstable v2
 --------------------------------------------------------------------------------
 Permission to use, copy, modify, distribute, and sell this
 software and its documentation for any purpose is hereby granted
@@ -3710,13 +3710,13 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 
 ================================================================================
-Pour : Wintab API
+For: Wintab API
 --------------------------------------------------------------------------------
 The text and information contained in this file may be freely used,
 copied, or distributed without compensation or licensing restrictions.
 
 ================================================================================
-Pour : XCB-XInput
+For: XCB-XInput
 --------------------------------------------------------------------------------
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
@@ -3743,7 +3743,7 @@ promote the sale, use or other dealings in this Software without
 prior written authorization from the authors.
 
 ================================================================================
-Pour : Data Compression Library (zlib) 1.3.2
+For: Data Compression Library (zlib) 1.3.2
 --------------------------------------------------------------------------------
 This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -3774,7 +3774,7 @@ the file ChangeLog history information documenting your changes.  Please read
 the FAQ for more information on the distribution of modified source versions.
 
 ================================================================================
-Pour : Unicode Character Database (UCD) 36, Unicode Common Locale Data Repository (CLDR) v48.2
+For: Unicode Character Database (UCD) 36, Unicode Common Locale Data Repository (CLDR) v48.2
 --------------------------------------------------------------------------------
 UNICODE LICENSE V3
 
@@ -3817,7 +3817,7 @@ dealings in these Data Files or Software without prior written
 authorization of the copyright holder.
 
 ================================================================================
-Pour : libdbus-1 headers 1.13.12
+For: libdbus-1 headers 1.13.12
 --------------------------------------------------------------------------------
 Copyright (C) 2002, 2003  CodeFactory AB
 Copyright (C) 2004, 2005 Red Hat, Inc.
@@ -3978,7 +3978,7 @@ Yoyodyne, Inc., hereby disclaims all copyright interest in the program `Gnomovis
 <signature of Ty Coon>, 1 April 1989 Ty Coon, President of Vice
 
 ================================================================================
-Pour : OpenGL Headers Revision 27684, OpenGL ES 2 Headers Revision 27673
+For: OpenGL Headers Revision 27684, OpenGL ES 2 Headers Revision 27673
 --------------------------------------------------------------------------------
 Copyright (c) 2013-2014 The Khronos Group Inc.
 
@@ -4002,7 +4002,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 MATERIALS OR THE USE OR OTHER DEALINGS IN THE MATERIALS.
 
 ================================================================================
-Pour : Smooth Scaling Algorithm
+For: Smooth Scaling Algorithm
 --------------------------------------------------------------------------------
 qimagetransform.cpp was contributed by Daniel M. Duley based on code from Imlib2.
 
@@ -4066,7 +4066,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 ================================================================================
-Pour : X Server helper
+For: X Server helper
 --------------------------------------------------------------------------------
 Copyright (c) 1987, 1988  X Consortium
 
@@ -4113,7 +4113,7 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
 ================================================================================
-Pour : Mipmap generator for D3D12 0aa79bad78992da0b6a8279ddb9002c1753cb849
+For: Mipmap generator for D3D12 0aa79bad78992da0b6a8279ddb9002c1753cb849
 --------------------------------------------------------------------------------
 The MIT License (MIT)
 
@@ -4138,7 +4138,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ================================================================================
-Pour : Adobe Glyph List For New Fonts 1.7
+For: Adobe Glyph List For New Fonts 1.7
 --------------------------------------------------------------------------------
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -4168,7 +4168,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ================================================================================
-Pour : XSVG
+For: XSVG
 --------------------------------------------------------------------------------
 Copyright  2002 USC/Information Sciences Institute
 
@@ -4194,7 +4194,7 @@ TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 
 ================================================================================
-Pour : Vulkan API Registry 1.4.308
+For: Vulkan API Registry 1.4.308
 --------------------------------------------------------------------------------
 Copyright (c) 2015-2020 The Khronos Group Inc.
 
@@ -4281,7 +4281,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 ================================================================================
-Pour : Cycle 3.3.11
+For: Cycle 3.3.11
 --------------------------------------------------------------------------------
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -4303,7 +4303,7 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ================================================================================
-Pour : Linux Performance Events 7.0
+For: Linux Performance Events 7.0
 --------------------------------------------------------------------------------
 NOTE! This copyright does *not* cover user programs that use kernel
  services by normal system calls - this is merely considered normal use
@@ -4657,7 +4657,7 @@ library.  If this is what you want to do, use the GNU Library General
 Public License instead of this License.
 
 ================================================================================
-Pour : Valgrind 3.25.1
+For: Valgrind 3.25.1
 --------------------------------------------------------------------------------
 Copyright (C) 2000-2017 Julian Seward.  All rights reserved.
  Copyright (C) 2003-2017 Josef Weidendorfer.  All rights reserved.
@@ -4694,7 +4694,7 @@ Copyright (C) 2000-2017 Julian Seward.  All rights reserved.
  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ================================================================================
-Pour : WebGradients
+For: WebGradients
 --------------------------------------------------------------------------------
 MIT License
 
@@ -4719,7 +4719,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ================================================================================
-Pour : JavaScriptCore Macro Assembler
+For: JavaScriptCore Macro Assembler
 --------------------------------------------------------------------------------
 Copyright (C) 2012 Apple Inc. All rights reserved.
 
@@ -4745,7 +4745,7 @@ OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ================================================================================
-Pour : Yoga 2.0.1
+For: Yoga 2.0.1
 --------------------------------------------------------------------------------
 MIT License
 
@@ -4770,7 +4770,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ================================================================================
-Pour : Shadow values from Angular Material
+For: Shadow values from Angular Material
 --------------------------------------------------------------------------------
 Copyright (c) 2014-2016 Google, Inc. http://angularjs.org
 
@@ -4793,7 +4793,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ================================================================================
-Pour : Wayland IVI Extension Protocol 1.9.1
+For: Wayland IVI Extension Protocol 1.9.1
 --------------------------------------------------------------------------------
 MIT License
 
@@ -4806,7 +4806,7 @@ The above copyright notice and this permission notice (including the next paragr
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ================================================================================
-Pour : Python 3.7.0 (extraits dans Shiboken6)
+For: Python 3.7.0 (excerpts in Shiboken6)
 --------------------------------------------------------------------------------
 PSF LICENSE AGREEMENT FOR PYTHON 3.7.0
 
@@ -4853,7 +4853,7 @@ PSF LICENSE AGREEMENT FOR PYTHON 3.7.0
    to be bound by the terms and conditions of this License Agreement.
 
 ================================================================================
-Pour : ICU 73.2
+For: ICU 73.2
 --------------------------------------------------------------------------------
 UNICODE, INC. LICENSE AGREEMENT - DATA FILES AND SOFTWARE
 

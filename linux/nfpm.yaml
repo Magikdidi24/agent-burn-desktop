@@ -1,7 +1,7 @@
-# nfpm : .deb et .rpm. Gabarit : linux/build.sh remplace les @…@ puis lance nfpm depuis build/linux/pkgroot.
-# Dépendances = bibliothèques que le bundle allégé laisse au système (mesurées sur 9 distros). build.sh refuse un
-# bundle qui demande une bibliothèque ni embarquée ni listée dans les Requires du .rpm ci-dessous ; le .deb
-# déclare les paquets Debian/Ubuntu qui les fournissent.
+# nfpm: .deb and .rpm. Template: linux/build.sh replaces each @…@, then runs nfpm from build/linux/pkgroot.
+# Dependencies = libraries the slimmed bundle leaves to the system (measured on 9 distros). build.sh rejects a
+# bundle that needs a library neither bundled nor listed in the .rpm Requires below; the .deb
+# declares the Debian/Ubuntu packages that provide them.
 name: agent-burn-desktop
 arch: amd64
 platform: linux
@@ -12,12 +12,12 @@ priority: optional
 maintainer: Berthelot Samuel <samuel.berthelot11@gmail.com>
 vendor: Berthelot Samuel
 homepage: https://github.com/Magikdidi24/agent-burn-desktop
-# Expression SPDX de tout le contenu (champ License du .rpm ; le .deb n'en a pas : /usr/share/doc/…/copyright).
+# SPDX expression of the whole content (.rpm License field; the .deb has none: /usr/share/doc/…/copyright).
 license: "@PKG_LICENSE@"
 description: |-
-  Consommation de Claude Code et limites d'abonnement en direct
-  Icône de la zone de notification, popover et tableau de bord sur le CLI agent-burn
-  (embarqué) : dépense équivalente API, jetons, modèles, limites de session et hebdomadaire.
+  Claude Code usage and live subscription limits
+  System tray icon, popover and dashboard on the agent-burn CLI
+  (bundled): API-equivalent spend, tokens, models, session and weekly limits.
 contents:
   - src: ./opt/agent-burn-desktop
     dst: /opt/agent-burn-desktop
@@ -37,7 +37,7 @@ contents:
     file_info:
       mode: 0644
 deb:
-  compression: zstd   # xz : 30 s sur un seul cœur ; dpkg lit zstd sur toutes les distros .deb visées
+  compression: zstd   # xz: 30 s on a single core; dpkg reads zstd on every targeted .deb distro
 rpm:
   compression: zstd
 overrides:
@@ -105,7 +105,7 @@ overrides:
       - "libxkbcommon-x11.so.0()(64bit)"
       - "libz.so.1()(64bit)"
       - "libzstd.so.1()(64bit)"
-    # Noms Fedora puis openSUSE : un nom inconnu d'une distro y est ignoré (dépendance faible).
+    # Fedora then openSUSE names: a name unknown to a distro is ignored there (weak dependency).
     recommends:
       - mesa-dri-drivers
       - Mesa-dri

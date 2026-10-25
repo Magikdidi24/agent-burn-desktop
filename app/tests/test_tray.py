@@ -1,6 +1,6 @@
-# Tests de l'icône de notification sur le vrai Main.qml (fenêtres hors écran, faux CLI) : libellés et ordre du
-# menu, effet de chaque action, coche du démarrage auto, lignes d'état, clics, icône recréée quand une zone
-# de notification apparaît, popover laissé au compositeur sous Wayland.
+# Tray icon tests on the real Main.qml (offscreen windows, fake CLI): menu labels and order,
+# effect of each action, autostart check mark, status lines, clicks, icon recreated when a system
+# tray appears, popover left to the compositor on Wayland.
 #   cd app && python -m unittest discover -s tests -v
 import sys
 import types
@@ -19,8 +19,8 @@ from PySide6.QtWidgets import QSystemTrayIcon  # noqa: E402
 
 from agentburn import settings, tray  # noqa: E402
 
-ACTIONS = ["Ouvrir l'aperçu", "Ouvrir le dashboard", "Rafraîchir", "Lancer à l'ouverture de session", "Paramètres…",
-           "Journaux", "À propos", "Quitter"]
+ACTIONS = ["Open popover", "Open dashboard", "Refresh", "Start at login", "Settings…",
+           "Logs", "About", "Quit"]
 R = QSystemTrayIcon.ActivationReason
 
 
@@ -29,7 +29,7 @@ class TrayIcon(unittest.TestCase):
     def setUpClass(cls):
         cls.root = main_root()
         js(cls.root, "Burn.refresh(false)")
-        assert wait_for(lambda: js(cls.root, "Burn.summary !== null && !Burn.loading"), 30), "rapport du faux CLI"
+        assert wait_for(lambda: js(cls.root, "Burn.summary !== null && !Burn.loading"), 30), "fake CLI report"
         cls.pop, cls.dash, cls.prefs = (cls.root.property(n) for n in ("popover", "dashboard", "settingsWindow"))
 
     def make(self, system=None):
@@ -40,7 +40,7 @@ class TrayIcon(unittest.TestCase):
         self.quit = mock.patch.object(tray.QApplication, "quit").start()
         self.addCleanup(mock.patch.stopall)
         t = tray.Tray(self.root, self.cfg, qml_env()["desktop"])
-        t.timer.stop()   # zone de notification revérifiée : testée à part
+        t.timer.stop()   # system tray checked again: tested separately
         self.addCleanup(self.hide_all)
         return t
 
@@ -60,24 +60,24 @@ class TrayIcon(unittest.TestCase):
         shown = [a for a in t.lines if a.isVisible()]
         self.assertTrue(1 <= len(shown) <= tray.LINES)
         self.assertTrue(all(not a.isEnabled() for a in t.lines))
-        # Fixtures : semaine Claude 25 % restant, la plus serrée en tête.
-        self.assertRegex(shown[0].text(), r"^Claude Code · Semaine : 25 % restant · réinit\. dans ")
+        # Fixtures: Claude week 25% left, the tightest first.
+        self.assertRegex(shown[0].text(), r"^Claude Code · Week: 25% left · resets in ")
 
     def test_every_action_has_an_effect(self):
         t = self.make()
         desktop = qml_env()["desktop"]
         a = self.actions(t)
         effects = {
-            "Ouvrir l'aperçu": lambda: self.pop.isVisible(),
-            "Ouvrir le dashboard": lambda: js(self.root, "Burn.dashboardOpen"),
-            "Rafraîchir": lambda: js(self.root, "Burn.updatedAt") > before,
-            "Lancer à l'ouverture de session": lambda: self.state["on"],
-            "Paramètres…": lambda: self.prefs.isVisible() and self.prefs.property("section") == 0,
-            "Journaux": lambda: opened.called,
-            "À propos": lambda: self.prefs.isVisible() and self.prefs.property("section") == 3,
-            "Quitter": lambda: self.quit.called,
+            "Open popover": lambda: self.pop.isVisible(),
+            "Open dashboard": lambda: js(self.root, "Burn.dashboardOpen"),
+            "Refresh": lambda: js(self.root, "Burn.updatedAt") > before,
+            "Start at login": lambda: self.state["on"],
+            "Settings…": lambda: self.prefs.isVisible() and self.prefs.property("section") == 0,
+            "Logs": lambda: opened.called,
+            "About": lambda: self.prefs.isVisible() and self.prefs.property("section") == 3,
+            "Quit": lambda: self.quit.called,
         }
-        self.assertEqual(sorted(effects), sorted(a))   # aucune action sans test, aucune de trop
+        self.assertEqual(sorted(effects), sorted(a))   # no action without a test, none extra
         with mock.patch.object(desktop, "openLogs") as opened:
             for label, done in effects.items():
                 self.hide_all()
@@ -89,26 +89,26 @@ class TrayIcon(unittest.TestCase):
     def test_autostart_item_follows_the_platform(self):
         t = self.make()
         self.assertTrue(t.boot.isEnabled())
-        self.state["on"] = True   # changé ailleurs (installeur, bureau)
+        self.state["on"] = True   # changed elsewhere (installer, desktop)
         t.menu.aboutToShow.emit()
         self.assertTrue(t.boot.isChecked())
-        t.boot.trigger()   # décoche
+        t.boot.trigger()   # unchecks
         self.assertFalse(self.state["on"])
         dev = tray.Tray(self.root, settings.Settings(None, None), qml_env()["desktop"])
         dev.timer.stop()
-        self.assertFalse(dev.boot.isEnabled())   # dev : pas d'exe installé
+        self.assertFalse(dev.boot.isEnabled())   # dev: no installed exe
 
     def test_status_lines_without_data(self):
         t = self.make()
         js(self.root, "Burn.summary = null; Burn.account = null")
         shown = [a.text() for a in t.lines if a.isVisible()]
-        self.assertEqual(shown, ["Données indisponibles"])
-        # CLI en échec : la cause est dans Paramètres (sous Wayland, ces lignes sont tout ce que montre l'icône).
-        js(self.root, "Burn.error = 'agent-burn a échoué (code 1) : Permission denied'")
+        self.assertEqual(shown, ["Data unavailable"])
+        # CLI failed: the cause is in Settings (on Wayland, these lines are all the icon shows).
+        js(self.root, "Burn.error = 'agent-burn failed (code 1): Permission denied'")
         shown = [a.text() for a in t.lines if a.isVisible()]
-        self.assertEqual(shown, ["Données indisponibles : échec du CLI (voir Paramètres › Diagnostic)"])
-        self.assertEqual(t.icon.toolTip(), "Agent Burn — Indisponible · échec du CLI (voir Paramètres › Diagnostic)")
-        js(self.root, "Burn.error = ''; Burn.refresh(false)")   # données rétablies pour la suite
+        self.assertEqual(shown, ["Data unavailable: CLI failed (see Settings › Diagnostics)"])
+        self.assertEqual(t.icon.toolTip(), "Agent Burn — Unavailable · CLI failed (see Settings › Diagnostics)")
+        js(self.root, "Burn.error = ''; Burn.refresh(false)")   # data restored for the next tests
         self.assertTrue(wait_for(lambda: js(self.root, "Burn.summary !== null"), 20))
 
     def test_clicks(self):
@@ -126,11 +126,11 @@ class TrayIcon(unittest.TestCase):
         self.assertTrue(wait_for(lambda: js(self.root, "Burn.dashboardOpen"), 5))
         self.hide_all()
         before = js(self.root, "Burn.updatedAt")
-        with self.assertLogs("agentburn.tray", "DEBUG") as logs:   # journal détaillé : clics de l'icône
+        with self.assertLogs("agentburn.tray", "DEBUG") as logs:   # detailed log: icon clicks
             t.clicked(R.MiddleClick)
-        self.assertEqual(logs.output, ["DEBUG:agentburn.tray:icône : MiddleClick"])
+        self.assertEqual(logs.output, ["DEBUG:agentburn.tray:icon: MiddleClick"])
         self.assertTrue(wait_for(lambda: js(self.root, "Burn.updatedAt") > before, 20))
-        t.clicked(R.Context)   # menu : rien d'autre
+        t.clicked(R.Context)   # menu: nothing else
         self.assertFalse(self.pop.isVisible())
 
     def test_icon_recreated_on_xcb_when_a_tray_host_appears(self):
@@ -147,17 +147,17 @@ class TrayIcon(unittest.TestCase):
             with mock.patch.object(QSystemTrayIcon, "isSystemTrayAvailable", return_value=True), \
                     mock.patch.object(tray.QGuiApplication, "platformName", return_value=platform):
                 t.recheck()
-            # xcb : l'icône créée sans hôte reste sur XEmbed ; Wayland : elle s'est enregistrée seule.
+            # xcb: the icon created without a host stays on XEmbed; Wayland: it registered by itself.
             self.assertIs(t.icon is first, platform == "wayland", platform)
             self.assertTrue(t.icon.isVisible())
             self.assertIs(t.icon.contextMenu(), t.menu)
             self.assertTrue(t.docked)
             self.assertTrue(desktop.trayAvailable)
-            self.assertTrue(t.timer.isActive())   # suivie encore : un hôte peut disparaître
+            self.assertTrue(t.timer.isActive())   # still tracked: a host can disappear
             desktop.setTrayAvailable(False)
 
     def test_recheck_keeps_waiting_for_a_late_tray(self):
-        # Panneau ou extension AppIndicator activés après 2 min : l'icône s'y enregistre, l'app doit le savoir.
+        # Panel or AppIndicator extension enabled after 2 min: the icon registers with it, the app must know.
         desktop = qml_env()["desktop"]
         with mock.patch.object(QSystemTrayIcon, "isSystemTrayAvailable", return_value=False):
             t = self.make()
@@ -173,7 +173,7 @@ class TrayIcon(unittest.TestCase):
         desktop.setTrayAvailable(False)
 
     def test_vanished_host_tracked_then_icon_redocked_on_xcb(self):
-        # Panneau arrêté : fermer la dernière fenêtre quitte (pas de process invisible) ; revenu, l'icône aussi.
+        # Panel stopped: closing the last window quits (no invisible process); once it is back, so is the icon.
         desktop = qml_env()["desktop"]
         with mock.patch.object(QSystemTrayIcon, "isSystemTrayAvailable", return_value=True):
             t = self.make()
@@ -200,7 +200,7 @@ class TrayIcon(unittest.TestCase):
         self.assertGreater(self.pop.property("maxHeight"), 0)
 
     def test_wayland_popover_height_follows_its_own_screen(self):
-        # Pointeur à 0,0 sous Wayland : l'écran du popover, pas celui du pointeur ; suivi s'il en change.
+        # Pointer at 0,0 on Wayland: the popover's screen, not the pointer's; followed if it changes.
         self.make()
         screen = types.SimpleNamespace(availableGeometry=lambda: QRect(0, 0, 1280, 720))
         with mock.patch.object(tray.QGuiApplication, "platformName", return_value="wayland"), \
@@ -208,7 +208,7 @@ class TrayIcon(unittest.TestCase):
             tray.open_popover(self.pop, None)
             self.assertEqual(self.pop.property("maxHeight"), 720 - 2 * tray.GAP)
             self.pop.setVisible(True)
-            screen.availableGeometry = lambda: QRect(1280, 0, 2560, 1400)   # posé sur l'autre écran
+            screen.availableGeometry = lambda: QRect(1280, 0, 2560, 1400)   # placed on the other screen
             self.pop.screenChanged.emit(QGuiApplication.primaryScreen())
             self.assertEqual(self.pop.property("maxHeight"), 1400 - 2 * tray.GAP)
 

@@ -1,6 +1,6 @@
-# Lancement à l'ouverture de session sous Linux : fichier autostart XDG de l'utilisateur. Hidden=true ou
-# X-GNOME-Autostart-enabled=false (posés par l'outil du bureau) valent désactivé ; seul ce fichier-là est
-# écrit ou retiré.
+# Start at login on Linux: the user's XDG autostart file. Hidden=true or
+# X-GNOME-Autostart-enabled=false (set by the desktop's tool) mean disabled; only that file is
+# written or removed.
 import os
 import re
 import sys
@@ -15,8 +15,8 @@ def _file():
 
 
 def quote(arg):
-    """Argument de la clé Exec (spec Desktop Entry) : entre guillemets, " ` $ \\ échappés ; puis échappement
-    des valeurs string (\\ doublé, appliqué avant les guillemets à la lecture) et % doublé (codes de champ)."""
+    """Argument of the Exec key (Desktop Entry spec): in double quotes, " ` $ \\ escaped; then the escaping
+    of string values (\\ doubled, applied before the quoting on read) and % doubled (field codes)."""
     quoted = '"' + re.sub(r'(["`$\\])', r"\\\1", arg) + '"'
     return quoted.replace("\\", "\\\\").replace("%", "%%")
 
@@ -24,7 +24,7 @@ def quote(arg):
 def autostart():
     try:
         text = _file().read_text(encoding="utf-8")
-    except OSError:   # absent ou illisible
+    except OSError:   # missing or unreadable
         return False
     return not re.search(r"(?m)^(?:Hidden\s*=\s*true|X-GNOME-Autostart-enabled\s*=\s*false)\s*$", text)
 
@@ -34,12 +34,12 @@ def set_autostart(on):
     if not on:
         f.unlink(missing_ok=True)
         return
-    # L'AppImage elle-même : l'exe gelé qu'elle contient est monté ailleurs à chaque lancement.
+    # The AppImage itself: the frozen exe it contains is mounted elsewhere at every launch.
     exe = os.environ.get("APPIMAGE") or sys.executable
-    # Saut de ligne : clés ajoutées à l'entrée (un Exec choisi par le nom d'un dossier) ; % ou \ : entrée
-    # refusée par GLib ou systemd, alors même qu'elle paraîtrait active. Refus journalisé par Settings.
+    # Line break: keys added to the entry (an Exec chosen by a directory name); % or \: entry
+    # rejected by GLib or systemd, even though it would look enabled. Rejection logged by Settings.
     if re.search(r"[\x00-\x1f\x7f%\\]", exe):
-        raise OSError(f"{exe!r} : chemin inutilisable dans une entrée .desktop")
+        raise OSError(f"{exe!r}: path unusable in a .desktop entry")
     f.parent.mkdir(parents=True, exist_ok=True)
     tmp = f.with_name(f.name + ".tmp")
     tmp.write_text("[Desktop Entry]\nType=Application\nName=Agent Burn\n"

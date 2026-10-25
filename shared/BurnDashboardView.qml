@@ -3,52 +3,52 @@ import Quickshell
 import Quickshell.Widgets
 import QtQuick
 
-// Contenu du tableau de bord Agent Burn (fenêtre de l'app Mac), sans fenêtre : BurnDashboard
-// l'héberge, un harnais de test peut l'afficher seul. Barre latérale (tous les agents / un agent),
-// page défilante, pied « Mis à jour » fixe.
-// Dépense, tokens et jours viennent de l'archive (Burn.dailySeries) : elle garde les jours
-// que les agents ont purgés de leurs logs.
+// Content of the Agent Burn dashboard (the Mac app window), without a window: BurnDashboard
+// hosts it, a test harness can show it alone. Sidebar (all agents / one agent),
+// scrolling page, fixed "updated" footer.
+// Spend, tokens and days come from the archive (Burn.dailySeries): it keeps the days
+// the agents purged from their logs.
 Item {
     id: root
 
-    // "all" ou un agent ; tenue par Burn pour que le popover ouvre le dashboard sur son onglet.
+    // "all" or an agent; held by Burn so the popover opens the dashboard on its tab.
     property string page: Burn.dashboardPage
     readonly property string agent: page === "all" ? "" : page
     readonly property color tint: agent ? Burn.agentColor(agent) : Colors.accent
-    // Réglages de l'hôte (app de bureau) : bouton en bas de la barre latérale. La barre Quickshell n'en a pas.
+    // Host settings (desktop app): button at the bottom of the sidebar. The Quickshell bar has none.
     property bool settingsAvailable: false
     signal settingsRequested()
 
     readonly property var pages: ["all"].concat(Burn.agents)
     readonly property var provider: agent ? Burn.providerState(agent) : null
-    // Carte « Fournisseurs » : Claude et Codex toujours, même absents, puis les autres agents vus.
+    // "Providers" card: Claude and Codex always, even when missing, then the other agents seen.
     readonly property var providerIds: Burn.knownProviders.concat(Burn.agents.filter(a => !Burn.knownProviders.includes(a)))
-    // Bandeaux, du plus grave au moins grave : erreur du CLI ; page d'un agent, son erreur (harness) et
-    // son état s'il n'est pas en direct ; tarifs manquants. 1er chargement : « Lecture de l'usage… ».
+    // Banners, from most to least severe: CLI error; on an agent's page, its error (harness) and
+    // its state if it is not live; missing pricing. 1st load: "Reading usage…".
     readonly property var notices: {
         const n = [], p = provider;
         if (Burn.error) n.push({ msg: Burn.error, tint: Colors.danger });
         if (p?.error) n.push({ msg: p.error, tint: Colors.danger });
-        if (!Burn.summary && Burn.loading) n.push({ msg: "Lecture de l'usage…", tint: Colors.muted, plain: true });
+        if (!Burn.summary && Burn.loading) n.push({ msg: "Reading usage…", tint: Colors.muted, plain: true });
         else if (p && p.state !== "live")
-            n.push({ msg: p.detail + (p.state === "expired" && limits.length ? " Dernières valeurs enregistrées affichées." : ""),
+            n.push({ msg: p.detail + (p.state === "expired" && limits.length ? " Showing the last saved values." : ""),
                      tint: stateTone(p.state) });
         if (Burn.pricingMissing)
-            n.push({ msg: "Tarifs indisponibles : montants incomplets (réseau coupé ou tarifs non téléchargés)", tint: Colors.warn });
+            n.push({ msg: "Pricing unavailable: amounts incomplete (network down or pricing not downloaded)", tint: Colors.warn });
         return n;
     }
 
     readonly property var ranges: [
-        { key: "all", label: "Tout", long: "Tout l'historique" },
-        { key: "30d", label: "30 jours", long: "30 derniers jours" },
-        { key: "7d", label: "7 jours", long: "7 derniers jours" },
-        { key: "today", label: "Aujourd'hui", long: "Aujourd'hui" }
+        { key: "all", label: "All", long: "All history" },
+        { key: "30d", label: "30 days", long: "Last 30 days" },
+        { key: "7d", label: "7 days", long: "Last 7 days" },
+        { key: "today", label: "Today", long: "Today" }
     ]
     readonly property string rangeLong: ranges.find(r => r.key === Burn.range)?.long ?? ""
 
-    // Jours de la plage, aujourd'hui inclus (même borne que le --since de Burn.loadRange).
+    // Days of the range, today included (same bound as the --since of Burn.loadRange).
     function inRange(series) {
-        const n = Burn.spans[Burn.range];   // jours avant aujourd'hui ; absent pour « Tout »
+        const n = Burn.spans[Burn.range];   // days before today; missing for "All"
         if (n === undefined) return series;
         const d = new Date();
         d.setDate(d.getDate() - n);
@@ -56,9 +56,9 @@ Item {
         return series.filter(p => p.date >= from);
     }
     function total(series, key) { return series.reduce((s, p) => s + (p[key] || 0), 0); }
-    // Teinte d'un état de Burn.providerState : le mot reste écrit à côté.
+    // Tint of a Burn.providerState state: the word stays written next to it.
     function stateTone(s) { return Burn.tone({ live: "good", stale: "warn", expired: "danger", unavailable: "danger" }[s] ?? ""); }
-    // Flèches de la barre latérale et du sélecteur de plage : voisin sélectionné et focalisé.
+    // Arrows of the sidebar and the range picker: neighbor selected and focused.
     function stepPage(d) {
         const i = pages.indexOf(page) + d;
         if (i < 0 || i >= pages.length) return;
@@ -73,15 +73,15 @@ Item {
     }
 
     readonly property var days: inRange(Burn.dailySeries(agent))
-    readonly property bool noData: !Burn.summary && days.length === 0   // ni rapport ni archive : « — », pas 0
-    // Modèles de la plage ; null pendant le 1er chargement de rangeSummary.
+    readonly property bool noData: !Burn.summary && days.length === 0   // neither report nor archive: "—", not 0
+    // Models of the range; null during the 1st load of rangeSummary.
     readonly property var models: {
         const s = Burn.rangeSummary;
         if (!s) return null;
         if (!agent) return s.models ?? [];
         return (s.agents ?? []).find(e => e.agent === agent)?.models ?? [];
     }
-    // Pas de flèche à corps `{}` ici : qmllint abandonne alors l'analyse de tout le fichier.
+    // No arrow function with a `{}` body here: qmllint then gives up analyzing the whole file.
     readonly property var agentRows: {
         const rows = [];
         for (const a of Burn.agents) {
@@ -105,13 +105,13 @@ Item {
         return (models ?? []).filter(m => m.model.toLowerCase().includes(q))
             .sort((a, b) => dir * (k === "model" ? a.model.localeCompare(b.model) : a[k] - b[k]));
     }
-    // Colonnes Modèle | Tokens | Dépense | Part : la première prend le reste.
+    // Columns Model | Tokens | Spend | Share: the first one takes the rest.
     function colW(i, w) { return [w - 400, 120, 130, 150][i]; }
 
     onPageChanged: flick.contentY = 0
 
-    // Clavier : le contrôle focalisé (Tab) reste visible, chaque Flickable qui le contient (page, liste
-    // « Par agent ») défile jusqu'à lui.
+    // Keyboard: the focused control (Tab) stays visible, each Flickable that contains it (page, "By agent"
+    // list) scrolls to it.
     function reveal(item) {
         for (let f = item?.parent; f; f = f.parent) {
             if (!(f instanceof Flickable)) continue;
@@ -123,7 +123,7 @@ Item {
         }
     }
     Window.onActiveFocusItemChanged: root.reveal(Window.activeFocusItem)
-    // PageUp / PageDown / Début / Fin font défiler la page (touches que le contrôle focalisé n'a pas prises).
+    // PageUp / PageDown / Home / End scroll the page (keys the focused control did not take).
     Keys.onPressed: event => {
         const bottom = Math.max(0, flick.contentHeight - flick.height), step = flick.height - 40;
         const to = event.key === Qt.Key_PageDown ? flick.contentY + step : event.key === Qt.Key_PageUp ? flick.contentY - step
@@ -135,20 +135,20 @@ Item {
 
     component Txt: Text {
         id: txt
-        property bool spoken: true   // false : déjà dit ailleurs (libellé d'un bouton, Accessible.name explicite)
+        property bool spoken: true   // false: already said elsewhere (a button's label, explicit Accessible.name)
         color: Colors.foreground
         font.family: "JetBrainsMono Nerd Font"
         font.pixelSize: 12
         textFormat: Text.PlainText
-        // Lecteurs d'écran : un Text n'est exposé qu'avec un rôle et un nom. Posés en JS et seulement avec
-        // Burn.accessibleText (app de bureau) : la barre Quickshell garde ses Text sans objet Accessible.
+        // Screen readers: a Text is exposed only with a role and a name. Set in JS and only with
+        // Burn.accessibleText (desktop app): the Quickshell bar keeps its Text items without an Accessible object.
         readonly property bool exposed: spoken && Burn.accessibleText === true
         onExposedChanged: if (exposed && !Accessible.ignored) {
             Accessible.role = Accessible.StaticText;
             Accessible.name = Qt.binding(() => txt.text);
         }
     }
-    // Carte : fond translucide, contenu empilé avec 18 px de marge.
+    // Card: translucent background, content stacked with an 18 px margin.
     component Card: Rectangle {
         id: card
         default property alias content: cardBody.data
@@ -157,8 +157,8 @@ Item {
         color: Colors.withAlpha(Colors.surface, 0.55)
         Column { id: cardBody; x: 18; y: 18; width: card.width - 36; spacing: 12 }
     }
-    // Titre de carte, précision discrète à droite ; carte étroite (fenêtre à sa taille minimale) : la
-    // précision cède la place au titre.
+    // Card title, discreet detail on the right; narrow card (window at its minimum size): the
+    // detail gives way to the title.
     component Heading: Item {
         id: heading
         property string title
@@ -175,7 +175,7 @@ Item {
             font.pixelSize: 11
         }
     }
-    // Barre fine, value sur 0..1 (NaN d'une division par zéro = vide).
+    // Thin bar, value in 0..1 (NaN from a division by zero = empty).
     component Meter: Rectangle {
         id: meter
         property real value
@@ -190,7 +190,7 @@ Item {
             color: meter.fill
         }
     }
-    // Jauge : intitulé à gauche, chiffres à droite, barre dessous.
+    // Gauge: label on the left, figures on the right, bar below.
     component Gauge: Column {
         id: gauge
         property string label
@@ -211,7 +211,7 @@ Item {
         }
         Meter { width: gauge.width; value: gauge.ratio; fill: gauge.fill }
     }
-    // État d'un fournisseur (Burn.providerState) : le mot, le point teinté n'en est qu'un rappel.
+    // State of a provider (Burn.providerState): the word; the tinted dot only echoes it.
     component Badge: Rectangle {
         id: badge
         property string label
@@ -229,7 +229,7 @@ Item {
         }
     }
 
-    // ── Barre latérale ──
+    // ── Sidebar ──
     Rectangle {
         id: side
         width: 210
@@ -249,7 +249,7 @@ Item {
             width: parent.width - 20
             spacing: 2
 
-            // Nom de l'app : sous Hyprland la fenêtre n'a pas de barre de titre.
+            // App name: under Hyprland the window has no title bar.
             Row {
                 leftPadding: 10
                 bottomPadding: 14
@@ -258,7 +258,7 @@ Item {
                 Txt { text: "Agent Burn"; font.pixelSize: 14; font.bold: true }
             }
 
-            // Pages : onglets verticaux, flèches haut / bas pour passer de l'un à l'autre.
+            // Pages: vertical tabs, up / down arrows to move from one to the other.
             Repeater {
                 id: sideEntries
                 model: root.pages
@@ -302,7 +302,7 @@ Item {
                         width: parent.width - 50
                         anchors.verticalCenter: parent.verticalCenter
                         elide: Text.ElideRight
-                        text: entry.modelData === "all" ? "Tous les agents" : Burn.agentName(entry.modelData)
+                        text: entry.modelData === "all" ? "All agents" : Burn.agentName(entry.modelData)
                         color: entry.sel ? Colors.foreground : Colors.withAlpha(Colors.foreground, 0.75)
                         font.bold: entry.sel
                         spoken: false
@@ -311,7 +311,7 @@ Item {
             }
         }
 
-        // Réglages : seulement si l'hôte en a (settingsAvailable), il ouvre sa vue sur settingsRequested.
+        // Settings: only if the host has them (settingsAvailable); it opens its view on settingsRequested.
         BurnButton {
             id: settings
             visible: root.settingsAvailable
@@ -322,7 +322,7 @@ Item {
             height: 36
             radius: 10
             color: settings.hovered ? Colors.withAlpha(Colors.muted, 0.10) : "transparent"
-            Accessible.name: "Paramètres"
+            Accessible.name: "Settings"
             onClicked: root.settingsRequested()
             Txt {
                 x: 10
@@ -337,7 +337,7 @@ Item {
             Txt {
                 x: 42
                 anchors.verticalCenter: parent.verticalCenter
-                text: "Paramètres"
+                text: "Settings"
                 color: Colors.withAlpha(Colors.foreground, 0.75)
                 spoken: false
             }
@@ -359,7 +359,7 @@ Item {
             width: flick.width - 48
             spacing: 14
 
-            // En-tête : icône, titre, plage ; sélecteur de plage à droite.
+            // Header: icon, title, range; range picker on the right.
             Item {
                 id: header
                 width: parent.width
@@ -389,15 +389,15 @@ Item {
                             id: titleRow
                             width: parent.width
                             spacing: 12
-                            // Fenêtre étroite : le nom s'abrège, le badge ne déborde pas sur le sélecteur de plage.
+                            // Narrow window: the name is elided, the badge does not spill onto the range picker.
                             Txt {
                                 width: Math.min(implicitWidth, titleRow.width - (pageBadge.visible ? pageBadge.width + titleRow.spacing : 0))
                                 elide: Text.ElideRight
-                                text: root.agent ? Burn.agentName(root.agent) : "Tous les agents"
+                                text: root.agent ? Burn.agentName(root.agent) : "All agents"
                                 font.pixelSize: 22
                                 font.bold: true
                             }
-                            // Page d'un agent : d'où viennent ses chiffres, en toutes lettres (détail en bandeau).
+                            // Agent page: where its figures come from, spelled out (details in a banner).
                             Badge {
                                 id: pageBadge
                                 anchors.verticalCenter: parent.verticalCenter
@@ -409,12 +409,12 @@ Item {
                         Txt {
                             width: parent.width
                             elide: Text.ElideRight
-                            text: root.rangeLong + " · usage depuis tes logs et les fournisseurs connectés"
+                            text: root.rangeLong + " · usage from your logs and connected providers"
                             color: Colors.muted
                         }
                     }
                 }
-                // Plage : boutons radio, flèches gauche / droite.
+                // Range: radio buttons, left / right arrows.
                 Rectangle {
                     id: rangePicker
                     anchors.right: parent.right
@@ -424,7 +424,7 @@ Item {
                     radius: 10
                     color: Colors.withAlpha(Colors.surface, 0.55)
                     Accessible.role: Accessible.Grouping
-                    Accessible.name: "Période"
+                    Accessible.name: "Period"
                     Row {
                         id: seg
                         x: 3
@@ -453,7 +453,7 @@ Item {
                                     anchors.centerIn: parent
                                     text: opt.modelData.label
                                     color: opt.sel ? Colors.foreground : Colors.muted
-                                    font.bold: opt.sel   // la sélection ne tient pas qu'à la couleur
+                                    font.bold: opt.sel   // selection is not shown by color alone
                                     spoken: false
                                 }
                             }
@@ -462,19 +462,19 @@ Item {
                 }
             }
 
-            // Archive locale : jours conservés, accès au dossier.
+            // Local archive: days kept, access to the folder.
             Item {
                 width: parent.width
                 height: 30
                 Txt {
                     id: archive
-                    readonly property string kept: Burn.historyDays + (Burn.historyDays > 1 ? " jours conservés" : " jour conservé")
+                    readonly property string kept: Burn.historyDays + (Burn.historyDays === 1 ? " day kept" : " days kept")
                     anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width - backup.width - 12   // fenêtre étroite : élidé, jamais sous le bouton
+                    width: parent.width - backup.width - 12   // narrow window: elided, never under the button
                     elide: Text.ElideRight
-                    text: "\uf1c0   Historique journalier · " + archive.kept + " sur ce PC"  // database
+                    text: "\uf1c0   Daily history · " + archive.kept + " on this PC"  // database
                     color: Colors.muted
-                    Accessible.name: "Historique journalier : " + archive.kept + " sur ce PC"
+                    Accessible.name: "Daily history: " + archive.kept + " on this PC"
                     spoken: false
                 }
                 BurnButton {
@@ -485,9 +485,9 @@ Item {
                     height: 28
                     radius: 8
                     color: Colors.withAlpha(Colors.muted, backup.hovered ? 0.25 : 0.15)
-                    Accessible.name: "Afficher la sauvegarde"
+                    Accessible.name: "Show backup"
                     onClicked: Quickshell.execDetached(["xdg-open", Burn.dataDir])
-                    Txt { id: backupText; anchors.centerIn: parent; text: "\uf07c  Afficher la sauvegarde"; Accessible.ignored: true }  // folder-open
+                    Txt { id: backupText; anchors.centerIn: parent; text: "\uf07c  Show backup"; Accessible.ignored: true }  // folder-open
                 }
             }
 
@@ -500,7 +500,7 @@ Item {
                     height: noticeText.implicitHeight + 22
                     radius: 10
                     color: Colors.withAlpha(modelData.tint, 0.12)
-                    // Icône teintée, texte en couleur normale : lisible sur la teinte (3,7:1 en rouge sur rouge clair).
+                    // Tinted icon, text in the normal color: readable on the tint (3.7:1 for red on light red).
                     Txt {
                         x: 14
                         y: noticeText.y
@@ -521,7 +521,7 @@ Item {
                 }
             }
 
-            // Forfait : une jauge par fenêtre de limite, puis les crédits supplémentaires (Claude).
+            // Plan: one gauge per limit window, then the extra credits (Claude).
             Card {
                 width: parent.width
                 visible: root.sub !== null || root.limits.length > 0
@@ -532,12 +532,12 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 10
                         Txt { text: "\uf09d"; color: root.tint; font.pixelSize: 15; Accessible.ignored: true }  // credit-card
-                        Txt { text: "Forfait " + (root.sub?.plan ?? ""); font.pixelSize: 14; font.bold: true }
-                        // Âge du relevé des limites Claude : le pied ne date que le summary.
+                        Txt { text: "Plan " + (root.sub?.plan ?? ""); font.pixelSize: 14; font.bold: true }
+                        // Age of the Claude limits reading: the footer only dates the summary.
                         Txt {
                             anchors.verticalCenter: parent.verticalCenter
                             visible: root.agent === "claude" && !!Burn.account
-                            text: "· relevé " + Burn.ago(Burn.account?.observedAtMs ?? 0)
+                            text: "· last reading " + Burn.ago(Burn.account?.observedAtMs ?? 0)
                             color: Burn.limitsStale ? Colors.warn : Colors.muted
                         }
                     }
@@ -545,7 +545,7 @@ Item {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         visible: root.sub?.pricePerMonth != null
-                        text: Burn.money(root.sub?.pricePerMonth) + " / mois"
+                        text: Burn.money(root.sub?.pricePerMonth) + " / month"
                         color: Colors.muted
                     }
                 }
@@ -556,9 +556,9 @@ Item {
                         readonly property var pace: Burn.pace(root.agent, modelData.key)
                         width: parent.width
                         label: modelData.label
-                        // Rythme aussi écrit : selon le fond d'écran, good et danger se confondent.
-                        value: Burn.pct(modelData.used) + " utilisé"
-                               + (modelData.resetsAtMs > 0 ? " · réinit. " + Burn.until(modelData.resetsAtMs) : "")
+                        // Pace also written out: depending on the wallpaper, good and danger look alike.
+                        value: Burn.pct(modelData.used) + " used"
+                               + (modelData.resetsAtMs > 0 ? " · resets " + Burn.until(modelData.resetsAtMs) : "")
                                + (pace.status === "warn" || pace.status === "danger" ? " · " + pace.title : "")
                         ratio: modelData.used / 100
                         fill: Burn.tone(pace.status)
@@ -566,21 +566,21 @@ Item {
                 }
                 Txt {
                     visible: root.limits.length === 0
-                    text: "Aucune limite relevée pour ce forfait."
+                    text: "No limits read for this plan."
                     color: Colors.muted
                 }
                 Gauge {
                     width: parent.width
                     visible: root.agent === "claude" && Burn.account?.extraEnabled === true
-                    label: "Crédits supplémentaires"
-                    value: Burn.pct(Burn.account?.extraUsedPercent) + " utilisé · " + Burn.money(Burn.account?.extraUsedUSD)
-                           + " sur " + Burn.money(Burn.account?.extraLimitUSD)
+                    label: "Extra credits"
+                    value: Burn.pct(Burn.account?.extraUsedPercent) + " used · " + Burn.money(Burn.account?.extraUsedUSD)
+                           + " of " + Burn.money(Burn.account?.extraLimitUSD)
                     ratio: (Burn.account?.extraUsedPercent ?? 0) / 100
                     fill: root.tint
                 }
             }
 
-            // Limite hebdomadaire : reste, rythme et trajectoire jusqu'au reset.
+            // Weekly limit: what is left, pace and trajectory up to the reset.
             Card {
                 width: parent.width
                 visible: root.weekly !== null
@@ -592,7 +592,7 @@ Item {
                         width: 260
                         spacing: 10
                         Txt {
-                            text: "LIMITE HEBDOMADAIRE"
+                            text: "WEEKLY LIMIT"
                             color: Colors.muted
                             font.pixelSize: 11
                             font.bold: true
@@ -601,7 +601,7 @@ Item {
                         Row {
                             spacing: 8
                             Txt { id: weekLeft; text: Burn.pct(root.weekly?.remaining); font.pixelSize: 40; font.bold: true }
-                            Txt { anchors.baseline: weekLeft.baseline; text: "restant"; color: Colors.muted; font.pixelSize: 13 }
+                            Txt { anchors.baseline: weekLeft.baseline; text: "left"; color: Colors.muted; font.pixelSize: 13 }
                         }
                         Row {
                             spacing: 8
@@ -627,7 +627,7 @@ Item {
                         }
                         Txt {
                             id: weekReset
-                            readonly property string when: "Réinitialisation " + Burn.until(root.weekly?.resetsAtMs ?? 0)
+                            readonly property string when: "Resets " + Burn.until(root.weekly?.resetsAtMs ?? 0)
                             visible: (root.weekly?.resetsAtMs ?? 0) > 0
                             text: "\uf017  " + weekReset.when  // clock
                             color: Colors.muted
@@ -639,7 +639,7 @@ Item {
                         width: parent.width - weekCol.width - parent.spacing
                         height: 220
                         startMs: root.weekly?.startMs ?? 0
-                        // Reset inconnu : fin théorique de la fenêtre.
+                        // Unknown reset: theoretical end of the window.
                         endMs: root.weekly ? (root.weekly.resetsAtMs || root.weekly.startMs + root.weekly.durationMin * 60000) : 0
                         samples: root.weekly ? Burn.quotaSamples(root.agent, "weekly") : []
                         used: root.weekly?.used ?? -1
@@ -649,7 +649,7 @@ Item {
                 }
             }
 
-            // Abonnement sur 30 jours (`harness <agent>`) : rentabilité et coût par type de token.
+            // Subscription over 30 days (`harness <agent>`): value for money and cost per token type.
             Row {
                 width: parent.width
                 spacing: 14
@@ -661,41 +661,41 @@ Item {
                     visible: e !== null
                     width: (parent.width - parent.spacing) / 2
                     height: Math.max(eco.implicitHeight, mix.implicitHeight)
-                    Heading { width: parent.width; title: "Économie du forfait"; detail: "30 derniers jours" }
+                    Heading { width: parent.width; title: "Plan economics"; detail: "Last 30 days" }
                     Row {
                         width: parent.width
                         spacing: 10
                         Txt { id: mult; text: "×" + (eco.e?.valueMultiple ?? 0).toFixed(2); font.pixelSize: 36; font.bold: true }
                         Txt {
                             anchors.baseline: mult.baseline
-                            width: parent.width - mult.width - parent.spacing   // carte étroite : élidé, pas sur la voisine
+                            width: parent.width - mult.width - parent.spacing   // narrow card: elided, not on the neighbor
                             elide: Text.ElideRight
-                            text: "valeur d'usage / prix du forfait"
+                            text: "usage value / plan price"
                             color: Colors.muted
                         }
                     }
                     Gauge {
                         width: parent.width
-                        label: "Équivalent API"
+                        label: "API equivalent"
                         value: Burn.money(eco.e?.apiEquivalentPerMonth)
                         ratio: (eco.e?.apiEquivalentPerMonth ?? 0) / eco.peak
                         fill: root.tint
                     }
                     Gauge {
                         width: parent.width
-                        label: "Forfait"
+                        label: "Plan"
                         value: Burn.money(eco.e?.pricePerMonth)
                         ratio: (eco.e?.pricePerMonth ?? 0) / eco.peak
                         fill: Colors.muted
                     }
-                    // Usage sous le prix du forfait (Codex peu utilisé) : écart négatif, et aucune remise.
+                    // Usage below the plan price (Codex barely used): negative gap, and no discount.
                     Txt {
                         width: parent.width
                         wrapMode: Text.WordWrap
                         text: eco.e?.subsidyPerMonth < 0
-                            ? "Valeur d'usage inférieure de " + Burn.money(-eco.e.subsidyPerMonth) + " / mois au prix du forfait"
-                            : Burn.money(eco.e?.subsidyPerMonth) + " / mois au-delà du forfait · remise de "
-                              + Burn.pct(eco.e?.discountPercent, 1) + " sur le tarif API"
+                            ? "Usage value " + Burn.money(-eco.e.subsidyPerMonth) + " / month below the plan price"
+                            : Burn.money(eco.e?.subsidyPerMonth) + " / month beyond the plan · "
+                              + Burn.pct(eco.e?.discountPercent, 1) + " discount on API pricing"
                         color: Colors.muted
                         font.pixelSize: 11
                     }
@@ -706,15 +706,15 @@ Item {
                     visible: parts.length > 0
                     width: (parent.width - parent.spacing) / 2
                     height: eco.height
-                    Heading { width: parent.width; title: "Répartition par type de token"; detail: "30 derniers jours" }
+                    Heading { width: parent.width; title: "Breakdown by token type"; detail: "Last 30 days" }
                     Repeater {
                         model: mix.parts
                         delegate: Gauge {
                             required property var modelData
                             width: parent.width
-                            // Clés du CLI ; libellé brut pour une catégorie inconnue.
-                            label: ({ input: "Entrée", output: "Sortie", cacheCreation: "Écriture cache",
-                                      cacheRead: "Lecture cache" })[modelData.key] ?? modelData.label
+                            // CLI keys; raw label for an unknown category.
+                            label: ({ input: "Input", output: "Output", cacheCreation: "Cache write",
+                                      cacheRead: "Cache read" })[modelData.key] ?? modelData.label
                             value: Burn.pct(modelData.costPercent, 1) + " · " + Burn.tokens(modelData.tokens)
                                    + " · " + Burn.money(Burn.priced(modelData.costUSD, modelData.tokens))
                             ratio: modelData.costPercent / 100
@@ -724,20 +724,20 @@ Item {
                 }
             }
 
-            // Chiffres de la plage.
+            // Figures for the range.
             Card {
                 width: parent.width
                 Row {
                     width: parent.width
                     Repeater {
                         model: [
-                            { title: "Dépense totale", detail: "Équivalent API", value: root.noData ? "—"
+                            { title: "Total spend", detail: "API equivalent", value: root.noData ? "—"
                                 : Burn.money(Burn.priced(root.total(root.days, "cost"), root.total(root.days, "tokens"))) },
                             { title: "Tokens", value: root.noData ? "—" : Burn.tokens(root.total(root.days, "tokens")),
-                              detail: "Entrée, sortie et cache" },
-                            { title: "Jours enregistrés", value: root.noData ? "—" : String(root.days.length), detail: root.rangeLong },
-                            { title: "Modèles", value: root.models ? String(root.models.length) : "—",
-                              detail: root.agent ? Burn.agentName(root.agent) : "Tous agents confondus" }
+                              detail: "Input, output and cache" },
+                            { title: "Days recorded", value: root.noData ? "—" : String(root.days.length), detail: root.rangeLong },
+                            { title: "Models", value: root.models ? String(root.models.length) : "—",
+                              detail: root.agent ? Burn.agentName(root.agent) : "All agents combined" }
                         ]
                         delegate: Item {
                             id: stat
@@ -778,11 +778,11 @@ Item {
                 }
             }
 
-            // Sur « Tous » : chaque fournisseur, son état et la provenance de ses chiffres.
+            // On "All agents": each provider, its state and where its figures come from.
             Card {
                 width: parent.width
                 visible: !root.agent
-                Heading { width: parent.width; title: "Fournisseurs"; detail: "Claude et Codex, puis les agents détectés" }
+                Heading { width: parent.width; title: "Providers"; detail: "Claude and Codex, then detected agents" }
                 Repeater {
                     model: root.providerIds
                     delegate: Item {
@@ -823,18 +823,18 @@ Item {
                 }
             }
 
-            // Dépense journalière ; sur « Tous », la liste par agent à côté (comme l'app Mac).
+            // Daily spend; on "All agents", the per-agent list next to it (like the Mac app).
             Row {
                 width: parent.width
                 spacing: 14
                 Card {
                     width: parent.width - (byAgent.visible ? byAgent.width + parent.spacing : 0)
-                    Heading { width: parent.width; title: "Dépense journalière" }
+                    Heading { width: parent.width; title: "Daily spend" }
                     BurnBarChart {
                         id: dailyChart
                         width: parent.width
                         height: 220
-                        // Plage bornée : tous ses jours (0 $ sans usage), l'axe la couvre en entier.
+                        // Bounded range: all its days ($0 without usage), the axis covers all of it.
                         points: Burn.range === "all" ? root.days.map(d => ({ date: d.date, value: Burn.priced(d.cost, d.tokens) }))
                             : dailyChart.lastDays(root.days, Burn.spans[Burn.range] + 1)
                         barColor: root.tint
@@ -846,12 +846,12 @@ Item {
                     width: 300
                     Heading {
                         width: parent.width
-                        title: "Par agent"
-                        detail: root.agentRows.length + (root.agentRows.length > 1 ? " actifs" : " actif")
+                        title: "By agent"
+                        detail: root.agentRows.length + " active"
                     }
                     ListView {
                         width: parent.width
-                        height: 220   // = hauteur du graphe : les deux cartes s'alignent
+                        height: 220   // = chart height: the two cards line up
                         clip: true
                         spacing: 2
                         boundsBehavior: Flickable.StopAtBounds
@@ -864,7 +864,7 @@ Item {
                             height: 52
                             radius: 10
                             color: ag.hovered ? Colors.withAlpha(Colors.muted, 0.10) : "transparent"
-                            Accessible.name: Burn.agentName(ag.modelData.agent) + " : " + ag.costText + ", "
+                            Accessible.name: Burn.agentName(ag.modelData.agent) + ": " + ag.costText + ", "
                                              + Burn.tokens(ag.modelData.tokens) + " tokens"
                             onClicked: Burn.dashboardPage = ag.modelData.agent
                             IconImage {
@@ -896,14 +896,14 @@ Item {
                         Txt {
                             anchors.centerIn: parent
                             visible: root.agentRows.length === 0
-                            text: "Aucune dépense sur cette période."
+                            text: "No spend in this period."
                             color: Colors.muted
                         }
                     }
                 }
             }
 
-            // Modèles : filtre, tri au clic sur l'en-tête (défaut : dépense décroissante).
+            // Models: filter, sort by clicking the header (default: spend, descending).
             Card {
                 width: parent.width
                 Item {
@@ -912,7 +912,7 @@ Item {
                     Row {
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 10
-                        Txt { text: "Modèles"; font.pixelSize: 14; font.bold: true }
+                        Txt { text: "Models"; font.pixelSize: 14; font.bold: true }
                         Txt {
                             anchors.verticalCenter: parent.verticalCenter
                             text: root.models ? root.models.length : "—"
@@ -940,8 +940,8 @@ Item {
                             selectByMouse: true
                             selectionColor: Colors.withAlpha(Colors.accent, 0.5)
                             activeFocusOnTab: true
-                            Accessible.name: "Filtrer les modèles"
-                            // Échap vide le filtre ; déjà vide, il remonte à l'hôte (fermeture du dashboard).
+                            Accessible.name: "Filter models"
+                            // Escape clears the filter; if already empty, it reaches the host (closing the dashboard).
                             Keys.onEscapePressed: event => {
                                 event.accepted = search.text !== "";
                                 search.text = "";
@@ -949,21 +949,21 @@ Item {
                             Txt {
                                 anchors.verticalCenter: parent.verticalCenter
                                 visible: search.text === ""
-                                text: "Filtrer les modèles"
+                                text: "Filter models"
                                 color: Colors.muted
                                 spoken: false
                             }
                         }
                     }
                 }
-                // Un seul bloc : l'espacement de la carte décollerait l'en-tête des lignes.
+                // A single block: the card spacing would separate the header from the rows.
                 Column {
                     width: parent.width
                     Row {
                         width: parent.width
                         height: 26
                         Repeater {
-                            model: [["model", "Modèle"], ["totalTokens", "Tokens"], ["totalCost", "Dépense"], ["percentage", "Part"]]
+                            model: [["model", "Model"], ["totalTokens", "Tokens"], ["totalCost", "Spend"], ["percentage", "Share"]]
                             delegate: BurnButton {
                                 id: colHead
                                 required property var modelData
@@ -972,8 +972,8 @@ Item {
                                 width: root.colW(index, parent.width)
                                 height: parent.height
                                 radius: 6
-                                Accessible.name: "Trier par " + colHead.modelData[1].toLowerCase()
-                                                 + (colHead.sorted ? (root.sortAsc ? ", tri croissant" : ", tri décroissant") : "")
+                                Accessible.name: "Sort by " + colHead.modelData[1].toLowerCase()
+                                                 + (colHead.sorted ? (root.sortAsc ? ", ascending" : ", descending") : "")
                                 onClicked: {
                                     if (colHead.sorted) root.sortAsc = !root.sortAsc;
                                     else { root.sortKey = colHead.modelData[0]; root.sortAsc = colHead.modelData[0] === "model"; }
@@ -991,7 +991,7 @@ Item {
                                     }
                                     Txt {
                                         visible: colHead.sorted
-                                        text: "\uf0d7"  // caret-down, retourné en tri croissant
+                                        text: "\uf0d7"  // caret-down, flipped when sorted ascending
                                         rotation: root.sortAsc ? 180 : 0
                                         color: Colors.muted
                                         font.pixelSize: 11
@@ -1050,16 +1050,16 @@ Item {
                 }
                 Txt {
                     visible: root.modelRows.length === 0
-                    text: root.models === null ? (Burn.loading ? "Chargement des modèles…" : "Données indisponibles.")
-                        : search.text !== "" ? "Aucun modèle ne correspond au filtre."
-                        : "Aucun modèle utilisé sur cette période."
+                    text: root.models === null ? (Burn.loading ? "Loading models…" : "Data unavailable.")
+                        : search.text !== "" ? "No model matches the filter."
+                        : "No models used in this period."
                     color: Colors.muted
                 }
             }
         }
     }
 
-    // Indicateur de défilement (le Flickable n'en dessine pas).
+    // Scroll indicator (the Flickable draws none).
     Rectangle {
         x: flick.x + flick.width - 7
         y: flick.y + flick.visibleArea.yPosition * flick.height
@@ -1070,7 +1070,7 @@ Item {
         color: Colors.withAlpha(Colors.muted, 0.35)
     }
 
-    // ── Pied fixe : fraîcheur des données, rafraîchissement forcé ──
+    // ── Fixed footer: data freshness, forced refresh ──
     Rectangle {
         id: foot
         anchors { left: side.right; right: parent.right; bottom: parent.bottom }
@@ -1081,8 +1081,8 @@ Item {
             x: 20
             anchors.verticalCenter: parent.verticalCenter
             spacing: 8
-            // En toutes lettres : en direct, en cache (relu du disque, dernier appel en échec ou trop ancien),
-            // indisponible ; le point n'en est qu'un rappel.
+            // Spelled out: live, cached (read back from disk, last call failed or too old),
+            // unavailable; the dot only echoes it.
             Rectangle {
                 width: 6
                 height: 6
@@ -1092,13 +1092,13 @@ Item {
                      : Burn.loading ? Colors.muted : Colors.danger
             }
             Txt {
-                text: Burn.dataState !== "unavailable" ? Burn.stateText(Burn.dataState) + " · mis à jour " + Burn.ago(Burn.updatedAt)
-                    : Burn.loading ? "Lecture de l'usage…" : Burn.stateText(Burn.dataState)
+                text: Burn.dataState !== "unavailable" ? Burn.stateText(Burn.dataState) + " · updated " + Burn.ago(Burn.updatedAt)
+                    : Burn.loading ? "Reading usage…" : Burn.stateText(Burn.dataState)
                 color: Colors.muted
                 font.pixelSize: 11
             }
         }
-        // 28 px (cible de l'ancienne icône de 16 px + 6 px autour), glyphe au même endroit.
+        // 28 px target (the former 16 px icon + 6 px around it), glyph in the same place.
         BurnButton {
             id: footRefresh
             anchors.right: parent.right
@@ -1107,7 +1107,7 @@ Item {
             width: 28
             height: 28
             radius: 8
-            tip: "Rafraîchir"
+            tip: "Refresh"
             onClicked: Burn.refresh(true)
             Txt {
                 anchors.centerIn: parent
@@ -1124,7 +1124,7 @@ Item {
                     to: 360
                     duration: 1000
                     loops: Animation.Infinite
-                    alwaysRunToEnd: true   // finit le tour : l'icône s'arrête droite
+                    alwaysRunToEnd: true   // finishes the turn: the icon stops upright
                 }
             }
         }

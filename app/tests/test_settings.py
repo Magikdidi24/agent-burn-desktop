@@ -1,5 +1,5 @@
-# Tests des réglages : défauts (clic de l'icône selon la plateforme), valeurs invalides, fichier illisible
-# (copie .bak), aller-retour sur disque, réinitialisation, démarrage auto par le module de la plateforme.
+# Settings tests: defaults (icon click per platform), invalid values, unreadable file
+# (.bak copy), round trip on disk, reset, autostart through the platform module.
 #   cd app && python -m unittest discover -s tests -v
 import json
 import sys
@@ -33,7 +33,7 @@ class Defaults(unittest.TestCase):
         s = Settings(None)
         self.assertFalse(s.autostartAvailable)
         self.assertFalse(s.autostart)
-        s.autostart = True   # sans effet, sans erreur
+        s.autostart = True   # no effect, no error
         self.assertFalse(s.autostart)
 
 
@@ -61,10 +61,10 @@ class File(unittest.TestCase):
         self.assertEqual(json.loads(self.path.read_text(encoding="utf-8")),
                          {"refreshMinutes": 15, "theme": "light", "closeToTray": False, "trayClick": "dashboard",
                           "debugLogging": True})
-        self.assertEqual(sorted(p.name for p in self.path.parent.iterdir()), ["settings.json"])   # aucun reste temporaire
-        with self.assertLogs("agentburn.settings", "DEBUG") as logs:   # journal détaillé : chaque écriture
+        self.assertEqual(sorted(p.name for p in self.path.parent.iterdir()), ["settings.json"])   # no temporary leftovers
+        with self.assertLogs("agentburn.settings", "DEBUG") as logs:   # detailed log: every write
             s.theme = "dark"
-        self.assertIn("réglages enregistrés dans", logs.output[0])
+        self.assertIn("settings saved to", logs.output[0])
         s.theme = "light"
         t = Settings(self.path)
         self.assertEqual((t.refreshMinutes, t.theme, t.closeToTray, t.trayClick, t.debugLogging),
@@ -72,15 +72,15 @@ class File(unittest.TestCase):
         self.assertFalse(t.recovered)
 
     def test_invalid_values_and_unknown_keys_fall_back_and_are_logged(self):
-        self.write(json.dumps({"refreshMinutes": 7, "theme": "bleu", "closeToTray": "oui", "trayClick": 1,
-                               "debugLogging": 1, "inconnu": 3}).encode())
+        self.write(json.dumps({"refreshMinutes": 7, "theme": "blue", "closeToTray": "yes", "trayClick": 1,
+                               "debugLogging": 1, "unknown": 3}).encode())
         with self.assertLogs("agentburn.settings", "WARNING") as logs:
             s = Settings(self.path)
         self.assertEqual((s.refreshMinutes, s.theme, s.closeToTray, s.debugLogging), (5, "system", True, False))
         self.assertEqual(len(logs.records), 6)
-        self.assertFalse(s.recovered)   # fichier lisible : pas de copie .bak
+        self.assertFalse(s.recovered)   # readable file: no .bak copy
         s.theme = "dark"
-        self.assertNotIn("inconnu", json.loads(self.path.read_text(encoding="utf-8")))
+        self.assertNotIn("unknown", json.loads(self.path.read_text(encoding="utf-8")))
 
     def test_bool_is_not_a_number_of_minutes(self):
         self.write(b'{"refreshMinutes": true, "debugLogging": 0}')
@@ -89,17 +89,17 @@ class File(unittest.TestCase):
         self.assertEqual((s.refreshMinutes, s.debugLogging), (5, False))
 
     def test_unreadable_file_copied_to_bak_then_defaults(self):
-        for raw in (b"{pas du json", b"[1, 2]", b'{"theme": "\xff"}'):
+        for raw in (b"{not json", b"[1, 2]", b'{"theme": "\xff"}'):
             self.write(raw)
             with self.assertLogs("agentburn.settings", "WARNING"):
                 s = Settings(self.path)
             self.assertTrue(s.recovered, raw)
             self.assertEqual(s.theme, "system")
             self.assertEqual(self.path.with_name("settings.json.bak").read_bytes(), raw)
-            self.assertEqual(self.path.read_bytes(), raw)   # rien d'écrasé avant un changement
+            self.assertEqual(self.path.read_bytes(), raw)   # nothing overwritten before a change
 
     def test_utf8_bom_is_read(self):
-        self.write(b'\xef\xbb\xbf{"theme": "light", "refreshMinutes": 15}')   # Bloc-notes, PowerShell 5
+        self.write(b'\xef\xbb\xbf{"theme": "light", "refreshMinutes": 15}')   # Notepad, PowerShell 5
         s = Settings(self.path)
         self.assertEqual((s.theme, s.refreshMinutes), ("light", 15))
         self.assertFalse(s.recovered)
@@ -118,13 +118,13 @@ class File(unittest.TestCase):
         s.changed.connect(lambda: changes.append(1))
         with self.assertLogs("agentburn.settings", "WARNING"):
             s.setProperty("refreshMinutes", 7)
-            s.setProperty("theme", "rose")
+            s.setProperty("theme", "pink")
         self.assertEqual((s.refreshMinutes, s.theme), (5, "system"))
-        self.assertEqual(len(changes), 2)   # le contrôle QML se recale
+        self.assertEqual(len(changes), 2)   # the QML control resyncs
         self.assertFalse(self.path.exists())
 
     def test_reset(self):
-        self.write(b"{corrompu")
+        self.write(b"{corrupted")
         with self.assertLogs("agentburn.settings", "WARNING"):
             s = Settings(self.path)
         s.refreshMinutes = 30
@@ -145,12 +145,12 @@ class File(unittest.TestCase):
         self.assertTrue(state["on"])
         self.assertTrue(s.autostart)
         self.assertNotIn("autostart", json.loads(self.path.read_text(encoding="utf-8")) if self.path.exists() else {})
-        state["on"] = False   # changé ailleurs (installeur, bureau) : relu
+        state["on"] = False   # changed elsewhere (installer, desktop): read again
         self.assertFalse(s.autostart)
 
     def test_autostart_failure_is_logged_not_raised(self):
         def refuse(on):
-            raise PermissionError(13, "refusé")
+            raise PermissionError(13, "denied")
         s = Settings(self.path, types.SimpleNamespace(autostart=lambda: False, set_autostart=refuse))
         with self.assertLogs("agentburn.settings", "WARNING"):
             s.autostart = True

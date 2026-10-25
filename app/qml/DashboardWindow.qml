@@ -1,8 +1,8 @@
 import QtQuick
 
-// Fenêtre « Agent Burn » (dashboard de l'app Mac) : instance unique, ouverte par Burn.dashboardOpen
-// (popover, menu de l'icône, 2e lancement de l'app) ; la croix ou Échap la referment, __main__ décide
-// alors entre rester dans la zone de notification et quitter.
+// "Agent Burn" window (the Mac app's dashboard): single instance, opened by Burn.dashboardOpen
+// (popover, tray icon menu, 2nd launch of the app); the close button or Esc closes it, then __main__
+// decides between staying in the system tray and quitting.
 Window {
     id: win
     title: "Agent Burn"
@@ -13,18 +13,18 @@ Window {
     color: Colors.background
     visible: Burn.dashboardOpen
 
-    signal settingsRequested()   // bouton « Paramètres » de la vue partagée, ouvert par Main.qml
+    signal settingsRequested()   // "Settings" button of the shared view, opened by Main.qml
 
-    // Fermée par la croix : le binding de visible tient, seul l'état est à remettre.
+    // Closed with the close button: the visible binding holds, only the state needs resetting.
     onClosing: Burn.dashboardOpen = false
 
-    // poke() ne relance que si les données ont plus de 60 s, loadHarness() plus de 5 min ; au rythme des réglages.
+    // poke() reruns only if the data is over 60 s old, loadHarness() over 5 min; at the settings interval.
     function load() {
         Burn.poke();
         for (const a of Burn.agents)
             if (Burn.subEntry(a)) Burn.loadHarness(a);
     }
-    // Rouverte par Burn.openDashboard (fermée puis rouverte) : repasse au premier plan.
+    // Reopened by Burn.openDashboard (closed then reopened): comes back to the front.
     onVisibleChanged: if (visible) {
         raise();
         requestActivate();
@@ -32,7 +32,7 @@ Window {
     }
     Timer { interval: Burn.refreshInterval; repeat: true; running: win.visible; onTriggered: win.load() }
 
-    // Contenu créé à l'ouverture seulement : fenêtre fermée = ni bindings ni horloge.
+    // Content created only on opening: closed window = no bindings, no clock.
     Loader {
         anchors.fill: parent
         active: win.visible

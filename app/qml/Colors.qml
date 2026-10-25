@@ -1,26 +1,26 @@
 pragma Singleton
 import QtQuick
 
-// Couleurs de l'app de bureau, même API que le Colors.qml de Quickshell : thème choisi dans les réglages,
-// ou en direct le clair/sombre du système, et sa couleur d'accentuation ; fonds et gris d'après l'app Mac.
+// Desktop app colors, same API as Quickshell's Colors.qml: theme chosen in the settings,
+// or the system light/dark followed live, and its accent color; backgrounds and grays from the Mac app.
 QtObject {
     id: root
 
-    property string theme: "system"   // réglage de l'app (Main.qml) : system, light ou dark
-    // Explicite plutôt que via styleHints.setColorScheme, que certaines plateformes ignorent ; système
-    // inconnu (pas de portail) : sombre.
+    property string theme: "system"   // app setting (Main.qml): system, light or dark
+    // Explicit rather than through styleHints.setColorScheme, which some platforms ignore; unknown
+    // system scheme (no portal): dark.
     readonly property bool dark: theme === "dark" || theme !== "light" && Qt.styleHints.colorScheme !== Qt.ColorScheme.Light
     readonly property color background: dark ? "#1c1c1e" : "#ececf0"
     readonly property color foreground: dark ? "#f5f5f7" : "#1d1d1f"
-    readonly property color surface: dark ? "#363638" : "#ffffff"   // cartes : surface à 55 % sur le fond
-    readonly property color muted: dark ? "#98989f" : "#5e5e63"   // texte secondaire : ≥ 4,5:1 sur fond et cartes
+    readonly property color surface: dark ? "#363638" : "#ffffff"   // cards: surface at 55% over the background
+    readonly property color muted: dark ? "#98989f" : "#5e5e63"   // secondary text: ≥ 4.5:1 on background and cards
     readonly property color good: dark ? "#30d158" : "#248a3d"
     readonly property color warn: dark ? "#ff9f0a" : "#c93400"
     readonly property color danger: dark ? "#ff453a" : "#d70015"
     readonly property color color5: dark ? "#bf5af2" : "#8944ab"
     readonly property color accentAlt: dark ? "#64d2ff" : "#0071a4"
-    // Accent de Windows, éclairci (sombre) ou foncé (clair) jusqu'à 4,5:1 de contraste sur les cartes
-    // et le fond : il sert de texte et de fond au texte de couleur background (onglet actif).
+    // Windows accent, lightened (dark) or darkened (light) up to 4.5:1 contrast on the cards
+    // and the background: used as text and as the fill behind background-colored text (active tab).
     readonly property color accent: readable(system.accent)
 
     readonly property SystemPalette system: SystemPalette {}

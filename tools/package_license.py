@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-# Licence d'un paquet en expression SPDX : celles des notices livrées (lignes « Licence : » de THIRD-PARTY-NOTICES.txt,
-# et de QT-THIRD-PARTY.txt pour les composants de la plateforme), plus celles passées en argument (app, Qt, Python…).
-# Chaque choix OR reste entre parenthèses, le tout relié par AND. Lancé par linux/build.sh pour le .rpm.
-#   python package_license.py DOSSIER_LICENSES PLATEFORME [EXPRESSION...]
+# Package license as an SPDX expression: those of the shipped notices ("License:" lines of THIRD-PARTY-NOTICES.txt,
+# and of QT-THIRD-PARTY.txt for the platform's components), plus those passed as arguments (app, Qt, Python…).
+# Each OR choice stays in parentheses, all joined by AND. Run by linux/build.sh for the .rpm.
+#   python package_license.py LICENSES_DIR PLATFORM [EXPRESSION...]
 import re
 import sys
 from pathlib import Path
@@ -11,12 +11,12 @@ OPERATORS = ("AND", "OR", "WITH")
 
 
 def tokens(expr):
-    # « MIT/Apache-2.0 » : ancienne syntaxe de Cargo pour OR
+    # "MIT/Apache-2.0": old Cargo syntax for OR
     return re.findall(r"\(|\)|[^\s()]+", expr.replace("/", " OR "))
 
 
 def split(toks, op):
-    """toks coupé sur op hors parenthèses."""
+    """toks split on op outside parentheses."""
     parts, depth, cur = [], 0, []
     for t in toks:
         depth += (t == "(") - (t == ")")
@@ -34,7 +34,7 @@ def unwrap(toks):
         for i, t in enumerate(toks):
             depth += (t == "(") - (t == ")")
             if depth == 0 and i < len(toks) - 1:
-                return toks   # « (A) OR (B) » : la 1re parenthèse se ferme avant la fin
+                return toks   # "(A) OR (B)": the 1st parenthesis closes before the end
         toks = toks[1:-1]
     return toks
 
@@ -45,7 +45,7 @@ def text(toks):
 
 def _terms(toks):
     toks = unwrap(toks)
-    choices = split(toks, "OR")   # OR lie moins que AND : il est au sommet s'il y en a un
+    choices = split(toks, "OR")   # OR binds looser than AND: it is at the top if there is one
     if len(choices) > 1:
         return ["(" + " OR ".join(sorted({text(unwrap(c)) for c in choices})) + ")"]
     parts = split(toks, "AND")
@@ -55,7 +55,7 @@ def _terms(toks):
 
 
 def terms(expr):
-    """Termes AND d'une expression ; ValueError si ce n'en est pas une (« voir LICENSE », « non déclarée »)."""
+    """AND terms of an expression; ValueError if it is not one ("see LICENSE", "not declared")."""
     toks = tokens(expr)
     flat = [t for t in toks if t not in ("(", ")")]
     if len(flat) % 2 == 0 or any((t in OPERATORS) != (i % 2 == 1) for i, t in enumerate(flat)):
@@ -64,11 +64,11 @@ def terms(expr):
 
 
 def notices(folder, platform):
-    found = re.findall(r"^  Licence : (.+)$", (folder / "THIRD-PARTY-NOTICES.txt").read_text(encoding="utf-8"), re.M)
+    found = re.findall(r"^  License: (.+)$", (folder / "THIRD-PARTY-NOTICES.txt").read_text(encoding="utf-8"), re.M)
     for block in (folder / "QT-THIRD-PARTY.txt").read_text(encoding="utf-8").split("\n\n"):
-        plat = re.search(r"^  Plateformes : (.+)$", block, re.M)
+        plat = re.search(r"^  Platforms: (.+)$", block, re.M)
         if plat and platform in plat.group(1).split(", "):
-            found.append(re.search(r"^  Licence : (.+)$", block, re.M).group(1))
+            found.append(re.search(r"^  License: (.+)$", block, re.M).group(1))
     return found
 
 
@@ -82,7 +82,7 @@ def main():
     try:
         print(expression(notices(Path(folder), platform) + extra))
     except ValueError as e:
-        sys.exit(f"licence sans expression SPDX dans les notices : « {e} »")
+        sys.exit(f"license without an SPDX expression in the notices: “{e}”")
 
 
 if __name__ == "__main__":

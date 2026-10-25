@@ -4,9 +4,9 @@ import QtQuick.Controls.Fusion
 import QtQuick.Layouts
 import AgentBurn
 
-// Fenêtre « Paramètres » de l'app de bureau : réglages, état des fournisseurs, diagnostic, à propos.
-// Contrôles Qt Quick (Tab, flèches, Espace ou Entrée, lecteurs d'écran) aux couleurs de Colors : lisible en clair
-// et en sombre. Échap la ferme ; ouverte par le menu de l'icône (Main.openSettings).
+// "Settings" window of the desktop app: settings, provider status, diagnostics, about.
+// Qt Quick controls (Tab, arrows, Space or Enter, screen readers) in the Colors palette: readable in light
+// and dark. Esc closes it; opened from the tray icon menu (Main.openSettings).
 ApplicationWindow {
     id: win
 
@@ -14,18 +14,18 @@ ApplicationWindow {
     property int section: 0
     readonly property color card: Qt.tint(Colors.background, Colors.withAlpha(Colors.surface, 0.55))
     readonly property var agents: Array.from(new Set(Burn.knownProviders.concat(Burn.agents)))
-    // Origine d'une erreur de Burn.recentErrors, en clair.
-    readonly property var sources: ({ summary: "Rapport", range: "Période du dashboard", "harness:claude": "Détail Claude Code",
-                                      "harness:codex": "Détail Codex", quota: "Relevé des limites", cli: "Lancement du CLI" })
+    // Source of a Burn.recentErrors error, in plain words.
+    readonly property var sources: ({ summary: "Report", range: "Dashboard period", "harness:claude": "Claude Code details",
+                                      "harness:codex": "Codex details", quota: "Limits reading", cli: "CLI launch" })
 
     function open(name) {
         section = Math.max(0, sections.indexOf(name));
-        tabs.currentItem.forceActiveFocus();   // pas sur un contrôle de la section quittée, caché : Espace le changerait
+        tabs.currentItem.forceActiveFocus();   // not on a hidden control of the section left: Space would change it
         visible = true;
         raise();
         requestActivate();
     }
-    // Entrée comme Espace sur le contrôle focalisé : bouton, interrupteur, option ou onglet.
+    // Enter works like Space on the focused control: button, switch, option or tab.
     function activate(event) {
         const f = win.activeFocusItem;
         if (typeof f?.click === "function")
@@ -38,7 +38,7 @@ ApplicationWindow {
              : s === "none" || s === "unknown" ? Colors.muted : Colors.warn;
     }
 
-    title: "Paramètres — Agent Burn"
+    title: "Settings — Agent Burn"
     width: 620
     height: 680
     minimumWidth: 520
@@ -76,17 +76,17 @@ ApplicationWindow {
         id: tabs
         currentIndex: win.section
         onCurrentIndexChanged: win.section = currentIndex
-        Accessible.name: "Sections des paramètres"
+        Accessible.name: "Settings sections"
         Keys.onReturnPressed: event => win.activate(event)
         Keys.onEnterPressed: event => win.activate(event)
-        PageTab { text: "Général" }
-        PageTab { text: "Fournisseurs" }
-        PageTab { text: "Diagnostic" }
-        PageTab { text: "À propos" }
+        PageTab { text: "General" }
+        PageTab { text: "Providers" }
+        PageTab { text: "Diagnostics" }
+        PageTab { text: "About" }
     }
 
-    // Anneau de focus au clavier, celui des vues partagées (BurnButton) : le style n'en dessine aucun sur
-    // les onglets, à peine un sur les cases d'option.
+    // Keyboard focus ring, the same as in the shared views (BurnButton): the style draws none on
+    // tabs and barely one on radio buttons.
     component Ring: Rectangle {
         z: 1
         anchors.fill: parent
@@ -95,7 +95,7 @@ ApplicationWindow {
         border.color: Colors.accent
         radius: 4
     }
-    // Onglet : section courante soulignée et en gras, pas seulement teintée.
+    // Tab: current section underlined and bold, not just tinted.
     component PageTab: TabButton {
         id: tab
         font.bold: checked
@@ -108,14 +108,14 @@ ApplicationWindow {
         }
         Ring { visible: tab.visualFocus }
     }
-    // Option d'une rangée : flèche gauche ou droite vers la voisine, cochée aussitôt, comme sous Windows ou GTK.
+    // Option in a row: the left or right arrow moves to the neighbor and checks it at once, as on Windows or GTK.
     component Choice: RadioButton {
         id: choice
         function step(d) {
             const row = Array.from(parent.children).filter(c => c instanceof RadioButton);
             const next = row[row.indexOf(choice) + d];
             if (next) {
-                next.forceActiveFocus(Qt.TabFocusReason);   // anneau gardé, comme au Tab
+                next.forceActiveFocus(Qt.TabFocusReason);   // ring kept, as with Tab
                 next.click();
             }
         }
@@ -124,7 +124,7 @@ ApplicationWindow {
         Ring { visible: choice.visualFocus }
     }
 
-    // Texte des sections ; textes du CLI (erreurs, chemins, versions) jamais interprétés.
+    // Section text; CLI texts (errors, paths, versions) never interpreted.
     component Txt: Label {
         Layout.fillWidth: true
         color: Colors.foreground
@@ -135,8 +135,8 @@ ApplicationWindow {
         color: Colors.muted
         font.pixelSize: 11
     }
-    // Intitulé : valeur, coupée entre les mots ou n'importe où ; un chemin, n'importe où (sinon « C: » resterait
-    // seul en bout de ligne, sa seule coupure entre deux mots).
+    // Label: value, wrapped between words or anywhere; a path, anywhere (otherwise "C:" would be left
+    // alone at the end of a line, its only break between two words).
     component Field: RowLayout {
         id: field
         property string label
@@ -155,7 +155,7 @@ ApplicationWindow {
     }
     component Group: GroupBox {
         Layout.fillWidth: true
-        // GroupBox de Fusion : titre et cadre aux couleurs de la palette.
+        // Fusion GroupBox: title and frame in the palette colors.
         default property alias content: box.data
         ColumnLayout {
             id: box
@@ -164,7 +164,7 @@ ApplicationWindow {
             spacing: 10
         }
     }
-    // Page défilante d'une section.
+    // Scrolling page of a section.
     component Page: ScrollView {
         id: page
         default property alias content: col.data
@@ -177,7 +177,7 @@ ApplicationWindow {
         }
     }
 
-    // Contenu créé à l'ouverture seulement : fenêtre fermée = ni bindings ni horloge.
+    // Content created only on opening: closed window = no bindings, no clock.
     Loader {
         anchors.fill: parent
         active: win.visible
@@ -187,11 +187,11 @@ ApplicationWindow {
             Keys.onReturnPressed: event => win.activate(event)
             Keys.onEnterPressed: event => win.activate(event)
 
-            // Contrôle atteint au clavier hors de la vue : la page défile jusqu'à lui.
+            // Control reached by keyboard outside the view: the page scrolls to it.
             Connections {
                 target: win
                 function onActiveFocusItemChanged() {
-                    const f = stack.children[stack.currentIndex]?.contentItem;   // Flickable du ScrollView affiché
+                    const f = stack.children[stack.currentIndex]?.contentItem;   // Flickable of the shown ScrollView
                     const item = win.activeFocusItem;
                     let inside = false;
                     for (let p = item; p && !inside; p = p.parent)
@@ -206,79 +206,80 @@ ApplicationWindow {
                 }
             }
 
-            // ── Général ──
+            // ── General ──
             Page {
                 Group {
-                    title: "Données"
+                    title: "Data"
                     RowLayout {
                         spacing: 12
-                        Txt { text: "Rafraîchissement automatique" }
+                        Txt { text: "Auto refresh" }
                         ComboBox {
                             readonly property var minutes: [1, 5, 15, 30]
                             model: ["1 min", "5 min", "15 min", "30 min"]
                             currentIndex: minutes.indexOf(Settings.refreshMinutes)
                             onActivated: i => Settings.refreshMinutes = minutes[i]
-                            Accessible.name: "Rafraîchissement automatique"
+                            Accessible.name: "Auto refresh"
                         }
                     }
-                    Hint { text: "Limites relevées à ce rythme, rapport complet au moins une fois par heure." }
+                    Hint { text: "Limits read at this interval, full report at least once an hour." }
                 }
                 Group {
-                    title: "Apparence"
+                    title: "Appearance"
                     RowLayout {
                         spacing: 12
-                        Txt { text: "Thème"; Layout.fillWidth: false; Layout.preferredWidth: 170 }
+                        Txt { text: "Theme"; Layout.fillWidth: false; Layout.preferredWidth: 170 }
                         Repeater {
-                            model: [["system", "Système"], ["light", "Clair"], ["dark", "Sombre"]]
+                            model: [["system", "System"], ["light", "Light"], ["dark", "Dark"]]
                             Choice {
                                 required property var modelData
                                 text: modelData[1]
                                 checked: Settings.theme === modelData[0]
                                 onToggled: Settings.theme = modelData[0]
-                                Accessible.name: "Thème " + text
+                                Accessible.name: "Theme " + text
                             }
                         }
                     }
                 }
                 Group {
-                    title: "Démarrage et zone de notification"
+                    title: "Startup and system tray"
                     Switch {
-                        text: "Lancer à l'ouverture de session"
+                        text: "Start at login"
                         enabled: Settings.autostartAvailable
-                        opacity: enabled ? 1 : 0.5   // le style garde le libellé en couleur normale
+                        opacity: enabled ? 1 : 0.5   // the style keeps the label in its normal color
                         checked: Settings.autostart
                         onToggled: Settings.autostart = checked
                     }
-                    Hint { visible: !Settings.autostartAvailable; text: "Disponible dans l'application installée." }
+                    Hint { visible: !Settings.autostartAvailable; text: "Available in the installed app." }
                     Switch {
-                        text: "Garder dans la zone de notification à la fermeture"
+                        text: "Keep in the system tray when closed"
                         checked: Settings.closeToTray
                         onToggled: Settings.closeToTray = checked
                     }
                     RowLayout {
                         spacing: 12
-                        Txt { text: "Clic sur l'icône"; Layout.fillWidth: false; Layout.preferredWidth: 170 }
+                        Txt { text: "Icon click"; Layout.fillWidth: false; Layout.preferredWidth: 170 }
                         Repeater {
-                            model: [["popover", "Aperçu"], ["dashboard", "Dashboard"]]
+                            model: [["popover", "Popover"], ["dashboard", "Dashboard"]]
                             Choice {
                                 required property var modelData
                                 text: modelData[1]
                                 checked: Settings.trayClick === modelData[0]
                                 onToggled: Settings.trayClick = modelData[0]
-                                Accessible.name: "Clic sur l'icône : " + text
+                                Accessible.name: "Icon click: " + text
                             }
                         }
                     }
                     Hint {
                         visible: text !== ""
-                        text: !Desktop.trayAvailable ? "Aucune zone de notification détectée : fermer le dashboard quitte l'application. "
-                                + "Sous GNOME, active l'extension AppIndicator."
-                            : Desktop.platformName === "wayland" ? "Sous Wayland, le bureau place lui-même l'aperçu, souvent au centre de l'écran." : ""
+                        text: !Desktop.trayAvailable ? "No system tray detected: closing the dashboard quits the app. "
+                                + "On GNOME, enable the AppIndicator extension."
+                            : Desktop.platformName === "wayland"
+                                ? "On Wayland, the desktop places the popover itself, often in the center of the screen." : ""
                     }
                 }
             }
 
-            // ── Fournisseurs ──
+            // ── Providers ──
             Page {
                 Repeater {
                     model: win.agents
@@ -306,7 +307,7 @@ ApplicationWindow {
                             }
                             ColumnLayout {
                                 spacing: 4
-                                // Pastille teintée, mot en couleur du texte : lisible quelle que soit la teinte.
+                                // Tinted dot, word in the text color: readable whatever the tint.
                                 RowLayout {
                                     spacing: 6
                                     Txt {
@@ -318,30 +319,30 @@ ApplicationWindow {
                                     Txt { text: agentBox.st.label; font.bold: true }
                                 }
                                 Txt { text: agentBox.st.detail }
-                                Hint { visible: agentBox.st.at > 0 && agentBox.st.state !== "none"; text: "Relevé " + Burn.ago(agentBox.st.at) }
+                                Hint { visible: agentBox.st.at > 0 && agentBox.st.state !== "none"; text: "Last reading " + Burn.ago(agentBox.st.at) }
                                 Txt { visible: text !== ""; text: agentBox.st.error; color: Colors.danger }
                             }
                         }
                     }
                 }
                 Group {
-                    title: "CLI agent-burn"
-                    Field { label: "Emplacement"; value: Burn.bin; path: true }
-                    Field { label: "Version"; value: Desktop.cliVersion || "lecture…" }
+                    title: "agent-burn CLI"
+                    Field { label: "Location"; value: Burn.bin; path: true }
+                    Field { label: "Version"; value: Desktop.cliVersion || "reading…" }
                     Field {
-                        label: "Rapport"
-                        value: Burn.stateText(Burn.dataState) + (Burn.updatedAt > 0 ? ", mis à jour " + Burn.ago(Burn.updatedAt) : "")
-                            + (Burn.error ? "\n" + Burn.error : "")   // cause d'un échec du CLI
+                        label: "Report"
+                        value: Burn.stateText(Burn.dataState) + (Burn.updatedAt > 0 ? ", updated " + Burn.ago(Burn.updatedAt) : "")
+                            + (Burn.error ? "\n" + Burn.error : "")   // cause of a CLI failure
                     }
                     Button {
-                        text: Burn.loading ? "Lecture en cours…" : "Rafraîchir maintenant"
+                        text: Burn.loading ? "Reading…" : "Refresh now"
                         enabled: !Burn.loading
                         onClicked: Burn.refresh(true)
                     }
                 }
             }
 
-            // ── Diagnostic ──
+            // ── Diagnostics ──
             Page {
                 Rectangle {
                     visible: Settings.recovered
@@ -354,51 +355,51 @@ ApplicationWindow {
                         id: notice
                         anchors.fill: parent
                         anchors.margins: 10
-                        text: "Paramètres réinitialisés : le fichier de réglages était illisible, une copie a été gardée (settings.json.bak)."
+                        text: "Settings reset: the settings file was unreadable, a copy was kept (settings.json.bak)."
                     }
                 }
                 Group {
                     title: "Versions"
                     Field {
                         label: "Agent Burn"
-                        value: Desktop.appVersion + (Desktop.buildInfo.builtAt ? ", compilé le " + Desktop.buildInfo.builtAt : "")
-                            + (Desktop.buildInfo.target === "dev" ? " (version de développement)" : "")
+                        value: Desktop.appVersion + (Desktop.buildInfo.builtAt ? ", built on " + Desktop.buildInfo.builtAt : "")
+                            + (Desktop.buildInfo.target === "dev" ? " (development version)" : "")
                     }
-                    Field { label: "CLI agent-burn"; value: Desktop.cliVersion || "lecture…" }
+                    Field { label: "agent-burn CLI"; value: Desktop.cliVersion || "reading…" }
                     Field {
-                        label: "CLI prévu"
-                        value: (Desktop.buildInfo.cliVersion || "—") + (Desktop.buildInfo.cliRev ? ", révision " + Desktop.buildInfo.cliRev.slice(0, 12) : "")
+                        label: "Expected CLI"
+                        value: (Desktop.buildInfo.cliVersion || "—") + (Desktop.buildInfo.cliRev ? ", revision " + Desktop.buildInfo.cliRev.slice(0, 12) : "")
                     }
                 }
                 Group {
-                    title: "Système"
-                    Field { label: "Système"; value: Desktop.os }
+                    title: "System"
+                    Field { label: "System"; value: Desktop.os }
                     Field {
-                        label: "Affichage"
-                        // « Wayland (KDE) » ; la session seulement si elle diffère (appli X11 sous Wayland : XWayland).
+                        label: "Display"
+                        // "Wayland (KDE)"; the session only if it differs (X11 app on Wayland: XWayland).
                         value: {
                             const name = n => ({ wayland: "Wayland", xcb: "X11", x11: "X11", windows: "Windows" })[n] ?? n;
                             const shown = name(Desktop.platformName), session = name(Desktop.sessionType);
-                            const extra = [Desktop.desktopEnv, session && session !== shown ? "session " + session : ""].filter(x => x);
+                            const extra = [Desktop.desktopEnv, session && session !== shown ? session + " session" : ""].filter(x => x);
                             return shown + (extra.length ? " (" + extra.join(", ") + ")" : "");
                         }
                     }
-                    Field { label: "Écrans"; value: Desktop.screens }
-                    Field { label: "Zone de notification"; value: Desktop.trayAvailable ? "disponible" : "absente" }
+                    Field { label: "Screens"; value: Desktop.screens }
+                    Field { label: "System tray"; value: Desktop.trayAvailable ? "available" : "not available" }
                 }
                 Group {
-                    title: "Dossiers"
-                    Field { label: "Données"; value: Desktop.dataDir; path: true }
-                    Field { label: "Réglages"; value: Desktop.configDir; path: true }
-                    Field { label: "Journaux"; value: Desktop.logDir; path: true }
+                    title: "Folders"
+                    Field { label: "Data"; value: Desktop.dataDir; path: true }
+                    Field { label: "Settings"; value: Desktop.configDir; path: true }
+                    Field { label: "Logs"; value: Desktop.logDir; path: true }
                     Field { label: "Cache"; value: Desktop.cacheDir; path: true }
                     Flow {
                         Layout.fillWidth: true
                         spacing: 8
-                        Button { text: "Ouvrir les journaux"; onClicked: Desktop.openLogs() }
-                        Button { text: "Ouvrir le dossier des données"; onClicked: Desktop.openDataDir() }
+                        Button { text: "Open logs"; onClicked: Desktop.openLogs() }
+                        Button { text: "Open data folder"; onClicked: Desktop.openDataDir() }
                         Button {
-                            text: copied.running ? "Copié dans le presse-papiers" : "Copier le diagnostic"
+                            text: copied.running ? "Copied to clipboard" : "Copy diagnostics"
                             onClicked: {
                                 Desktop.copyDiagnostics();
                                 copied.restart();
@@ -407,26 +408,26 @@ ApplicationWindow {
                         }
                     }
                     Switch {
-                        text: "Journal détaillé (débogage)"
+                        text: "Detailed log (debug)"
                         checked: Settings.debugLogging
                         onToggled: Settings.debugLogging = checked
                     }
                 }
                 Group {
-                    title: "Dernières erreurs"
-                    Hint { visible: Burn.recentErrors.length === 0; text: "Aucune erreur depuis le lancement." }
+                    title: "Recent errors"
+                    Hint { visible: Burn.recentErrors.length === 0; text: "No errors since launch." }
                     Repeater {
                         model: Burn.recentErrors.slice().reverse()
                         Txt {
                             required property var modelData
-                            text: new Date(modelData.t).toLocaleTimeString(Qt.locale("fr_FR"), "HH:mm:ss") + " · "
+                            text: new Date(modelData.t).toLocaleTimeString(Qt.locale("en_US"), "HH:mm:ss") + " · "
                                 + (win.sources[modelData.source] ?? modelData.source) + " — " + modelData.msg
                         }
                     }
                 }
-                // En deux temps : un appui de trop (Espace sur le dernier arrêt de Tab) n'efface rien.
+                // In two steps: one press too many (Space on the last Tab stop) erases nothing.
                 Button {
-                    text: confirm.running ? "Confirmer la réinitialisation" : "Réinitialiser les paramètres"
+                    text: confirm.running ? "Confirm reset" : "Reset settings"
                     onClicked: {
                         if (confirm.running) {
                             confirm.stop();
@@ -439,7 +440,7 @@ ApplicationWindow {
                 }
             }
 
-            // ── À propos ──
+            // ── About ──
             Page {
                 RowLayout {
                     spacing: 10
@@ -452,12 +453,12 @@ ApplicationWindow {
                     }
                     Txt { text: "Agent Burn"; font.pixelSize: 20; font.bold: true }
                 }
-                Txt { text: "Version " + Desktop.appVersion + " · CLI " + (Desktop.cliVersion || "lecture…") }
-                Txt { text: "Dépense des agents de code (Claude Code, Codex…) et limites d'abonnement en direct, lues par le CLI agent-burn." }
-                Txt { text: "D'après l'app macOS agent-burn de Melvynx, sous licence MIT." }
+                Txt { text: "Version " + Desktop.appVersion + " · CLI " + (Desktop.cliVersion || "reading…") }
+                Txt { text: "Coding agent spend (Claude Code, Codex…) and live subscription limits, read by the agent-burn CLI." }
+                Txt { text: "Based on the agent-burn macOS app by Melvynx, under the MIT license." }
                 Button {
                     visible: Desktop.licensesAvailable
-                    text: "Licences"
+                    text: "Licenses"
                     onClicked: Desktop.openLicenses()
                 }
             }

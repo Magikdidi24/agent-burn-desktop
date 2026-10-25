@@ -1,5 +1,5 @@
-# Tests de la fenêtre Paramètres créée hors écran avec le vrai dossier QML d'exécution : aucun avertissement
-# QML sur ses 4 sections, contrôles atteints au clavier (Tab), réglages modifiés par les contrôles, Échap.
+# Tests of the Settings window created offscreen with the real runtime QML directory: no QML warning
+# on its 4 sections, controls reached by keyboard (Tab), settings changed by the controls, Escape.
 #   cd app && python -m unittest discover -s tests -v
 import os
 import sys
@@ -18,7 +18,7 @@ from PySide6.QtTest import QTest  # noqa: E402
 
 from agentburn import diagnostics  # noqa: E402
 
-# Bruit de la plateforme hors écran, sans rapport avec le QML.
+# Noise from the offscreen platform, unrelated to the QML.
 PLATFORM = ("This plugin does not support",)
 
 
@@ -43,7 +43,7 @@ class SettingsWindow(unittest.TestCase):
         wait_for(lambda: False, 0.3)
 
     def items(self, cls):
-        """Éléments visibles de ce type, par l'arbre visuel (délégués des Repeater compris)."""
+        """Visible items of this type, through the visual tree (Repeater delegates included)."""
         out, todo = [], [self.win.contentItem()]
         while todo:
             item = todo.pop()
@@ -53,7 +53,7 @@ class SettingsWindow(unittest.TestCase):
         return out
 
     def region(self, item):
-        """Capture de la fenêtre réduite à item, 4 px de marge (anneau tracé sur ses bords)."""
+        """Capture of the window cropped to item, 4 px margin (the ring is drawn on its edges)."""
         r = item.mapRectToScene(QRectF(0, 0, item.width(), item.height())).toRect().adjusted(-4, -4, 4, 4)
         return self.win.grabWindow().copy(r)
 
@@ -61,15 +61,15 @@ class SettingsWindow(unittest.TestCase):
         return sum(a.pixel(x, y) != b.pixel(x, y) for x in range(a.width()) for y in range(a.height()))
 
     def test_keyboard_focus_visible_on_tabs_and_options(self):
-        # Fusion ne dessine rien sur un onglet focalisé au clavier et recolore à peine le cercle d'une option :
-        # un vrai cadre change des centaines de pixels.
+        # Fusion draws nothing on a keyboard-focused tab and barely recolors the circle of an option:
+        # a real frame changes hundreds of pixels.
         for theme in ("light", "dark"):
             self.cfg.theme = theme
             self.open("general")
             tabs = {i.property("text"): i for i in self.items("QQuickTabButton")}
             options = {i.property("text"): i for i in self.items("QQuickRadioButton")}
-            for item, other in ((tabs["Fournisseurs"], tabs["Général"]), (options["Clair"], options["Système"])):
-                other.forceActiveFocus(Qt.FocusReason.OtherFocusReason)   # focus ailleurs, donné à la souris
+            for item, other in ((tabs["Providers"], tabs["General"]), (options["Light"], options["System"])):
+                other.forceActiveFocus(Qt.FocusReason.OtherFocusReason)   # focus elsewhere, given by the mouse
                 self.settle()
                 plain = self.region(item)
                 item.forceActiveFocus(Qt.FocusReason.TabFocusReason)
@@ -82,8 +82,8 @@ class SettingsWindow(unittest.TestCase):
         accent = QColor(js(self.root, "Colors.accent.toString()"))
         for tab in self.items("QQuickTabButton"):
             img = self.region(tab)
-            row = [QColor(img.pixel(x, img.height() - 6)) for x in range(8, img.width() - 8)]   # bas de l'onglet
-            self.assertEqual(all(c == accent for c in row), tab.property("text") == "Diagnostic", tab.property("text"))
+            row = [QColor(img.pixel(x, img.height() - 6)) for x in range(8, img.width() - 8)]   # bottom of the tab
+            self.assertEqual(all(c == accent for c in row), tab.property("text") == "Diagnostics", tab.property("text"))
 
     def test_component_alone_loads_without_errors(self):
         env = qml_env()
@@ -97,7 +97,7 @@ class SettingsWindow(unittest.TestCase):
         self.assertEqual(self.messages, [])
 
     def test_every_section_renders_without_qml_warnings(self):
-        js(self.root, "Burn.note('quota', 'Rapport illisible renvoyé par agent-burn.')")   # liste d'erreurs non vide
+        js(self.root, "Burn.note('quota', 'agent-burn returned an unreadable report.')")   # non-empty error list
         for i, section in enumerate(("general", "providers", "diagnostic", "about")):
             self.open(section)
             self.assertEqual(self.win.property("section"), i)
@@ -115,113 +115,113 @@ class SettingsWindow(unittest.TestCase):
             QTest.keyClick(self.win, Qt.Key.Key_Tab)
         for kind in ("ComboBox", "RadioButton", "Switch"):
             self.assertTrue(any(kind in kinds for kinds in seen), (kind, seen))
-        # Thème « Sombre » au clavier : focus puis Espace.
-        dark = next(i for i in self.items("QQuickRadioButton") if i.property("text") == "Sombre")
+        # "Dark" theme by keyboard: focus then Space.
+        dark = next(i for i in self.items("QQuickRadioButton") if i.property("text") == "Dark")
         dark.forceActiveFocus()
         QTest.keyClick(self.win, Qt.Key.Key_Space)
         self.assertTrue(wait_for(lambda: self.cfg.theme == "dark", 2))
         self.assertTrue(js(self.root, "Colors.dark"))
-        # Rafraîchissement : ComboBox au clavier (flèche bas = valeur suivante).
+        # Refresh: ComboBox by keyboard (down arrow = next value).
         combo.forceActiveFocus()
         QTest.keyClick(self.win, Qt.Key.Key_Down)
         self.assertTrue(wait_for(lambda: self.cfg.refreshMinutes == 15, 2))
         self.assertEqual(js(self.root, "Burn.refreshInterval"), 15 * 60000)
 
     def test_opening_a_section_focuses_its_tab_not_a_hidden_control(self):
-        # Menu de l'icône (« À propos ») pendant que le focus est sur un interrupteur de Général.
+        # Tray icon menu ("About") while the focus is on a General switch.
         self.open("general")
-        switch = next(i for i in self.items("QQuickSwitch") if "zone de notification" in i.property("text"))
+        switch = next(i for i in self.items("QQuickSwitch") if "system tray" in i.property("text"))
         switch.forceActiveFocus()
         before = self.cfg.closeToTray
         self.open("about")
         focused = self.win.activeFocusItem()
         self.assertTrue(focused.inherits("QQuickTabButton"), focused.metaObject().className())
-        self.assertEqual(focused.property("text"), "À propos")
+        self.assertEqual(focused.property("text"), "About")
         QTest.keyClick(self.win, Qt.Key.Key_Space)
         self.assertEqual(self.cfg.closeToTray, before)
 
     def test_enter_activates_like_space(self):
         self.open("general")
         before = self.cfg.closeToTray
-        switch = next(i for i in self.items("QQuickSwitch") if "zone de notification" in i.property("text"))
+        switch = next(i for i in self.items("QQuickSwitch") if "system tray" in i.property("text"))
         switch.forceActiveFocus(Qt.FocusReason.TabFocusReason)
         QTest.keyClick(self.win, Qt.Key.Key_Return)
         self.assertEqual(self.cfg.closeToTray, not before)
-        dark = next(i for i in self.items("QQuickRadioButton") if i.property("text") == "Sombre")
+        dark = next(i for i in self.items("QQuickRadioButton") if i.property("text") == "Dark")
         dark.forceActiveFocus(Qt.FocusReason.TabFocusReason)
-        QTest.keyClick(self.win, Qt.Key.Key_Enter)   # pavé numérique
+        QTest.keyClick(self.win, Qt.Key.Key_Enter)   # numeric keypad
         self.assertEqual(self.cfg.theme, "dark")
-        tab = next(i for i in self.items("QQuickTabButton") if i.property("text") == "Diagnostic")
+        tab = next(i for i in self.items("QQuickTabButton") if i.property("text") == "Diagnostics")
         tab.forceActiveFocus(Qt.FocusReason.TabFocusReason)
         QTest.keyClick(self.win, Qt.Key.Key_Return)
         self.assertEqual(self.win.property("section"), 2)
         self.settle()
-        copy = next(i for i in self.items("QQuickButton") if i.property("text") == "Copier le diagnostic")
+        copy = next(i for i in self.items("QQuickButton") if i.property("text") == "Copy diagnostics")
         copy.forceActiveFocus(Qt.FocusReason.TabFocusReason)
         QTest.keyClick(self.win, Qt.Key.Key_Return)
-        self.assertEqual(copy.property("text"), "Copié dans le presse-papiers")
+        self.assertEqual(copy.property("text"), "Copied to clipboard")
         self.assertEqual(self.messages, [])
 
     def test_arrows_move_within_a_row_of_options(self):
         self.open("general")
         options = {i.property("text"): i for i in self.items("QQuickRadioButton")}
-        options["Système"].forceActiveFocus(Qt.FocusReason.TabFocusReason)
+        options["System"].forceActiveFocus(Qt.FocusReason.TabFocusReason)
         QTest.keyClick(self.win, Qt.Key.Key_Right)
-        self.assertEqual((self.cfg.theme, self.win.activeFocusItem().property("text")), ("light", "Clair"))
+        self.assertEqual((self.cfg.theme, self.win.activeFocusItem().property("text")), ("light", "Light"))
         QTest.keyClick(self.win, Qt.Key.Key_Right)
-        QTest.keyClick(self.win, Qt.Key.Key_Right)   # bout de la rangée : rien de plus
-        self.assertEqual((self.cfg.theme, self.win.activeFocusItem().property("text")), ("dark", "Sombre"))
+        QTest.keyClick(self.win, Qt.Key.Key_Right)   # end of the row: nothing more
+        self.assertEqual((self.cfg.theme, self.win.activeFocusItem().property("text")), ("dark", "Dark"))
         QTest.keyClick(self.win, Qt.Key.Key_Left)
-        self.assertEqual((self.cfg.theme, self.win.activeFocusItem().property("text")), ("light", "Clair"))
+        self.assertEqual((self.cfg.theme, self.win.activeFocusItem().property("text")), ("light", "Light"))
         self.assertTrue(self.win.activeFocusItem().property("visualFocus"))
-        options["Dashboard"].forceActiveFocus(Qt.FocusReason.TabFocusReason)   # autre rangée, sans déborder
+        options["Dashboard"].forceActiveFocus(Qt.FocusReason.TabFocusReason)   # another row, without spilling over
         QTest.keyClick(self.win, Qt.Key.Key_Left)
         self.assertEqual((self.cfg.trayClick, self.cfg.theme), ("popover", "light"))
         self.assertEqual(self.messages, [])
 
     def test_unavailable_autostart_switch_looks_disabled(self):
-        self.open("general")   # dev : pas d'exe installé, interrupteur inactif
-        switch = next(i for i in self.items("QQuickSwitch") if i.property("text") == "Lancer à l'ouverture de session")
+        self.open("general")   # dev: no installed exe, switch disabled
+        switch = next(i for i in self.items("QQuickSwitch") if i.property("text") == "Start at login")
         self.assertFalse(switch.isEnabled())
         self.assertLess(switch.opacity(), 1)
 
     def test_reset_asks_for_a_second_press(self):
         self.cfg.theme = "dark"
         self.open("diagnostic")
-        reset = next(i for i in self.items("QQuickButton") if i.property("text") == "Réinitialiser les paramètres")
+        reset = next(i for i in self.items("QQuickButton") if i.property("text") == "Reset settings")
         reset.forceActiveFocus(Qt.FocusReason.TabFocusReason)
         QTest.keyClick(self.win, Qt.Key.Key_Space)
-        self.assertEqual(self.cfg.theme, "dark")   # rien d'effacé au premier appui
-        self.assertEqual(reset.property("text"), "Confirmer la réinitialisation")
+        self.assertEqual(self.cfg.theme, "dark")   # nothing erased on the first press
+        self.assertEqual(reset.property("text"), "Confirm reset")
         QTest.keyClick(self.win, Qt.Key.Key_Space)
         self.assertEqual(self.cfg.theme, "system")
-        self.assertEqual(reset.property("text"), "Réinitialiser les paramètres")
+        self.assertEqual(reset.property("text"), "Reset settings")
 
     def fields(self):
         return {f.property("label"): f.property("value") for f in self.items("QQuickRowLayout") if f.property("label")}
 
     def test_report_field_gives_the_cli_error(self):
-        error = "agent-burn a échoué (code 1) : Permission denied (os error 13)"
+        error = "agent-burn failed (code 1): Permission denied (os error 13)"
         js(self.root, f"Burn.error = '{error}'")
         self.addCleanup(js, self.root, "Burn.error = ''")
         self.open("providers")
-        self.assertTrue(self.fields()["Rapport"].endswith("\n" + error), self.fields()["Rapport"])
+        self.assertTrue(self.fields()["Report"].endswith("\n" + error), self.fields()["Report"])
 
     def test_display_field_in_plain_words(self):
         for platform, desktop, session, shown in (("wayland", "KDE", "wayland", "Wayland (KDE)"),
-                                                  ("xcb", "GNOME", "wayland", "X11 (GNOME, session Wayland)"),
+                                                  ("xcb", "GNOME", "wayland", "X11 (GNOME, Wayland session)"),
                                                   ("windows", "", "", "Windows")):
             with mock.patch.object(diagnostics.QGuiApplication, "platformName", return_value=platform), \
                     mock.patch.dict(os.environ, {"XDG_CURRENT_DESKTOP": desktop, "XDG_SESSION_TYPE": session}):
                 self.open("diagnostic")
-                self.assertEqual(self.fields()["Affichage"], shown)
+                self.assertEqual(self.fields()["Display"], shown)
                 self.win.close()
 
     def test_paths_wrap_anywhere(self):
-        # Chemin Windows : sa seule coupure entre mots suit « C: », laissé seul en bout de ligne.
+        # Windows path: its only break between words follows "C:", left alone at the end of a line.
         self.open("diagnostic")
         rows = {f.property("label"): f for f in self.items("QQuickRowLayout") if f.property("label")}
-        for label in ("Données", "Réglages", "Journaux", "Cache"):
+        for label in ("Data", "Settings", "Logs", "Cache"):
             value = next(i for i in rows[label].childItems() if i.property("text") == rows[label].property("value"))
             self.assertTrue(js(value, "wrapMode === Text.WrapAnywhere"), label)
 
@@ -232,19 +232,19 @@ class SettingsWindow(unittest.TestCase):
         self.assertTrue(js(self.root, "Colors.dark"))
 
     def test_secondary_text_readable_in_both_themes(self):
-        # Texte secondaire (Colors.muted) à 4,5:1 au moins sur le fond et sur les cartes (groupes des réglages).
+        # Secondary text (Colors.muted) at least 4.5:1 on the background and on the cards (settings groups).
         for theme in ("light", "dark"):
             self.cfg.theme = theme
-            for surface in ("Colors.background", "card"):   # card : propriété de la fenêtre
+            for surface in ("Colors.background", "card"):   # card: property of the window
                 ratio = js(self.win, f"Colors.contrast(Colors.muted, {surface})")
                 self.assertGreaterEqual(ratio, 4.5, (theme, surface))
 
     def test_escape_closes_but_first_closes_an_open_list(self):
         self.open("general")
         combo = self.items("QQuickComboBox")[0]
-        opened = lambda: js(combo, "popup.visible")   # noqa: E731 (QQuickPopup sans conversion PySide)
+        opened = lambda: js(combo, "popup.visible")   # noqa: E731 (QQuickPopup has no PySide conversion)
         combo.forceActiveFocus()
-        QTest.keyClick(self.win, Qt.Key.Key_Space)   # Espace ouvre la liste
+        QTest.keyClick(self.win, Qt.Key.Key_Space)   # Space opens the list
         self.assertTrue(wait_for(opened, 2))
         QTest.keyClick(self.win, Qt.Key.Key_Escape)
         self.assertTrue(wait_for(lambda: not opened(), 2))

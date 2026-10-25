@@ -1,15 +1,15 @@
-# Appels propres à Windows (ctypes, winreg), importés seulement sous Windows : inactivité, barre de
-# titre sombre, lancement au démarrage, premier plan cédé à l'instance déjà lancée, session courante.
+# Windows-specific calls (ctypes, winreg), imported only on Windows: idle time, dark title
+# bar, launch at startup, foreground handed over to the instance already running, current session.
 import ctypes
 import sys
 import winreg
 from ctypes import wintypes
 
 RUN = r"Software\Microsoft\Windows\CurrentVersion\Run"
-# Désactivée depuis le Gestionnaire des tâches ou les Paramètres, l'entrée Run reste mais Windows écrit
-# ici un REG_BINARY de 1er octet impair et ne la lance plus.
+# Disabled from Task Manager or Settings, the Run entry stays but Windows writes a REG_BINARY
+# with an odd 1st byte here and no longer launches it.
 APPROVED = r"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run"
-NAME = "AgentBurn"   # même valeur que l'installeur
+NAME = "AgentBurn"   # same value as the installer
 
 
 class _LastInput(ctypes.Structure):
@@ -19,7 +19,7 @@ class _LastInput(ctypes.Structure):
 def idle_seconds():
     info = _LastInput(ctypes.sizeof(_LastInput), 0)
     ctypes.windll.user32.GetLastInputInfo(ctypes.byref(info))
-    return ((ctypes.windll.kernel32.GetTickCount() - info.dwTime) & 0xFFFFFFFF) / 1000   # compteurs 32 bits
+    return ((ctypes.windll.kernel32.GetTickCount() - info.dwTime) & 0xFFFFFFFF) / 1000   # 32-bit counters
 
 
 def dark_title_bar(hwnd, dark):
@@ -37,9 +37,9 @@ def autostart():
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, APPROVED) as key:
             data = winreg.QueryValueEx(key, NAME)[0]
-    except OSError:   # absente : activée
+    except OSError:   # missing: enabled
         return True
-    return not (isinstance(data, bytes) and data[:1] and data[0] & 1)   # vide ou d'un autre type : pas une désactivation
+    return not (isinstance(data, bytes) and data[:1] and data[0] & 1)   # empty or of another type: not disabled
 
 
 def _delete(path):
@@ -54,7 +54,7 @@ def set_autostart(on):
     if on:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN, 0, winreg.KEY_SET_VALUE) as key:
             winreg.SetValueEx(key, NAME, 0, winreg.REG_SZ, f'"{sys.executable}"')
-        _delete(APPROVED)   # réactive aussi une entrée désactivée par Windows
+        _delete(APPROVED)   # also re-enables an entry disabled by Windows
     else:
         _delete(RUN)
 

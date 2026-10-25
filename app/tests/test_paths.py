@@ -1,4 +1,4 @@
-# Tests des dossiers par plateforme (plateforme et environnement simulés) et du nom du serveur d'instance unique.
+# Tests of the per-platform directories (simulated platform and environment) and of the single instance server name.
 #   cd app && python -m unittest discover -s tests -v
 import os
 import stat
@@ -13,7 +13,7 @@ from PySide6.QtCore import QCoreApplication, QStandardPaths  # noqa: E402
 
 from agentburn import paths  # noqa: E402
 
-X = Path(os.path.abspath("/x"))   # absolu pour l'hôte : sous Windows, « /x » sans lecteur ne l'est plus (Python 3.13)
+X = Path(os.path.abspath("/x"))   # absolute for the host: on Windows, "/x" without a drive no longer is (Python 3.13)
 WIN = {"APPDATA": "/w/Roaming", "LOCALAPPDATA": "/w/Local", "XDG_DATA_HOME": str(X / "data"),
        "XDG_CONFIG_HOME": str(X / "config"), "XDG_STATE_HOME": str(X / "state"), "XDG_CACHE_HOME": str(X / "cache")}
 
@@ -27,7 +27,7 @@ class Paths(unittest.TestCase):
         for p in (mock.patch.dict(os.environ, values), mock.patch.object(sys, "platform", platform)):
             p.start()
             self.addCleanup(p.stop)
-        for name in drop:   # rétablies avec le reste de l'environnement
+        for name in drop:   # restored with the rest of the environment
             os.environ.pop(name, None)
 
     def test_windows_appdata_and_localappdata_never_xdg(self):
@@ -36,7 +36,7 @@ class Paths(unittest.TestCase):
         with mock.patch.object(paths.QStandardPaths, "writableLocation", return_value=cache) as where:
             self.assertEqual(paths.cache_dir(), Path(cache))
         where.assert_called_once_with(QStandardPaths.StandardLocation.CacheLocation)
-        self.assertEqual(paths.data_dir(), Path("/w/Roaming/AgentBurn"))   # historique existant
+        self.assertEqual(paths.data_dir(), Path("/w/Roaming/AgentBurn"))   # existing history
         self.assertEqual(paths.settings_file(), Path("/w/Roaming/AgentBurn/settings.json"))
         self.assertEqual(paths.log_dir(), Path("/w/Local/AgentBurn/logs"))
 
@@ -47,9 +47,9 @@ class Paths(unittest.TestCase):
         self.assertEqual(paths.log_dir(), X / "state" / "agent-burn-desktop" / "logs")
         self.assertEqual(paths.cache_dir(), X / "cache" / "agent-burn-desktop")
 
-    @unittest.skipIf(sys.platform == "win32", "Path.home() lit USERPROFILE sous Windows")
+    @unittest.skipIf(sys.platform == "win32", "Path.home() reads USERPROFILE on Windows")
     def test_linux_defaults_without_xdg_or_with_relative_values(self):
-        self.run_as("linux", {"HOME": "/home/me", "XDG_DATA_HOME": "relatif/data"},
+        self.run_as("linux", {"HOME": "/home/me", "XDG_DATA_HOME": "relative/data"},
                     drop=("AGENT_BURN_DATA", "XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME"))
         self.assertEqual(paths.data_dir(), Path("/home/me/.local/share/agent-burn-desktop"))
         self.assertEqual(paths.settings_file(), Path("/home/me/.config/agent-burn-desktop/settings.json"))
@@ -64,7 +64,7 @@ class Paths(unittest.TestCase):
 
 
 class InstanceName(unittest.TestCase):
-    @unittest.skipIf(sys.platform == "win32", "socket Unix")
+    @unittest.skipIf(sys.platform == "win32", "Unix socket")
     def test_unix_socket_full_path_in_private_runtime_dir(self):
         name = paths.instance_name()
         self.assertTrue(os.path.isabs(name), name)

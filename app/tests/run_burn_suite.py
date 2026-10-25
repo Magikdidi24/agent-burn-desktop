@@ -1,9 +1,9 @@
-# Fidélité du shim : la suite headless de Burn.qml écrite pour qs (burn-suite : shell.qml + faux CLI)
-# tourne ici sous PySide6 et doit donner les mêmes résultats. Code 1 si une assertion échoue ou si la
-# suite n'aboutit pas.
-#   [BURN_TEST=corrupt|timeout] python tests/run_burn_suite.py [<dossier>]
-# <dossier> : celui d'un autre shell.qml (défaut : burn-suite) ; son Burn.qml, s'il en a un (mutant),
-# remplace celui du dépôt.
+# Shim fidelity: the headless Burn.qml suite written for qs (burn-suite: shell.qml + fake CLI)
+# runs here under PySide6 and must give the same results. Code 1 if an assertion fails or if the
+# suite does not complete.
+#   [BURN_TEST=corrupt|timeout] python tests/run_burn_suite.py [<directory>]
+# <directory>: that of another shell.qml (default: burn-suite); its Burn.qml, if it has one (mutant),
+# replaces the repo's.
 import os
 import re
 import shutil
@@ -27,21 +27,21 @@ tmp = Path(tempfile.mkdtemp(prefix="burn-suite-"))
 QCoreApplication.setApplicationName("AgentBurn")
 app = QGuiApplication(sys.argv)
 
-# Faux CLI et fixtures datées du jour, comme sous qs.
+# Fake CLI and fixtures dated today, as under qs.
 (tmp / "fake").mkdir()
 subprocess.run([sys.executable, "-I", str(here / "burn-suite" / "fake" / "gen.py"), str(tmp / "fake")], check=True)
 os.environ["AGENT_BURN_BIN"] = str(tmp / "fake" / "agent-burn")
 
-# Dossier QML de l'app, plus le shell.qml de la suite. Burn.qml : celui de shared/, jamais par le lien de burn-suite
-# (simple fichier texte dans un checkout Windows sans liens symboliques) ; celui d'un autre dossier (mutant) le remplace.
+# The app's QML directory, plus the suite's shell.qml. Burn.qml: the one from shared/, never through the burn-suite
+# link (a plain text file in a Windows checkout without symlinks); the one from another directory (mutant) replaces it.
 qml = tmp / "qml"
 shutil.copytree(runtime.assemble(), qml)
 shutil.copyfile(suite / "shell.qml", qml / "shell.qml")
 mutant = suite != here / "burn-suite" and (suite / "Burn.qml").is_file()
 shutil.copyfile(suite / "Burn.qml" if mutant else here.parents[1] / "shared" / "Burn.qml", qml / "Burn.qml")
 
-# `qs ipc call <cible> <fonction>` : un faux qs note l'appel, puis on appelle la fonction déclarée
-# dans l'IpcHandler de cette cible, comme le ferait qs.
+# `qs ipc call <target> <function>`: a fake qs records the call, then we call the function declared
+# in that target's IpcHandler, as qs would.
 handlers = []
 created = shim.IpcHandler.__init__
 
@@ -74,12 +74,12 @@ def ipc():
 poll = QTimer(interval=100, timeout=ipc)
 poll.start()
 
-failed = []   # échecs de chaque ligne « RESULT: N ok, M échec(s) » (une seule attendue)
+failed = []   # failures of each "RESULT: N ok, M failed" line (only one expected)
 
 
 def log(mode, context, message):
     print(message, flush=True)
-    failed.extend(int(m) for m in re.findall(r"^RESULT: \d+ ok, (\d+) échec", message))
+    failed.extend(int(m) for m in re.findall(r"^RESULT: \d+ ok, (\d+) failed", message))
 
 
 qInstallMessageHandler(log)

@@ -1,385 +1,381 @@
-# Architecture d'Agent Burn
+# Agent Burn architecture
 
-Pour qui modifie le code. Utilisation : [README](../README.md) et [USAGE.md](USAGE.md). Signaux et états des fournisseurs :
-[PROVIDERS.md](PROVIDERS.md). Tests, build, release : [DEVELOPMENT.md](DEVELOPMENT.md).
+For anyone changing the code. Usage: [README](../README.md) and [USAGE.md](USAGE.md). Provider signals and states:
+[PROVIDERS.md](PROVIDERS.md). Tests, build, release: [DEVELOPMENT.md](DEVELOPMENT.md).
 
-## Vue d'ensemble
+## Overview
 
 ```
-        CLI agent-burn (Rust, projet amont, révision AB_REV de cli.env)
-        journaux des agents, tarifs, limites en direct
-                     │  JSON sur stdout : summary, harness <agent>, relevé léger
-        Burn.qml : cœur partagé (singleton QML, aucune vue)
-        runs du CLI, validation, cache, archive journalière, état de chaque fournisseur
-                     │  propriétés et fonctions QML
-        vues partagées : BurnPopover, BurnDashboardView, BurnQuotaChart, BurnBarChart, BurnButton
+        agent-burn CLI (Rust, upstream project, revision AB_REV from cli.env)
+        agent logs, pricing, live limits
+                     │  JSON on stdout: summary, harness <agent>, light reading
+        Burn.qml: shared core (QML singleton, no view)
+        CLI runs, validation, cache, daily archive, state of each provider
+                     │  QML properties and functions
+        shared views: BurnPopover, BurnDashboardView, BurnQuotaChart, BurnBarChart, BurnButton
                      │
         ┌────────────┴──────────────────────────┐
-  Quickshell 0.3.2 (barre, autre dépôt)     app de bureau (PySide6 6.12) + shim.py
+  Quickshell 0.3.2 (bar, separate repo)     desktop app (PySide6 6.12) + shim.py
   BurnPill, BurnDashboard, BurnUpstream,    Main, PopoverWindow, DashboardWindow, SettingsWindow,
-  Colors (palette wallust)                  Colors, tray.py, settings, journaux, diagnostic
+  Colors (wallust palette)                  Colors, tray.py, settings, logs, diagnostics
 ```
 
-Trois règles tiennent l'ensemble :
+Three rules hold it all together:
 
-- le CLI calcule (journaux, prix, limites) ; ni le cœur ni l'app ne lisent eux-mêmes les fichiers des agents ;
-- `Burn.qml` décide ce qui est affiché et avec quelle fraîcheur, à partir des seuls signaux du CLI ; une valeur
-  inconnue reste `null` (affichée « — »), jamais 0 ;
-- les vues ne font qu'afficher ; l'hôte (Quickshell ou l'app) fournit fenêtres, icône et plateforme.
+- the CLI computes (logs, prices, limits); neither the core nor the app reads the agents' files itself;
+- `Burn.qml` decides what is shown and how fresh it is, from the CLI's signals alone; an unknown value stays
+  `null` (shown as "—"), never 0;
+- the views only display; the host (Quickshell or the app) provides windows, icon and platform.
 
-## Composants
+## Components
 
-| Couche | Fichiers | Rôle |
+| Layer | Files | Role |
 |---|---|---|
-| CLI | binaire `agent-burn` de [Melvynx/agent-burn](https://github.com/Melvynx/agent-burn) | Découvre les agents, lit leurs journaux, calcule les prix (LiteLLM, models.dev, sinon prix intégrés), relève les limites (API d'usage Claude, Codex). Compilé par `build.ps1` et `linux/build.sh`, toujours à `AB_REV` ([`cli.env`](../cli.env)). |
-| Cœur | [`shared/Burn.qml`](../shared/Burn.qml) | Lance le CLI, valide ses sorties, garde cache, archive et relevés, calcule fenêtres, rythme et état des fournisseurs. |
-| Vues partagées | `shared/BurnPopover.qml`, `BurnDashboardView.qml`, `BurnQuotaChart.qml`, `BurnBarChart.qml`, `BurnButton.qml`, `assets/burn/` | Aperçu, dashboard, graphes, bouton accessible au clavier, icônes des agents. Lisent `Burn` et n'agissent que par ses fonctions (`refresh()`, `setRange()`, `openDashboard()`…) et par `Quickshell.execDetached` (ouvrir le dossier des données). |
-| Hôte Quickshell (hors de ce dépôt) | `BurnPill.qml`, `BurnDashboard.qml`, `BurnUpstream.qml`, `Colors.qml` de la barre Quickshell de l'auteur, qui garde une copie de `shared/` synchronisée depuis ce dépôt à une révision épinglée | Pill de la barre, fenêtre du dashboard, suivi de l'amont, palette wallust. Propres à Quickshell et Hyprland. |
-| Hôte app de bureau | [`app/`](../app/) | Couche de compatibilité (`shim.py`), fenêtres, icône de notification, réglages, journaux, diagnostic, démarrage automatique, selftest. |
-| Suivi de l'amont | [`scripts/agent-burn-upstream.py`](../scripts/agent-burn-upstream.py) | Voir [UPSTREAM.md](UPSTREAM.md). |
+| CLI | `agent-burn` binary from [Melvynx/agent-burn](https://github.com/Melvynx/agent-burn) | Discovers the agents, reads their logs, computes prices (LiteLLM, models.dev, otherwise built-in prices), reads the limits (Claude usage API, Codex). Built by `build.ps1` and `linux/build.sh`, always at `AB_REV` ([`cli.env`](../cli.env)). |
+| Core | [`shared/Burn.qml`](../shared/Burn.qml) | Runs the CLI, validates its output, keeps the cache, archive and readings, computes windows, pace and provider state. |
+| Shared views | `shared/BurnPopover.qml`, `BurnDashboardView.qml`, `BurnQuotaChart.qml`, `BurnBarChart.qml`, `BurnButton.qml`, `assets/burn/` | Popover, dashboard, charts, keyboard-accessible button, agent icons. They read `Burn` and act only through its functions (`refresh()`, `setRange()`, `openDashboard()`…) and through `Quickshell.execDetached` (opening the data folder). |
+| Quickshell host (outside this repo) | `BurnPill.qml`, `BurnDashboard.qml`, `BurnUpstream.qml`, `Colors.qml` from the author's Quickshell bar, which keeps a copy of `shared/` synced from this repo at a pinned revision | Bar pill, dashboard window, upstream tracking, wallust palette. Specific to Quickshell and Hyprland. |
+| Desktop app host | [`app/`](../app/) | Compatibility layer (`shim.py`), windows, tray icon, settings, logs, diagnostics, autostart, selftest. |
+| Upstream tracking | [`scripts/agent-burn-upstream.py`](../scripts/agent-burn-upstream.py) | See [UPSTREAM.md](UPSTREAM.md). |
 
-## Flux de données
+## Data flow
 
-1. `Burn` lance le CLI (argv, jamais de shell). Commandes exactes, `--config` toujours en dernier :
-   - rapport : `agent-burn summary --value --json --no-color --config <données>/agent-burn-cli.json` ;
-   - période du dashboard : la même avec `--since AAAAMMJJ` avant `--config` ;
-   - page détaillée : `agent-burn harness claude|codex --value --json --no-color --config …` ;
-   - relevé léger des limites Claude : `agent-burn harness claude --json --no-color --config …` avec
+1. `Burn` runs the CLI (argv, never a shell). Exact commands, `--config` always last:
+   - report: `agent-burn summary --value --json --no-color --config <data>/agent-burn-cli.json`;
+   - dashboard period: the same with `--since YYYYMMDD` before `--config`;
+   - detail page: `agent-burn harness claude|codex --value --json --no-color --config …`;
+   - light reading of the Claude limits: `agent-burn harness claude --json --no-color --config …` with
      `AGENT_BURN_QUOTA_ONLY=1`.
-2. stdout et stderr sont lus à la fin du run. Code 0 et JSON valide : le rapport est accepté s'il a un tableau
-   `agents[]` (summary, période), le relevé léger s'il a `window` et `observedAt > 0`. Sinon voir
-   [Erreurs](#erreurs).
-3. Un summary accepté devient `Burn.summary` (`updatedAt` = maintenant) ; son `claudeAccount` remplace le compte
-   gardé s'il n'est pas plus ancien ; `claudeAccountStatus` donne `signInExpired` ; ses jours sont fusionnés
-   dans l'archive ; un relevé par fenêtre de limite est ajouté aux échantillons. Une période remplit
-   `rangeCache[range]` et fusionne aussi ses jours. Un harness remplit `harnesses[agent]` (ou
-   `harnessErrors[agent]`). Un relevé léger met à jour la semaine et la session du compte Claude et remet
-   `signInExpired` à faux.
-4. Un minuteur écrit au plus une fois par seconde, de façon atomique, `burn-history.json`, `burn-quota.json` et
-   `burn-summary.json` dans le dossier de données.
-5. Les vues lisent les propriétés de `Burn` et ses fonctions de lecture (`windows()`, `pace()`,
-   `providerState()`, `dailySeries()`…). L'horloge `Burn.now` avance toutes les 10 s (arrêtée pendant
-   l'inactivité) pour les valeurs qui vieillissent (« il y a 3 min », resets passés).
+2. stdout and stderr are read at the end of the run. Exit code 0 and valid JSON: the report is accepted if it has an
+   `agents[]` array (summary, period), the light reading if it has `window` and `observedAt > 0`. Otherwise see
+   [Errors](#errors).
+3. An accepted summary becomes `Burn.summary` (`updatedAt` = now); its `claudeAccount` replaces the stored account
+   if it is not older; `claudeAccountStatus` sets `signInExpired`; its days are merged into the archive; one reading
+   per limit window is added to the samples. A period fills `rangeCache[range]` and also merges its days. A harness
+   fills `harnesses[agent]` (or `harnessErrors[agent]`). A light reading updates the week and the session of the
+   Claude account and resets `signInExpired` to false.
+4. A timer writes `burn-history.json`, `burn-quota.json` and `burn-summary.json` to the data folder atomically, at
+   most once per second.
+5. The views read the properties of `Burn` and its read functions (`windows()`, `pace()`, `providerState()`,
+   `dailySeries()`…). The `Burn.now` clock ticks every 10 s (stopped while idle) for the values that age
+   ("3 min ago", past resets).
 
-## Contrat plateforme
+## Platform contract
 
-`Burn.qml` importe `Quickshell`, `Quickshell.Io` et `Quickshell.Wayland` et n'utilise que 9 symboles. Quickshell
-les fournit dans la barre ; [`shim.py`](../app/agentburn/shim.py) les recrée dans l'app avec la même sémantique.
+`Burn.qml` imports `Quickshell`, `Quickshell.Io` and `Quickshell.Wayland` and uses only 9 symbols. Quickshell
+provides them in the bar; [`shim.py`](../app/agentburn/shim.py) recreates them in the app with the same semantics.
 
-| Symbole | Quickshell | `shim.py` |
+| Symbol | Quickshell | `shim.py` |
 |---|---|---|
-| `Singleton` | singleton QML | `Scope` (propriété par défaut `children`) |
-| `Process` | `command`, `environment` (`null` retire une variable), `running`, `exec()`, `signal()`, `started`, `exited(exitCode, exitStatus)` ; `running: true` écrit avant `command` part après le chargement | sur `QProcess`, mêmes propriétés et signaux, même départ différé de `running` posé avant `command` ; environnement de départ `child_environment()`, dossier courant = dossier de données, chaque run journalisé |
-| `StdioCollector` | `text` à la fin du flux | rempli avant `exited`, comme sous qs |
-| `FileView` | `path`, `text()`, `setText()`, `preload`, `blockLoading`, `blockWrites`, `printErrors` | lecture synchrone, écriture atomique (`QSaveFile`) ; les réglages de chargement sont acceptés sans effet |
-| `IpcHandler` | `target` et fonctions appelables par `qs ipc call` | pas d'IPC ; fonctions appelables depuis Python (tests) |
-| `IdleMonitor` | `ext-idle-notify` de Wayland, `timeout`, `isIdle` | Windows : dernière saisie (`GetLastInputInfo`) sondée toutes les 5 s ; ailleurs jamais inactif |
-| `Quickshell.env(nom)` | variable ou `null` | `os.environ` ou `null` |
-| `Quickshell.dataDir` | dossier de données du shell | dossier passé à `shim.register()` |
-| `Quickshell.dataPath(p)` | `dataDir + "/" + p` | idem |
+| `Singleton` | QML singleton | `Scope` (default property `children`) |
+| `Process` | `command`, `environment` (`null` removes a variable), `running`, `exec()`, `signal()`, `started`, `exited(exitCode, exitStatus)`; `running: true` written before `command` starts after loading | on `QProcess`, same properties and signals, same deferred start for `running` set before `command`; starting environment `child_environment()`, working directory = data folder, every run logged |
+| `StdioCollector` | `text` at the end of the stream | filled before `exited`, as under qs |
+| `FileView` | `path`, `text()`, `setText()`, `preload`, `blockLoading`, `blockWrites`, `printErrors` | synchronous read, atomic write (`QSaveFile`); the loading settings are accepted with no effect |
+| `IpcHandler` | `target` and functions callable by `qs ipc call` | no IPC; functions callable from Python (tests) |
+| `IdleMonitor` | Wayland's `ext-idle-notify`, `timeout`, `isIdle` | Windows: last input (`GetLastInputInfo`) polled every 5 s; elsewhere never idle |
+| `Quickshell.env(name)` | variable or `null` | `os.environ` or `null` |
+| `Quickshell.dataDir` | the shell's data directory | directory passed to `shim.register()` |
+| `Quickshell.dataPath(p)` | `dataDir + "/" + p` | same |
 
-Les vues partagées ajoutent `Quickshell.execDetached` (bouton « Afficher la sauvegarde » : sous Windows,
-`QDesktopServices` remplace `xdg-open` ; ailleurs `QProcess` détaché avec l'environnement nettoyé), et
-`Quickshell.Widgets` `IconImage` et `ClippingRectangle` (`app/qml/widgets/`). Elles n'importent rien d'autre que
-`QtQuick`, `QtQuick.Shapes` et ces modules Quickshell : pas de `QtQuick.Controls`, d'où `BurnButton`
-(`Rectangle` et `MouseArea`, focus clavier et nom accessible).
+The shared views add `Quickshell.execDetached` ("Show backup" button: on Windows, `QDesktopServices` replaces
+`xdg-open`; elsewhere a detached `QProcess` with the cleaned environment), and `Quickshell.Widgets` `IconImage` and
+`ClippingRectangle` (`app/qml/widgets/`). They import nothing but `QtQuick`, `QtQuick.Shapes` and these Quickshell
+modules: no `QtQuick.Controls`, hence `BurnButton` (`Rectangle` and `MouseArea`, keyboard focus and accessible
+name).
 
-Lecteurs d'écran : `Burn.accessibleText` (faux par défaut) décide si les vues exposent leurs textes. Vrai, chaque
-`Txt` de `BurnPopover` et `BurnDashboardView` reçoit, posés en JS, `Accessible.role = StaticText` et un
-`Accessible.name` lié à son texte ; `BurnBarChart` et `BurnQuotaChart` reçoivent le rôle `Chart` et une phrase de
-résumé (période, total et jour le plus cher ; restant et prévision au reset ; sans graphe, le message affiché).
-Faux, aucun objet `Accessible` de plus n'est créé : l'arbre d'accessibilité de la barre reste celui d'avant. L'app de
-bureau le met à vrai (`Main.qml`), avec la boucle de rendu basique sous Linux ; la barre le laisse faux, parce que
-sous Qt 6.12 ces objets font planter bien plus souvent la boucle de rendu à fil de Wayland, celle qu'elle utilise.
-Un `Txt` qui sert de libellé à un `BurnButton` ou à un champ, ou qui a son propre `Accessible.name`, prend
-`spoken: false` : sinon il serait annoncé deux fois.
+Screen readers: `Burn.accessibleText` (false by default) decides whether the views expose their texts. When true,
+every `Txt` in `BurnPopover` and `BurnDashboardView` gets `Accessible.role = StaticText` and an `Accessible.name`
+bound to its text, both set from JS; `BurnBarChart` and `BurnQuotaChart` get the `Chart` role and a summary
+sentence (period, total and most expensive day; remaining and forecast at the reset; without a chart, the message
+shown). When false, no extra `Accessible` object is created: the bar's accessibility tree stays as it was. The
+desktop app sets it to true (`Main.qml`), with the basic render loop on Linux; the bar leaves it false, because on
+Qt 6.12 these objects crash Wayland's threaded render loop, the one the bar uses, far more often. A `Txt` that
+serves as the label of a `BurnButton` or of a field, or that has its own `Accessible.name`, takes `spoken: false`:
+otherwise it would be announced twice.
 
-Sémantique reproduite, relevée sous qs : à la fin d'un run, `streamFinished` → `exited` (`running` déjà faux) →
-`runningChanged` ; binaire absent : un seul `runningChanged`, sans `started` (c'est ainsi que `Burn` détecte un
-CLI introuvable). Raccourcis du shim, commentés dans le code : `exec()` pendant un run ne relance rien à sa fin
-(les QML partagés ne le font jamais), tout `signal()` tue le process, les inhibiteurs d'inactivité sont ignorés
-sous Windows. En plus de qs : `shim.wait_for_runs(ms)`, appelé par l'app à sa fermeture, attend la fin des runs en
-cours (délai commun, `exited` livrés pendant l'attente) et n'en lance plus aucun ensuite, même depuis un
-`exited` ; vrai si tous ont fini.
+Reproduced semantics, observed under qs: at the end of a run, `streamFinished` → `exited` (`running` already
+false) → `runningChanged`; missing binary: a single `runningChanged`, without `started` (this is how `Burn` detects
+a CLI that is not found). Shim shortcuts, commented in the code: `exec()` during a run relaunches nothing at its end
+(the shared QML never does that), any `signal()` kills the process, idle inhibitors are ignored on Windows. Beyond
+qs: `shim.wait_for_runs(ms)`, called by the app when it closes, waits for the runs in progress to finish (one
+shared timeout, `exited` delivered during the wait) and launches none afterwards, even from an `exited`; true if
+all have finished.
 
-La preuve : [`tests/burn-suite/shell.qml`](../app/tests/burn-suite/shell.qml) teste `Burn.qml` sans fenêtre,
-avec un faux CLI, et tourne tel quel sous `qs -p` et sous le shim
-([`run_burn_suite.py`](../app/tests/run_burn_suite.py)). Les deux doivent donner le même résultat, dans les
-trois modes (normal, fichiers persistés corrompus, CLI bloqué) ; commandes dans
-[DEVELOPMENT.md](DEVELOPMENT.md#suite-du-cœur-burnqml).
+The proof: [`tests/burn-suite/shell.qml`](../app/tests/burn-suite/shell.qml) tests `Burn.qml` without a window,
+with a fake CLI, and runs as is under `qs -p` and under the shim
+([`run_burn_suite.py`](../app/tests/run_burn_suite.py)). Both must give the same result, in all three modes
+(normal, corrupted persisted files, stuck CLI); commands in
+[DEVELOPMENT.md](DEVELOPMENT.md#core-suite-burnqml).
 
-`shim.register()` ne s'appelle qu'une fois par process : un 2e enregistrement casse l'identité des types côté
-PySide, et le singleton `Quickshell` reste lié au premier moteur QML.
+`shim.register()` is called only once per process: a 2nd registration breaks type identity on the PySide side,
+and the `Quickshell` singleton stays bound to the first QML engine.
 
-## Cœur : API de `Burn`
+## Core: the `Burn` API
 
-Publique, utilisée par les vues et les hôtes :
+Public, used by the views and the hosts:
 
-- **Données** : `summary`, `summaryCached`, `harnesses`, `harnessErrors` (`{ agent: message }`), `account`
-  (dernier `claudeAccount`), `rangeSummary`, `history`, `historyDays`, `samples`, `recentErrors` (20 derniers
-  échecs `{ t, source, msg }`, sans stdout ; `source` parmi `summary`, `range`, `harness:claude`,
+- **Data**: `summary`, `summaryCached`, `harnesses`, `harnessErrors` (`{ agent: message }`), `account`
+  (latest `claudeAccount`), `rangeSummary`, `history`, `historyDays`, `samples`, `recentErrors` (last 20
+  failures `{ t, source, msg }`, without stdout; `source` is one of `summary`, `range`, `harness:claude`,
   `harness:codex`, `quota`, `cli`).
-- **État** : `loading`, `error` (summary, période, CLI absent), `cliMissing`, `signInExpired`, `limitsStale`,
+- **State**: `loading`, `error` (summary, period, missing CLI), `cliMissing`, `signInExpired`, `limitsStale`,
   `dataState` (`live`, `cached`, `unavailable`), `pricingMissing`, `updatedAt`, `now`.
-- **Réglé par l'hôte** : `refreshInterval` (ms, 300 000 par défaut ; l'app le lie à ses réglages),
-  `cliTimeoutMs` (délai maximal d'un run du CLI, 120 000 ms ; seule la suite de tests le change), `cliHint`
-  (remède affiché quand le CLI manque), `bin` (`AGENT_BURN_BIN`, sinon `~/.local/bin/agent-burn`),
-  `accessibleText` (faux par défaut ; vrai dans l'app de bureau, faux dans la barre : voir
-  [Contrat plateforme](#contrat-plateforme)).
-- **Navigation** : `dashboardOpen`, `dashboardPage` (`all` ou un agent), `range` (`all`, `30d`, `7d`, `today`).
-- **Registre** : `providers` (`{ id: { name, color, harness } }`), `knownProviders` (`["claude", "codex"]`,
-  toujours listés), `names`.
-- **Dérivés** : `agents` (agents du summary et de l'archive, par coût décroissant), `tightest`, `remaining`,
+- **Set by the host**: `refreshInterval` (ms, 300,000 by default; the app binds it to its settings),
+  `cliTimeoutMs` (maximum duration of a CLI run, 120,000 ms; only the test suite changes it), `cliHint`
+  (remedy shown when the CLI is missing), `bin` (`AGENT_BURN_BIN`, otherwise `~/.local/bin/agent-burn`),
+  `accessibleText` (false by default; true in the desktop app, false in the bar: see
+  [Platform contract](#platform-contract)).
+- **Navigation**: `dashboardOpen`, `dashboardPage` (`all` or an agent), `range` (`all`, `30d`, `7d`, `today`).
+- **Registry**: `providers` (`{ id: { name, color, harness } }`), `knownProviders` (`["claude", "codex"]`,
+  always listed), `names`.
+- **Derived**: `agents` (agents from the summary and the archive, by descending cost), `tightest`, `remaining`,
   `remainingKey`, `remainingAgent`, `remainingWindow`, `dataDir`, `cliConfig`.
-- **Actions** : `refresh(force)`, `poke()` (summary si les données ont plus de 60 s), `loadHarness(agent, force)`,
+- **Actions**: `refresh(force)`, `poke()` (summary if the data is more than 60 s old), `loadHarness(agent, force)`,
   `loadQuota()`, `loadRange(force)`, `setRange(r)`, `openDashboard(page)`.
-- **Lecture** : `agentEntry(a)`, `subEntry(a)`, `windows(a)`, `pace(a, key)`, `quotaSamples(a, key)`,
+- **Read**: `agentEntry(a)`, `subEntry(a)`, `windows(a)`, `pace(a, key)`, `quotaSamples(a, key)`,
   `providerState(a)` (`{ state, label, detail, error, at }`), `stateText(s)`, `dailySeries(a)`,
-  `spendSince(a, jours)`, `lastDays(série, n)`, `priced(coût, jetons)` (`null` pour des jetons sans prix).
-- **Format** : `money`, `tokens`, `pct`, `tone`, `ago`, `until`, `span`, `iso`, `agentName`, `agentIcon`,
+  `spendSince(a, days)`, `lastDays(series, n)`, `priced(cost, tokens)` (`null` for tokens without a price).
+- **Format**: `money`, `tokens`, `pct`, `tone`, `ago`, `until`, `span`, `iso`, `agentName`, `agentIcon`,
   `agentColor`.
-- **IPC** (barre seulement) : `qs ipc call burn refresh`, `qs ipc call burn dashboard`.
+- **IPC** (bar only): `qs ipc call burn refresh`, `qs ipc call burn dashboard`.
 
-Internes, publics par nécessité en QML, à ne pas utiliser ailleurs : `cadence`, `staleAfter`, `pendingForce`,
+Internal, public only because QML requires it, not to be used elsewhere: `cadence`, `staleAfter`, `pendingForce`,
 `pendingRefresh`, `pendingHarness`, `rangeCache`, `spans`, `flags`, `launch`, `note`, `missing`, `isReport`,
-`result`, `harnessDone`, `setSummary`, `remember`, `record`, `merge`, `load`, et sur chaque `Cli` : `source`,
+`result`, `harnessDone`, `setSummary`, `remember`, `record`, `merge`, `load`, and on each `Cli`: `source`,
 `since`, `at`, `failed`, `problem`, `launched`, `timedOut`, `errorOutput`.
 
-`dataState` : `unavailable` sans summary ; `cached` si le summary vient du disque (`summaryCached`), si le
-dernier summary a échoué, ou s'il a plus d'une heure plus une `cadence` plus `cliTimeoutMs` (le délai maximal
-d'un run : le summary horaire en cours ne fait pas passer en cache) ; sinon `live`. `stateText()` le traduit en « En
-direct », « En cache », « Indisponible ». `limitsStale` : relevé Claude plus vieux que `staleAfter` =
-max(10 min, 2 × `cadence`), ou connexion à vérifier. `providerState()` est décrit dans
-[PROVIDERS.md](PROVIDERS.md#états-dun-fournisseur).
+`dataState`: `unavailable` without a summary; `cached` if the summary comes from disk (`summaryCached`), if the
+last summary failed, or if it is older than one hour plus one `cadence` plus `cliTimeoutMs` (the maximum duration
+of a run: the hourly summary in progress does not switch it to cached); otherwise `live`. `stateText()` turns it
+into "Live", "Cached", "Unavailable". `limitsStale`: Claude reading older than `staleAfter` = max(10 min,
+2 × `cadence`), or the sign-in needs checking. `providerState()` is described in
+[PROVIDERS.md](PROVIDERS.md#provider-states).
 
-## Erreurs
+## Errors
 
-Messages communs à `error`, `harnessErrors` et `recentErrors.msg` :
+Messages shared by `error`, `harnessErrors` and `recentErrors.msg`:
 
-| Cas | Message |
+| Case | Message |
 |---|---|
-| run tué au bout de 120 s | « agent-burn n'a pas répondu en 120 s : réessaie dans un instant. » |
-| code 2 (option inconnue du CLI) | « CLI agent-burn incompatible » + « : détail » |
-| autre code non nul | « agent-burn a échoué (code N) » + « : détail » |
-| code 0 mais JSON invalide, summary sans `agents[]`, relevé léger sans `window` ou sans `observedAt` | « Rapport illisible renvoyé par agent-burn. » |
-| lancement impossible | « agent-burn introuvable ou non exécutable : <chemin> » ; pose `cliMissing` et `error` (sauf pour le relevé léger) |
+| run killed after 120 s | "agent-burn did not respond within 120 s: try again in a moment." |
+| exit code 2 (option unknown to the CLI) | "Incompatible agent-burn CLI" + ": detail" |
+| other non-zero exit code | "agent-burn failed (code N)" + ": detail" |
+| exit code 0 but invalid JSON, summary without `agents[]`, light reading without `window` or without `observedAt` | "agent-burn returned an unreadable report." |
+| cannot launch | "agent-burn not found or not executable: <path>"; sets `cliMissing` and `error` (except for the light reading) |
 
-Le détail est la ligne de stderr qui commence par `Error: ` (sinon la première non vide) ; un
-`Error: CliError("…")` est déballé et ses échappements Rust (`\"`, `\\`) défaits ; 160 caractères au plus. Un
-échec de harness ne touche que `harnessErrors[agent]` (effacé au succès suivant), jamais `error`. Un échec du
-relevé léger ne va que dans `recentErrors` : le dernier compte reste, marqué ancien après `staleAfter`. Sans
-aucun summary, `error` devient le détail de l'état « Rapport en échec » de chaque fournisseur.
+The detail is the stderr line that starts with `Error: ` (otherwise the first non-empty one); an
+`Error: CliError("…")` is unwrapped and its Rust escapes (`\"`, `\\`) undone; 160 characters at most. A harness
+failure only touches `harnessErrors[agent]` (cleared on the next success), never `error`. A light reading failure
+only goes to `recentErrors`: the last account stays, flagged stale after `staleAfter`. With no summary at all,
+`error` becomes the detail of the "Report failed" state of every provider.
 
-Dans l'app, chaque run est aussi journalisé (logger `agentburn.cli`) : ligne de commande, code, durée, octets, la
-ligne d'erreur en cas d'échec ; en DEBUG (« Journal détaillé »), la fin du stderr, 4 000 caractères au plus,
-masquée comme le reste du journal.
+In the app, every run is also logged (logger `agentburn.cli`): command line, exit code, duration, bytes, the error
+line on failure; at DEBUG ("Detailed log"), the end of stderr, 4,000 characters at most, redacted like the rest of
+the log.
 
-## Fichiers persistés
+## Persisted files
 
-Dans le dossier de données (`Quickshell.dataDir` ; pour l'app, voir
-[le guide d'utilisation](USAGE.md#où-sont-les-fichiers)) :
+In the data folder (`Quickshell.dataDir`; for the app, see
+[the user guide](USAGE.md#where-the-files-are)):
 
-| Fichier | Contenu | Règles |
+| File | Contents | Rules |
 |---|---|---|
-| `burn-history.json` | `{ "AAAA-MM-JJ": { cost, tokens, agents: { id: { cost, tokens } } } }` | Un summary remplace les jours qu'il contient, les autres restent. Un coût qui baisse sans baisse de jetons, ou 0 $ avec des jetons (tarifs manquants), garde le coût archivé. |
-| `burn-quota.json` | `{ account, samples }` | `samples` : `{ "agent:fenêtre": [{ t, used }] }`, 8 jours, un point par relevé plus récent, paliers compactés. |
-| `burn-summary.json` | `{ at, data }` | Dernier summary réussi. Relu au démarrage seulement si `at > 0` et `data.agents` est un tableau : `summaryCached` vrai, ni fusion ni relevé rejoués. |
-| `*.bak` | copie brute d'un des fichiers ci-dessus trouvé illisible | Le cœur repart d'un objet vide pour ce fichier. |
-| `agent-burn-cli.json` | jamais créé | Passé en `--config` au CLI. |
-| `burn-upstream.json` | barre seulement (`BurnUpstream.qml`) | Tête amont notifiée, bandeau masqué, date du dernier rapport. |
+| `burn-history.json` | `{ "YYYY-MM-DD": { cost, tokens, agents: { id: { cost, tokens } } } }` | A summary replaces the days it contains, the others stay. A cost that drops without a drop in tokens, or $0 with tokens (missing pricing), keeps the archived cost. |
+| `burn-quota.json` | `{ account, samples }` | `samples`: `{ "agent:window": [{ t, used }] }`, 8 days, one point per newer reading, plateaus compacted. |
+| `burn-summary.json` | `{ at, data }` | Last successful summary. Read back at startup only if `at > 0` and `data.agents` is an array: `summaryCached` true, no merge and no reading replayed. |
+| `*.bak` | raw copy of one of the files above, found unreadable | The core starts over from an empty object for that file. |
+| `agent-burn-cli.json` | never created | Passed to the CLI as `--config`. |
+| `burn-upstream.json` | bar only (`BurnUpstream.qml`) | Notified upstream head, dismissed banner, date of the last report. |
 
-Écritures : au plus une par seconde, atomiques (fichier temporaire renommé).
+Writes: at most one per second, atomic (renamed temporary file).
 
-## Rafraîchissement
+## Refresh
 
-| Déclencheur | Ce qui part |
+| Trigger | What runs |
 |---|---|
-| 3 s après le chargement | summary, sauf run en cours ou summary réussi il y a moins de 60 s (dashboard ouvert au lancement) |
-| tour de fond, toutes les `cadence` = max(60 s, `refreshInterval`), hors inactivité | relevé léger si la limite la plus serrée est la session ou la semaine de Claude et que le summary a moins d'une heure ; sinon summary |
-| retour d'inactivité (`IdleMonitor`, 300 s) | `poke()` |
-| aperçu ouvert : à l'ouverture, puis toutes les 60 s | `poke()` |
-| dashboard ouvert : à l'ouverture, puis toutes les `refreshInterval` | `poke()`, harness des agents qui ont un abonnement (si le précédent a plus de 5 min), période à l'ouverture et après chaque summary ; à l'ouverture, `Burn` lance lui-même `poke()` avant `loadRange()` : la période attend ce summary, s'il part, et le suit |
-| Rafraîchir (boutons, menu, clic du milieu, IPC) | summary forcé (`AGENT_BURN_FORCE_REFRESH=1`), puis harness et période forcés si le dashboard est ouvert |
+| 3 s after loading | summary, unless a run is in progress or a summary succeeded less than 60 s ago (dashboard opened at launch) |
+| background round, every `cadence` = max(60 s, `refreshInterval`), except while idle | light reading if the tightest limit is Claude's session or week and the summary is less than an hour old; otherwise summary |
+| back from idle (`IdleMonitor`, 300 s) | `poke()` |
+| popover open: on opening, then every 60 s | `poke()` |
+| dashboard open: on opening, then every `refreshInterval` | `poke()`, harness of the agents that have a subscription (if the previous one is more than 5 min old), period on opening and after each summary; on opening, `Burn` itself calls `poke()` before `loadRange()`: the period waits for that summary, if it runs, and follows it |
+| Refresh (buttons, menu, middle click, IPC) | forced summary (`AGENT_BURN_FORCE_REFRESH=1`), then forced harness and period if the dashboard is open |
 
-Un seul run de chaque sorte à la fois (5 instances `Cli` : summary, période, relevé léger, harness claude,
-harness codex). Pendant un summary :
+Only one run of each kind at a time (5 `Cli` instances: summary, period, light reading, harness claude,
+harness codex). During a summary:
 
-- `refresh()` est noté (`pendingForce`) et rejoué, forcé, à sa fin ;
-- `loadHarness()` est noté (`pendingHarness`) et lancé juste après lui, même s'il a échoué ;
-- `loadRange()` et `loadQuota()` ne partent pas : l'API d'usage répond 429 à plusieurs process à la fois, et le
-  relevé que le summary partage (55 s côté CLI) sert aux runs suivants. La fin du summary relance la période
-  si le dashboard est ouvert.
+- `refresh()` is recorded (`pendingForce`) and replayed, forced, when it ends;
+- `loadHarness()` is recorded (`pendingHarness`) and launched right after it, even if it failed;
+- `loadRange()` and `loadQuota()` do not run: the usage API answers 429 to several processes at once, and the
+  reading the summary shares (55 s on the CLI side) serves the next runs. The end of the summary relaunches the
+  period if the dashboard is open.
 
-Pendant une période, `refresh()` est noté (`pendingRefresh`, et `pendingForce` s'il est forcé) et lancé à sa fin,
-forcé si l'un des appels l'était ; c'est alors la fin de ce summary qui recharge la période. Un summary et une
-période ne tournent donc jamais ensemble. `loadHarness()` et `loadQuota()`, eux, n'attendent pas la période
-(rare : une période dure environ 1 s).
+During a period, `refresh()` is recorded (`pendingRefresh`, and `pendingForce` if it is forced) and launched when
+it ends, forced if any of the calls was; the end of that summary then reloads the period. So a summary and a
+period never run together. `loadHarness()` and `loadQuota()`, however, do not wait for the period (rare: a period
+takes about 1 s).
 
-Chien de garde : toutes les 5 s tant qu'un run tourne, un run de plus de `cliTimeoutMs` (120 s) est tué
-(`signal(9)`) ; son `exited` produit le message de délai dépassé.
+Watchdog: every 5 s while a run is going, a run that has lasted more than `cliTimeoutMs` (120 s) is killed
+(`signal(9)`); its `exited` produces the timeout message.
 
-## Isolation du CLI
+## CLI isolation
 
-Le JSON doit dépendre des seules données des agents, pas de la configuration de la machine :
+The JSON must depend only on the agents' data, not on the machine's configuration:
 
-- `--config <données>/agent-burn-cli.json` en fin de chaque commande. Avec `--config`, le CLI ne lit que ce
-  fichier, et un fichier absent vaut « aucune configuration » : `./.agent-burn/`,
-  `~/.config/agent-burn/agent-burn.json` et `~/.claude/agent-burn.json` (`noCost`, `jq`, `offline`, qui
-  changent le JSON) sont ignorés. Vérifié avec le CLI 20.0.21 dans des HOME factices, hors ligne.
-- `AGENT_BURN_FORCE_REFRESH`, `AGENT_BURN_QUOTA_ONLY` et `LOG_LEVEL` sont retirés (`null`) sauf quand le run les
-  pose lui-même (summary forcé, relevé léger). Un `AGENT_BURN_QUOTA_ONLY` hérité changerait la forme du summary.
-- Dans l'app, en plus, `shim.child_environment()` :
-  - app gelée : retire `_PYI_*`, `QT_PLUGIN_PATH`, `QML2_IMPORT_PATH`, `QML_IMPORT_PATH`, et rend à
-    `LD_LIBRARY_PATH` sa valeur d'avant le lanceur PyInstaller (`LD_LIBRARY_PATH_ORIG`) ou le retire : un
-    programme Qt du système lancé par `xdg-open` chargerait sinon le Qt du bundle ;
-  - Windows : `HOME` = `USERPROFILE` (le CLI lit `HOME` avant `USERPROFILE`) ;
-  - garde le reste (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`…) ;
-  - dossier courant = dossier de données.
-- Sous Quickshell, le dossier courant est celui de qs ; `--config` suffit à neutraliser `./.agent-burn/`.
+- `--config <data>/agent-burn-cli.json` at the end of every command. With `--config`, the CLI reads only this
+  file, and a missing file means "no configuration": `./.agent-burn/`, `~/.config/agent-burn/agent-burn.json`
+  and `~/.claude/agent-burn.json` (`noCost`, `jq`, `offline`, which change the JSON) are ignored. Checked with
+  CLI 20.0.21 in fake HOMEs, offline.
+- `AGENT_BURN_FORCE_REFRESH`, `AGENT_BURN_QUOTA_ONLY` and `LOG_LEVEL` are removed (`null`) unless the run sets
+  them itself (forced summary, light reading). An inherited `AGENT_BURN_QUOTA_ONLY` would change the shape of the
+  summary.
+- In the app, `shim.child_environment()` also:
+  - frozen app: removes `_PYI_*`, `QT_PLUGIN_PATH`, `QML2_IMPORT_PATH`, `QML_IMPORT_PATH`, and gives
+    `LD_LIBRARY_PATH` back its value from before the PyInstaller launcher (`LD_LIBRARY_PATH_ORIG`) or removes it:
+    otherwise a system Qt program launched by `xdg-open` would load the bundle's Qt;
+  - Windows: `HOME` = `USERPROFILE` (the CLI reads `HOME` before `USERPROFILE`);
+  - keeps the rest (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`…);
+  - working directory = data folder.
+- Under Quickshell, the working directory is qs's own; `--config` is enough to neutralize `./.agent-burn/`.
 
-## App de bureau
+## Desktop app
 
-### Démarrage (`agentburn/__main__.py`)
+### Startup (`agentburn/__main__.py`)
 
-1. Faux CLI : avec `AGENT_BURN_FAKE_DIR` et un argv `summary`, `harness claude|codex` ou `--version`, l'exe sert
-   les fixtures de ce dossier (dates décalées à aujourd'hui) et sort, sans charger Qt. Sert aux tests et au
-   selftest de l'app gelée, où `AGENT_BURN_BIN` est l'exe lui-même. Hors selftest, la variable est signalée
-   dans le journal.
-2. Options : `--selftest DIR`, `--show popover|dashboard` (dev : cette fenêtre seule, sans icône).
-3. Sous Linux, `QSG_RENDER_LOOP=basic` (retirée des process lancés : `shim.APP_VARS`) sauf valeur déjà définie
-   ou plateforme `offscreen` (selftest) : la boucle
-   de rendu à fil de Qt 6.12 plante dans QtWaylandClient (`QWaylandWindow::beginFrame`) pendant l'affichage d'une
-   fenêtre, bien plus souvent avec les textes exposés aux lecteurs d'écran (vu en session KWin imbriquée, Mesa
-   llvmpipe : aucun plantage en 9 essais avec la boucle basique). Hors écran, rien de Wayland, et la boucle
-   basique capturerait mal le haut de l'aperçu agrandi.
-4. `AGENT_BURN_BIN` par défaut : `<dossier de l'exe>/bin/agent-burn(.exe)` une fois gelé (exe aux liens
-   résolus : `/opt/agent-burn-desktop/` même lancé par `/usr/bin/agent-burn-desktop`), sinon `agent-burn` du
-   `PATH`, sinon `~/.local/bin/agent-burn`.
-5. Journal ([`logs.setup`](../app/agentburn/logs.py)) avant tout le reste.
-6. `setDesktopFileName("io.github.magikdidi24.AgentBurn")` (app_id Wayland, portails) ; sous Linux,
-   `-platformtheme xdgdesktopportal` sauf si `QT_QPA_PLATFORMTHEME` est défini (et jamais en selftest).
-7. Mode icône : instance unique. D'abord un `QLockFile` (`<socket>.lock`, sous Windows
-   `<cache>\AgentBurn-<utilisateur>-<session>.lock`), périmé seulement si son process est mort : deux lancements
-   simultanés sondaient chacun avant le `listen()` de l'autre, et `listen()` n'est pas exclusif sous Windows (deux
-   serveurs sur un même tube). Le perdant réessaie de joindre le gagnant pendant 3 s environ, puis sort en 0 ; un
-   verrou impossible à créer (dossier en lecture seule) laisse démarrer comme avant. Le gagnant sonde l'instance
-   existante (`QLocalSocket`) : si elle répond, elle ouvre son dashboard et ce process sort en 0. Sinon
-   `QLocalServer` avec `UserAccessOption` ; un `listen()` en échec est journalisé.
-8. Polices du bundle, icône de fenêtre, `Settings` (en mémoire pour le selftest) et `Desktop`, schéma de
-   couleurs.
-9. `runtime.assemble()` prépare le dossier QML, `register()` enregistre le shim puis les singletons `Settings`
-   et `Desktop` (`import AgentBurn`, QML de l'app seulement), puis `Main.qml` est chargé.
-10. `fit()` : dashboard (1200 × 800) et Paramètres (620 × 680) centrés sur l'écran principal, réduits sur un
-    petit écran (48 px de marge) sans passer sous leur taille minimale ; écran plus petit que ce minimum : le
-    minimum est ramené à l'écran, la fenêtre y tient entière et son contenu défile.
-11. Selftest, ou : barres de titre sombres (Windows), icône de notification, règles de fermeture
-    (`quit_when_closed()` : dashboard fermé avec `closeToTray` faux, l'app quitte une fois Paramètres fermé aussi,
-    sauf si le dashboard est rouvert entre-temps ; sans zone de notification, à la fermeture de la dernière
-    fenêtre), connexion des lancements suivants au dashboard, boucle Qt.
-12. À la sortie de la boucle : `shim.wait_for_runs(5000)`, puis destruction du moteur QML.
+1. Fake CLI: with `AGENT_BURN_FAKE_DIR` and an argv of `summary`, `harness claude|codex` or `--version`, the exe
+   serves the fixtures from that directory (dates shifted to today) and exits, without loading Qt. Used by the
+   tests and by the selftest of the frozen app, where `AGENT_BURN_BIN` is the exe itself. Outside the selftest, the
+   variable is flagged in the log.
+2. Options: `--selftest DIR`, `--show popover|dashboard` (dev: that window alone, without the tray icon).
+3. On Linux, `QSG_RENDER_LOOP=basic` (removed from launched processes: `shim.APP_VARS`) unless a value is already
+   set or the platform is `offscreen` (selftest): the threaded render loop of Qt 6.12 crashes in QtWaylandClient
+   (`QWaylandWindow::beginFrame`) while a window is being shown, far more often with the texts exposed to screen
+   readers (seen in a nested KWin session, Mesa llvmpipe: no crash in 9 tries with the basic loop). Offscreen,
+   there is nothing from Wayland, and the basic loop would capture the top of the enlarged popover badly.
+4. Default `AGENT_BURN_BIN`: `<exe directory>/bin/agent-burn(.exe)` once frozen (exe with links resolved:
+   `/opt/agent-burn-desktop/` even when launched through `/usr/bin/agent-burn-desktop`), otherwise `agent-burn`
+   from `PATH`, otherwise `~/.local/bin/agent-burn`.
+5. Log ([`logs.setup`](../app/agentburn/logs.py)) before anything else.
+6. `setDesktopFileName("io.github.magikdidi24.AgentBurn")` (Wayland app_id, portals); on Linux,
+   `-platformtheme xdgdesktopportal` unless `QT_QPA_PLATFORMTHEME` is set (and never in selftest).
+7. Tray mode: single instance. First a `QLockFile` (`<socket>.lock`, on Windows
+   `<cache>\AgentBurn-<user>-<session>.lock`), stale only if its process is dead: two simultaneous launches each
+   probed before the other's `listen()`, and `listen()` is not exclusive on Windows (two servers on the same pipe).
+   The loser keeps trying to reach the winner for about 3 s, then exits with 0; a lock that cannot be created
+   (read-only directory) lets the app start as before. The winner probes the existing instance (`QLocalSocket`): if
+   it answers, it opens its dashboard and this process exits with 0. Otherwise `QLocalServer` with
+   `UserAccessOption`; a failed `listen()` is logged.
+8. Bundled fonts, window icon, `Settings` (in memory for the selftest) and `Desktop`, color scheme.
+9. `runtime.assemble()` prepares the QML directory, `register()` registers the shim then the `Settings` and
+   `Desktop` singletons (`import AgentBurn`, app QML only), then `Main.qml` is loaded.
+10. `fit()`: dashboard (1200 × 800) and Settings (620 × 680) centered on the primary screen, shrunk on a small
+    screen (48 px margin) without going below their minimum size; screen smaller than that minimum: the minimum
+    is brought down to the screen, the window fits on it whole and its content scrolls.
+11. Selftest, or: dark title bars (Windows), tray icon, closing rules (`quit_when_closed()`: dashboard closed with
+    `closeToTray` false, the app quits once Settings is closed too, unless the dashboard is reopened in the
+    meantime; without a system tray, when the last window closes), later launches connected to the dashboard, Qt
+    loop.
+12. On leaving the loop: `shim.wait_for_runs(5000)`, then the QML engine is destroyed.
 
-### Modules Python (`app/agentburn/`)
+### Python modules (`app/agentburn/`)
 
-| Module | Rôle |
+| Module | Role |
 |---|---|
-| `shim.py` | Types Quickshell (voir plus haut), `child_environment()`, journal `agentburn.cli` de chaque run (ligne de commande, code, durée, octets ; fin du stderr en DEBUG ; jamais stdout), `wait_for_runs()` à la fermeture. |
-| `runtime.py` | Assemble les QML partagés (`SHARED`, aussi lu par `agentburn.spec`), `assets/burn/`, les QML de l'app et un `qmldir` (singletons `Burn` et `Colors`) dans `<cache>/qml-<sha1 du contenu>`. Réutilisé seulement s'il est identique octet pour octet, sans fichier en plus ; sinon reconstruit, puis renommé de façon atomique. |
-| `paths.py` | Seul endroit qui connaît les dossiers par OS et le nom d'instance unique. |
-| `settings.py` | Singleton `Settings` : JSON validé (BOM UTF-8 accepté), écrit de façon atomique, `.bak` d'un fichier illisible (JSON invalide, imbrication extrême), `reset()`. Le démarrage automatique est délégué au module de la plateforme (absent en dev). |
-| `logs.py` | Fichier tournant (1 Mo × 3, UTF-8), stderr hors app gelée (remis en UTF-8, même redirigé sous Windows), masquage des secrets sur chaque handler, messages Qt sur le logger `qt`, exceptions non rattrapées journalisées (fil principal, threads), niveau DEBUG à chaud. Les lignes DEBUG : fin du stderr du CLI (`shim.py`), réglages en vigueur et chaque écriture, thème du système, clics sur l'icône, 2es lancements. |
-| `diagnostics.py` | Singleton `Desktop` : versions (app, `build-info.json` ou `cli.env` en dev, `agent-burn --version` lu en tâche de fond : « illisible » si vide, « sans réponse (10 s) » s'il bloque), plateforme, écrans, dossiers, ouverture des dossiers, texte de diagnostic masqué. |
-| `tray.py` | `QSystemTrayIcon` et son menu, icône dessinée par taille, placement de l'aperçu (`place()`, X11 et Windows ; sous Wayland, hauteur bornée par l'écran où le compositeur l'a mis), revérification de la zone de notification toutes les 5 s pendant toute la session : hôte apparu (icône recréée sous xcb), disparu ou revenu, `Desktop.trayAvailable` suivi dans les deux sens et journalisé. |
-| `platform_win.py` | `ctypes` et `winreg` : inactivité, barre de titre sombre (DWM), clé `Run` et `StartupApproved\Run`, `AllowSetForegroundWindow`, numéro de session. |
-| `platform_linux.py` | Fichier autostart XDG de l'utilisateur, clé `Exec` échappée selon la spec Desktop Entry ; `$APPIMAGE` pour une AppImage ; `Hidden=true` ou `X-GNOME-Autostart-enabled=false` valent désactivé ; `OSError` (rien d'écrit) pour un chemin d'exe avec un caractère de contrôle, `%` ou `\`. |
-| `selftest.py` | Rendu de l'icône, de l'aperçu, du dashboard et des 4 sections des réglages ; refuse une capture vide, d'une seule couleur, de mauvaise taille ou au coin transparent ; écrit `selftest.json`. |
+| `shim.py` | Quickshell types (see above), `child_environment()`, `agentburn.cli` log of each run (command line, exit code, duration, bytes; end of stderr at DEBUG; never stdout), `wait_for_runs()` on closing. |
+| `runtime.py` | Assembles the shared QML (`SHARED`, also read by `agentburn.spec`), `assets/burn/`, the app QML and a `qmldir` (`Burn` and `Colors` singletons) in `<cache>/qml-<content sha1>`. Reused only if it is identical byte for byte, with no extra file; otherwise rebuilt, then renamed atomically. |
+| `paths.py` | The only place that knows the per-OS directories and the single-instance name. |
+| `settings.py` | `Settings` singleton: validated JSON (UTF-8 BOM accepted), written atomically, `.bak` of an unreadable file (invalid JSON, extreme nesting), `reset()`. Autostart is delegated to the platform module (none in dev). |
+| `logs.py` | Rotating file (1 MB × 3, UTF-8), stderr outside the frozen app (switched back to UTF-8, even when redirected on Windows), secret redaction on every handler, Qt messages on the `qt` logger, uncaught exceptions logged (main thread, threads), DEBUG level switched on the fly. The DEBUG lines: end of the CLI's stderr (`shim.py`), settings in effect and every write, system theme, clicks on the icon, 2nd launches. |
+| `diagnostics.py` | `Desktop` singleton: versions (app, `build-info.json` or `cli.env` in dev, `agent-burn --version` read in the background: "unreadable" if empty, "no response (10 s)" if it hangs), platform, screens, folders, opening the folders, redacted diagnostics text. |
+| `tray.py` | `QSystemTrayIcon` and its menu, icon drawn per size, popover placement (`place()`, X11 and Windows; on Wayland, height capped by the screen the compositor put it on), system tray checked again every 5 s for the whole session: host appeared (icon recreated under xcb), gone or back, `Desktop.trayAvailable` tracked both ways and logged. |
+| `platform_win.py` | `ctypes` and `winreg`: idle time, dark title bar (DWM), `Run` and `StartupApproved\Run` keys, `AllowSetForegroundWindow`, session number. |
+| `platform_linux.py` | The user's XDG autostart file, `Exec` key escaped per the Desktop Entry spec; `$APPIMAGE` for an AppImage; `Hidden=true` or `X-GNOME-Autostart-enabled=false` count as disabled; `OSError` (nothing written) for an exe path with a control character, `%` or `\`. |
+| `selftest.py` | Renders the icon, the popover, the dashboard and the 4 settings sections; rejects a capture that is empty, of a single color, of the wrong size or with a transparent corner; writes `selftest.json`. |
 
-### QML de l'app (`app/qml/`)
+### App QML (`app/qml/`)
 
-- `Main.qml` : racine (`QtObject`), lue par `tray.py` et `selftest.py` : `remaining`, `tone`, `tooltip`,
-  `menuLines`, `popover`, `dashboard`, `settingsWindow` ; `openDashboard()`, `refresh()`,
-  `openSettings(section)`. Lie `Burn.refreshInterval` à `Settings.refreshMinutes` et `Burn.accessibleText` à
-  vrai, pose `Burn.cliHint` et `Colors.theme`. Sans limite et avec `Burn.error`, l'infobulle (et sans données,
-  la ligne de menu) se termine par « échec du CLI (voir Paramètres › Diagnostic) ».
-- `PopoverWindow.qml` : fenêtre sans bordure autour de `BurnPopover`, défilante si l'écran est trop bas : défile
-  jusqu'au contrôle atteint par Tab, Page précédente / Page suivante / Début / Fin.
-- `DashboardWindow.qml` : fenêtre autour de `BurnDashboardView` (bouton Paramètres activé), recharge au rythme
-  des réglages. Le défilement au clavier (focus suivi, Page précédente / Page suivante / Début / Fin) et Échap
-  dans le filtre des modèles sont dans `BurnDashboardView`, partagé avec la barre.
-- `SettingsWindow.qml` : contrôles Qt Quick (Fusion) aux couleurs de `Colors` ; sections Général, Fournisseurs,
-  Diagnostic, À propos. Entrée comme Espace (`activate()`), flèches gauche et droite entre les options d'une
-  rangée (`Choice`), onglet courant en gras et souligné et anneau de focus (`PageTab`, `Ring`), `open(section)` qui
-  donne le focus à l'onglet de la section, réinitialisation en deux temps (5 s), champs de chemin coupés
-  n'importe où.
-- `Colors.qml` : même API que le `Colors.qml` de la barre ; thème choisi ou clair/sombre du système (inconnu :
-  sombre) ; accent du système rendu lisible (contraste 4,5:1) ; texte secondaire (`muted`) à 4,5:1 au moins sur
-  le fond et les cartes, en clair comme en sombre.
-- `widgets/` : `IconImage` et `ClippingRectangle` de `Quickshell.Widgets`.
+- `Main.qml`: root (`QtObject`), read by `tray.py` and `selftest.py`: `remaining`, `tone`, `tooltip`,
+  `menuLines`, `popover`, `dashboard`, `settingsWindow`; `openDashboard()`, `refresh()`,
+  `openSettings(section)`. Binds `Burn.refreshInterval` to `Settings.refreshMinutes` and `Burn.accessibleText` to
+  true, sets `Burn.cliHint` and `Colors.theme`. With no limit and with `Burn.error`, the tooltip (and, without
+  data, the menu line) ends with "CLI failed (see Settings › Diagnostics)".
+- `PopoverWindow.qml`: frameless window around `BurnPopover`, scrollable if the screen is too short: scrolls to
+  the control reached with Tab, Page Up / Page Down / Home / End.
+- `DashboardWindow.qml`: window around `BurnDashboardView` (Settings button enabled), reloads at the interval set
+  in the settings. Keyboard scrolling (focus followed, Page Up / Page Down / Home / End) and Escape in the model
+  filter are in `BurnDashboardView`, shared with the bar.
+- `SettingsWindow.qml`: Qt Quick controls (Fusion) in the `Colors` palette; sections General, Providers,
+  Diagnostics, About. Enter works like Space (`activate()`), left and right arrows between the options of a row
+  (`Choice`), current tab in bold and underlined and focus ring (`PageTab`, `Ring`), `open(section)` which gives
+  focus to the section's tab, two-step reset (5 s), path fields wrapped anywhere.
+- `Colors.qml`: same API as the bar's `Colors.qml`; chosen theme or the system's light/dark (unknown: dark);
+  system accent made readable (4.5:1 contrast); secondary text (`muted`) at 4.5:1 or more on the background and
+  the cards, in light as in dark.
+- `widgets/`: `IconImage` and `ClippingRectangle` from `Quickshell.Widgets`.
 
-### Processus et fils d'exécution
+### Processes and threads
 
-- Un process, un fil principal Qt ; tout est piloté par des événements. L'app ne crée aucun thread Python.
-- Process enfants : les runs du CLI (`QProcess` asynchrone, sorties lues à la fin), `agent-burn --version`
-  (tué après 10 s), `xdg-open` détaché, et en test ou selftest l'exe lui-même en faux CLI.
-- Lectures et écritures de fichiers synchrones sur le fil principal (petits JSON).
-- Instance unique par `QLocalServer` : socket `$XDG_RUNTIME_DIR/AgentBurn.sock`, ou tube
-  `AgentBurn-<utilisateur>-<session>` sous Windows ; précédé du verrou `QLockFile` (voir
-  [Démarrage](#démarrage-agentburn__main__py)).
-- À la sortie, `shim.wait_for_runs(5000)` attend la fin des runs du CLI en cours (5 s au plus, sans en lancer
-  d'autre) : tué, un run pourrait perdre le jeton Claude qu'il vient de renouveler. Puis le moteur QML est
-  détruit avant les objets Python du shim ; un run encore en cours à ce moment est tué. Un run fini pendant
-  l'attente met `Burn` à jour, mais l'écriture différée d'une seconde peut ne pas partir : le summary suivant
-  refusionne ces jours.
+- One process, one Qt main thread; everything is event-driven. The app creates no Python thread.
+- Child processes: the CLI runs (asynchronous `QProcess`, output read at the end), `agent-burn --version`
+  (killed after 10 s), detached `xdg-open`, and in tests or selftest the exe itself as a fake CLI.
+- Synchronous file reads and writes on the main thread (small JSON files).
+- Single instance through `QLocalServer`: socket `$XDG_RUNTIME_DIR/AgentBurn.sock`, or pipe
+  `AgentBurn-<user>-<session>` on Windows; preceded by the `QLockFile` lock (see
+  [Startup](#startup-agentburn__main__py)).
+- On exit, `shim.wait_for_runs(5000)` waits for the CLI runs in progress to finish (5 s at most, without launching
+  any other): if killed, a run could lose the Claude token it has just renewed. Then the QML engine is destroyed
+  before the shim's Python objects; a run still going at that moment is killed. A run that finishes during the wait
+  updates `Burn`, but the write deferred by one second may not happen: the next summary merges those days again.
 
-## Sécurité
+## Security
 
-- Process lancés en argv, jamais par un shell. Textes venus du CLI affichés en `Text.PlainText`.
-- Aucun appel réseau de l'app. Le CLI, lui, télécharge les tarifs, interroge les API d'usage et réécrit
-  `~/.claude/.credentials.json` quand il renouvelle le jeton Claude.
-- Écritures atomiques (`QSaveFile`, `os.replace`) ; fichiers illisibles copiés en `.bak`, jamais écrasés.
-- Isolation du CLI (configuration, environnement, dossier courant) et environnement de l'app gelée nettoyé
-  pour tout enfant.
-- Instance unique : socket dans le dossier d'exécution de l'utilisateur (0700) ou tube nommé avec utilisateur
-  et session, accès réservé à l'utilisateur (`UserAccessOption`) ; verrou pris avant de sonder, pour que deux
-  lancements simultanés ne fassent pas deux instances (deux icônes, CLI en double, réglages écrasés).
-- Démarrage automatique sous Linux : chemin d'exe refusé s'il contient un caractère de contrôle (un saut de ligne
-  ajouterait un `Exec` choisi par le nom d'un dossier), `%` ou `\` (entrée refusée par GLib ou systemd).
-- Copie des QML relue octet pour octet à chaque lancement : un fichier modifié dans le cache n'est pas exécuté.
-- Journal et diagnostic masquent les secrets (motifs : voir le
-  [guide d'utilisation](USAGE.md#vie-privée--ce-que-lapp-lit-et-écrit)) ; le diagnostic ne contient ni variable
-  d'environnement ni contenu de fichier.
-- `AGENT_BURN_FAKE_DIR` reste actif dans l'app livrée (le selftest gelé en a besoin) : signalé dans le journal
-  hors selftest ; seuls `harness claude|codex` sont servis, jamais un chemin tiré d'argv.
-- Builds : police Nerd Font et outils téléchargés (nfpm, appimagetool, runtime
-  AppImage, rustup-init) vérifiés par sha256 ; dépendances Python installées depuis un verrou haché
-  (`app/requirements.lock`, `--require-hashes`) ; image de build Linux épinglée par empreinte. CI : actions
-  épinglées par SHA, `persist-credentials: false`, `contents: read` partout sauf le job de release.
-- Installeur Windows : ses lignes `[InstallDelete]` ne vident les sous-dossiers du bundle que par-dessus une
-  installation d'Agent Burn (`OwnInstall` : `AgentBurn.exe` et `unins000.dat` présents), et l'installeur ne
-  propose pas de choisir le dossier (`DisableDirPage`) : sinon un dossier existant pris à la main serait vidé à la
-  mise à jour suivante. Seul `/DIR=` en ligne de commande peut encore viser un autre dossier.
-- Points connus : `AllowSetForegroundWindow(ASFW_ANY)` au 2e lancement sous Windows (tout process peut prendre
-  le premier plan jusqu'à la saisie suivante) ; en dev sous Windows, `shutil.which("agent-burn")` cherche aussi
-  dans le dossier courant ; la désinstallation Windows arrête tout `AgentBurn.exe` de l'utilisateur par son nom.
+- Processes launched as argv, never through a shell. Texts coming from the CLI shown as `Text.PlainText`.
+- No network calls from the app. The CLI, however, downloads pricing, queries the usage APIs and rewrites
+  `~/.claude/.credentials.json` when it renews the Claude token.
+- Atomic writes (`QSaveFile`, `os.replace`); unreadable files copied to `.bak`, never overwritten.
+- CLI isolation (configuration, environment, working directory) and the frozen app's environment cleaned for
+  every child.
+- Single instance: socket in the user's runtime directory (0700) or a pipe named with user and session, access
+  restricted to the user (`UserAccessOption`); lock taken before probing, so that two simultaneous launches do not
+  create two instances (two icons, duplicate CLI runs, overwritten settings).
+- Autostart on Linux: exe path refused if it contains a control character (a line break would add an `Exec` chosen
+  by the name of a folder), `%` or `\` (entry rejected by GLib or systemd).
+- QML copy read back byte for byte at every launch: a file modified in the cache is not executed.
+- Log and diagnostics redact secrets (patterns: see the
+  [user guide](USAGE.md#privacy-what-the-app-reads-and-writes)); the diagnostics contain no environment variable
+  and no file content.
+- `AGENT_BURN_FAKE_DIR` stays active in the shipped app (the frozen selftest needs it): flagged in the log outside
+  the selftest; only `harness claude|codex` are served, never a path taken from argv.
+- Builds: Nerd Font and downloaded tools (nfpm, appimagetool, AppImage
+  runtime, rustup-init) checked by sha256; Python dependencies installed from a hashed lock file
+  (`app/requirements.lock`, `--require-hashes`); Linux build image pinned by digest. CI: actions
+  pinned by SHA, `persist-credentials: false`, `contents: read` everywhere except the release job.
+- Windows installer: its `[InstallDelete]` lines empty the bundle's subdirectories only over an existing Agent Burn
+  install (`OwnInstall`: `AgentBurn.exe` and `unins000.dat` present), and the installer does not offer to choose
+  the folder (`DisableDirPage`): otherwise an existing folder picked by hand would be emptied on the next update.
+  Only `/DIR=` on the command line can still target another folder.
+- Known issues: `AllowSetForegroundWindow(ASFW_ANY)` on the 2nd launch on Windows (any process can take the
+  foreground until the next input); in dev on Windows, `shutil.which("agent-burn")` also searches the working
+  directory; the Windows uninstallation stops every `AgentBurn.exe` of the user by its name.
 
-## Ajouter un fournisseur
+## Adding a provider
 
-Le CLI fait la découverte : un agent qu'il connaît apparaît déjà, avec son identifiant pour nom et une couleur
-grise. Pour l'intégrer proprement :
+The CLI does the discovery: an agent it knows already shows up, with its id as its name and a gray color. To
+integrate it properly:
 
-1. **Registre** : ajouter `<id>: { name, color, harness: false }` à `providers` dans `Burn.qml`, et l'icône
-   `shared/assets/burn/<id>.png` (copiée par `runtime.assemble()` et par `agentburn.spec`).
-   `harness` n'est qu'indicatif : aucun code ne le lit.
-2. **Toujours listé** (réglages, diagnostic, menu de l'icône, carte Fournisseurs) même absent : l'ajouter à
-   `knownProviders`. Sinon il n'est listé que vu dans un rapport.
-3. **Limites** : rien à faire si le CLI le met dans `subscription.agents` avec `window` / `shortWindow` ;
-   `windows()` les affiche, avec l'hypothèse 5 h / 7 jours et l'expiration à 7 jours. Si ses fenêtres diffèrent,
-   lire leur durée dans le rapport (voir le commentaire `shortcut` de `windows()`).
-4. **Page détaillée** (`harness <id>`) : seuls `claude` et `codex` ont un `Cli` dans `Burn.qml`. Il faut un
-   nouveau `Cli` (`source: "harness:<id>"`), son cas dans `loadHarness()`, la liste rejouée à la fin du summary
-   (`["claude", "codex"]`), le libellé de la source dans `SettingsWindow.qml`, les clés lues dans `KEYS` de
-   `agent-burn-upstream.py`, et le faux CLI (`fake_cli` de `__main__.py`, qui n'accepte que `claude` et `codex`).
-5. **État** : `providerState()` s'applique tel quel ; ses branches propres à Claude ne concernent que `claude`.
-6. **Tests** : une fixture réelle nettoyée dans `tests/fixtures/` (dates calées sur le jour de
-   capture, voir [UPSTREAM.md](UPSTREAM.md#recapturer-les-fixtures)), son cas dans `burn-suite/fake/gen.py` et
-   `shell.qml`, la suite sous qs **et** sous le shim, le selftest pour le rendu.
-7. **Suivi de l'amont** : faire correspondre les nouveaux fichiers de l'app Mac dans la table `PORT`.
+1. **Registry**: add `<id>: { name, color, harness: false }` to `providers` in `Burn.qml`, and the icon
+   `shared/assets/burn/<id>.png` (copied by `runtime.assemble()` and by `agentburn.spec`).
+   `harness` is only informative: no code reads it.
+2. **Always listed** (settings, diagnostics, tray icon menu, Providers card) even when missing: add it to
+   `knownProviders`. Otherwise it is listed only once seen in a report.
+3. **Limits**: nothing to do if the CLI puts it in `subscription.agents` with `window` / `shortWindow`;
+   `windows()` shows them, assuming 5 h / 7 days and expiring them at 7 days. If its windows differ, read their
+   duration from the report (see the `shortcut` comment of `windows()`).
+4. **Detail page** (`harness <id>`): only `claude` and `codex` have a `Cli` in `Burn.qml`. It needs a new `Cli`
+   (`source: "harness:<id>"`), its case in `loadHarness()`, the list replayed at the end of the summary
+   (`["claude", "codex"]`), the label of the source in `SettingsWindow.qml`, the keys read in `KEYS` of
+   `agent-burn-upstream.py`, and the fake CLI (`fake_cli` in `__main__.py`, which accepts only `claude` and `codex`).
+5. **State**: `providerState()` applies as is; its Claude-specific branches only concern `claude`.
+6. **Tests**: a cleaned real fixture in `tests/fixtures/` (dates set to the capture day, see
+   [UPSTREAM.md](UPSTREAM.md#recapturing-the-fixtures)), its case in `burn-suite/fake/gen.py` and
+   `shell.qml`, the suite under both qs and the shim, the selftest for rendering.
+7. **Upstream tracking**: map the new files of the Mac app in the `PORT` table.

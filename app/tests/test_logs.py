@@ -1,5 +1,5 @@
-# Tests du journal : masquage de chaque type de secret, fichier tournant dans le dossier des journaux,
-# exceptions non rattrapées journalisées sans arrêter l'app, messages Qt sur le logger « qt ».
+# Log tests: redaction of each kind of secret, rotating file in the log directory,
+# uncaught exceptions logged without stopping the app, Qt messages on the "qt" logger.
 #   cd app && python -m unittest discover -s tests -v
 import io
 import logging
@@ -20,23 +20,23 @@ from PySide6.QtCore import QObject, QTimer, Signal, qInstallMessageHandler, qWar
 from agentburn import logs  # noqa: E402
 
 SECRETS = {
-    "jeton OAuth Anthropic": "sk-ant-oat01-Ab3_dE-fGhIjKlMnOpQrStUvWxYz0123456789",
-    "en-tête Bearer": "Authorization: Bearer abc.DEF-ghi_123",
+    "Anthropic OAuth token": "sk-ant-oat01-Ab3_dE-fGhIjKlMnOpQrStUvWxYz0123456789",
+    "Bearer header": "Authorization: Bearer abc.DEF-ghi_123",
     "JWT": "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxMjM0In0.c2lnbmF0dXJl",
     "access_token JSON": '{"access_token": "ya29-AbC_123", "x": 1}',
     "refreshToken": "refreshToken=rt_Q2Fz&next=1",
     "id_token": "id_token: idt.123.abc",
-    "e-mail": "connecté en tant que jean.dupont+test@example.co.uk",
-    "hex long": "clé 0123456789abcdef0123456789ABCDEF fin",
-    "base64 long": "blob QWxhZGRpbjpvcGVuIHNlc2FtZQ0123456789xyz== fin",
-    # Juste après « = » : variable d'environnement, code OAuth d'une URL, clé=valeur.
-    "clé d'API après =": "OPENAI_API_KEY=sk-proj-Ab12Cd34Ef56Gh78Ij90Kl12Mn34Op56Qr78St90Uv12Wx34",
-    "code OAuth d'une URL": "https://x/y?code=Zq81Rt5vWx0yAb2cDe4fGh6iJk8lMn0oPq2rSt4u&state=1",
-    "hex après =": "key=fedcba9876543210fedcba9876543210ab01",
-    # Erreur du CLI en Debug Rust : JSON aux guillemets échappés.
-    "accessToken JSON échappé": 'Error: CliError("bad body: {\\"accessToken\\":\\"opaque.tok/en+with=chars\\"}")',
+    "email": "signed in as john.doe+test@example.co.uk",
+    "long hex": "key 0123456789abcdef0123456789ABCDEF end",
+    "long base64": "blob QWxhZGRpbjpvcGVuIHNlc2FtZQ0123456789xyz== end",
+    # Right after "=": environment variable, OAuth code in a URL, key=value.
+    "API key after =": "OPENAI_API_KEY=sk-proj-Ab12Cd34Ef56Gh78Ij90Kl12Mn34Op56Qr78St90Uv12Wx34",
+    "OAuth code in a URL": "https://x/y?code=Zq81Rt5vWx0yAb2cDe4fGh6iJk8lMn0oPq2rSt4u&state=1",
+    "hex after =": "key=fedcba9876543210fedcba9876543210ab01",
+    # CLI error in Rust Debug format: JSON with escaped quotes.
+    "escaped accessToken JSON": 'Error: CliError("bad body: {\\"accessToken\\":\\"opaque.tok/en+with=chars\\"}")',
 }
-HIDDEN = {"sk-ant-oat01", "abc.DEF", "eyJhbGci", "ya29", "rt_Q2Fz", "idt.123", "jean.dupont", "example.co.uk",
+HIDDEN = {"sk-ant-oat01", "abc.DEF", "eyJhbGci", "ya29", "rt_Q2Fz", "idt.123", "john.doe", "example.co.uk",
           "0123456789abcdef0123456789ABCDEF", "QWxhZGRpbjpvcGVuIHNlc2FtZQ0123456789xyz", "sk-proj-Ab12", "Zq81Rt5v",
           "fedcba98", "opaque.tok"}
 
@@ -51,10 +51,10 @@ class Redaction(unittest.TestCase):
 
     def test_ordinary_text_kept(self):
         for text in ("/tmp/build-1000/-home-sam/a1b2c3d4/agent-burn/app/tests/fake-agent-burn summary --json",
-                     "/home/sam/.local/share/agent-burn-desktop/agent-burn-cli.json : code 0, 1.20 s, 4288 octets",
-                     r"C:\Users\sam\AppData\Local\AgentBurn\logs", "révision 9ce6d8e1f9ae", "qml-f22edf61ad55",
-                     "agent-burn a échoué (code 1) : Error: CliError(\"home directory is not set\")",
-                     "unmotassezlongsanschiffrepourpasseravecuneregle", "QT_QPA_PLATFORMTHEME=xdgdesktopportal"):
+                     "/home/sam/.local/share/agent-burn-desktop/agent-burn-cli.json: code 0, 1.20 s, 4288 bytes",
+                     r"C:\Users\sam\AppData\Local\AgentBurn\logs", "revision 9ce6d8e1f9ae", "qml-f22edf61ad55",
+                     "agent-burn failed (code 1): Error: CliError(\"home directory is not set\")",
+                     "alongenoughwordwithoutanydigitthatmustbekept", "QT_QPA_PLATFORMTHEME=xdgdesktopportal"):
             self.assertEqual(logs.redact(text), text)
         self.assertEqual(logs.redact(logs.redact(SECRETS["JWT"])), logs.redact(SECRETS["JWT"]))
 
@@ -90,70 +90,70 @@ class Setup(unittest.TestCase):
         self.assertEqual((h.maxBytes, h.backupCount, h.encoding), (1 << 20, 3, "utf-8"))
 
     def test_lines_iso_time_level_logger_and_masked_on_every_handler(self):
-        logging.getLogger("agentburn.cli").info("run : %s", SECRETS["jeton OAuth Anthropic"])
+        logging.getLogger("agentburn.cli").info("run: %s", SECRETS["Anthropic OAuth token"])
         line = self.text().splitlines()[-1]
-        self.assertRegex(line, r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}[+-]\d\d:\d\d INFO agentburn\.cli : run : ")
+        self.assertRegex(line, r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}[+-]\d\d:\d\d INFO agentburn\.cli: run: ")
         for out in (self.text(), self.stderr.getvalue()):
             self.assertIn(logs.MASK, out)
             self.assertNotIn("sk-ant-oat01", out)
 
     def test_debug_switch(self):
-        logging.getLogger("agentburn").debug("détail 1")
+        logging.getLogger("agentburn").debug("detail 1")
         logs.debug(True)
-        logging.getLogger("agentburn").debug("détail 2")
+        logging.getLogger("agentburn").debug("detail 2")
         logs.debug(False)
-        self.assertNotIn("détail 1", self.text())
-        self.assertIn("DEBUG agentburn : détail 2", self.text())
+        self.assertNotIn("detail 1", self.text())
+        self.assertIn("DEBUG agentburn: detail 2", self.text())
 
     def test_uncaught_exceptions_logged_and_app_keeps_running(self):
         try:
-            raise ValueError("boum " + SECRETS["JWT"])
+            raise ValueError("boom " + SECRETS["JWT"])
         except ValueError:
-            sys.excepthook(*sys.exc_info())   # ne lève rien, ne quitte pas
+            sys.excepthook(*sys.exc_info())   # raises nothing, does not quit
 
         class Source(QObject):
             fired = Signal()
 
         def slot():
-            raise RuntimeError("dans un slot")
+            raise RuntimeError("in a slot")
 
         src = Source()
         src.fired.connect(slot)
-        src.fired.emit()   # PySide passe l'exception à sys.excepthook et continue
-        t = threading.Thread(target=lambda: 1 / 0, name="relevé")
+        src.fired.emit()   # PySide passes the exception to sys.excepthook and continues
+        t = threading.Thread(target=lambda: 1 / 0, name="reading")
         t.start()
         t.join()
         text = self.text()
-        self.assertEqual(len(re.findall(r" CRITICAL agentburn : exception non rattrapée", text)), 3, text)
-        self.assertIn("ValueError: boum", text)
+        self.assertEqual(len(re.findall(r" CRITICAL agentburn: uncaught exception", text)), 3, text)
+        self.assertIn("ValueError: boom", text)
         self.assertIn("Traceback (most recent call last)", text)
-        self.assertNotIn("eyJhbGci", text)   # traceback masqué aussi
-        self.assertIn("RuntimeError: dans un slot", text)
-        self.assertIn("(thread relevé)", text)
+        self.assertNotIn("eyJhbGci", text)   # traceback redacted too
+        self.assertIn("RuntimeError: in a slot", text)
+        self.assertIn("(thread reading)", text)
         self.assertIn("ZeroDivisionError", text)
 
     def test_qt_messages_on_qt_logger_and_hook(self):
-        qWarning("avertissement de test")
-        qWarning("This plugin does not support raise()")   # limite de la plateforme hors écran
-        self.assertIn("WARNING qt : avertissement de test", self.text())
-        self.assertNotIn("does not support", self.text())   # en DEBUG : journal détaillé seulement
-        self.assertEqual(self.qt, ["avertissement de test", "This plugin does not support raise()"])
+        qWarning("test warning")
+        qWarning("This plugin does not support raise()")   # limitation of the offscreen platform
+        self.assertIn("WARNING qt: test warning", self.text())
+        self.assertNotIn("does not support", self.text())   # at DEBUG: detailed log only
+        self.assertEqual(self.qt, ["test warning", "This plugin does not support raise()"])
 
     def test_stderr_in_utf8_even_when_redirected_in_the_ansi_code_page(self):
-        # Windows : stderr redirigé (selftest du build) en cp1252, à côté d'un journal UTF-8.
+        # Windows: stderr redirected (build selftest) in cp1252, next to a UTF-8 log.
         raw = io.BytesIO()
         stream = io.TextIOWrapper(raw, encoding="cp1252")
         logs.setup(self.dir / "logs", stream)
-        logging.getLogger("agentburn").warning("épinglé ✓")   # ✓ : hors de cp1252
-        self.assertIn("épinglé ✓".encode("utf-8"), raw.getvalue())
+        logging.getLogger("agentburn").warning("pinned ✓")   # ✓: outside cp1252
+        self.assertIn("pinned ✓".encode("utf-8"), raw.getvalue())
 
     def test_unwritable_dir_still_logs_elsewhere(self):
-        blocker = self.dir / "fichier"
+        blocker = self.dir / "file"
         blocker.write_text("x")
         root = logging.getLogger()
         before = list(root.handlers)
         self.assertIsNone(logs.setup(blocker / "logs", self.stderr))
-        self.assertIn("journal non écrit", self.stderr.getvalue())
+        self.assertIn("log not written", self.stderr.getvalue())
         for h in root.handlers[:]:
             if h not in before:
                 root.removeHandler(h)

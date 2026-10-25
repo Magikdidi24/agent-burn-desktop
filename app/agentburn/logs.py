@@ -1,6 +1,6 @@
-# Journal de l'app : fichier tournant (1 Mo × 3, UTF-8) dans le dossier des journaux, plus stderr hors
-# exe gelé ; secrets masqués sur chaque handler ; messages Qt (avertissements QML compris) et exceptions
-# non rattrapées (fil principal, slots Qt, threads) journalisés, l'app continue.
+# App log: rotating file (1 MB × 3, UTF-8) in the logs directory, plus stderr outside the frozen
+# exe; secrets redacted on every handler; Qt messages (QML warnings included) and uncaught exceptions
+# (main thread, Qt slots, threads) logged, the app keeps running.
 import datetime
 import logging
 import logging.handlers
@@ -11,24 +11,24 @@ import traceback
 
 from PySide6.QtCore import QtMsgType, qInstallMessageHandler
 
-MASK = "[masqué]"
+MASK = "[redacted]"
 _B64 = r"A-Za-z0-9+_\-"
-# shortcut: un base64 contenant « / » est coupé en morceaux, chacun masqué seulement s'il fait ≥ 32 car. ;
-# ajouter « / » à _B64 si un tel secret apparaît (les chemins de plus de 32 car. seraient alors masqués).
+# shortcut: a base64 containing "/" is cut into pieces, each redacted only if it is ≥ 32 chars;
+# add "/" to _B64 if such a secret shows up (paths longer than 32 chars would then be redacted).
 _SECRETS = (
-    # Aussi dans un JSON échappé (\"accessToken\":\"…\" d'une erreur du CLI en Debug Rust).
+    # Also in escaped JSON (\"accessToken\":\"…\" of a CLI error in Rust Debug format).
     (re.compile(r"(?i)((?:access|refresh|id)[_-]?token\\?[\"']?\s*[:=]\s*\\?[\"']?)[^\s\"'\\,;}&]+"), r"\1" + MASK),
     (re.compile(r"(?i)(bearer\s+)[A-Za-z0-9._~+/=\-]+"), r"\1" + MASK),
     (re.compile(r"sk-ant-[A-Za-z0-9_\-]+"), MASK),
     (re.compile(r"eyJ[A-Za-z0-9_\-]{8,}(?:\.[A-Za-z0-9_\-]*){0,2}"), MASK),   # JWT
-    (re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}"), MASK),   # e-mail
-    # hex ou base64 de 32 car. et plus, chiffres et lettres mêlés (un mot long n'est pas un secret), aussi
-    # juste après « = » (CLE=valeur, ?code= d'une URL)
+    (re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}"), MASK),   # email
+    # hex or base64 of 32 chars or more, digits and letters mixed (a long word is not a secret), also
+    # right after "=" (KEY=value, ?code= of a URL)
     (re.compile(rf"(?<![{_B64}])(?=[{_B64}]*[0-9])(?=[{_B64}]*[A-Za-z])[{_B64}]{{32,}}={{0,2}}"), MASK),
 )
 _LEVELS = {QtMsgType.QtDebugMsg: logging.DEBUG, QtMsgType.QtInfoMsg: logging.INFO, QtMsgType.QtWarningMsg: logging.WARNING,
            QtMsgType.QtCriticalMsg: logging.ERROR, QtMsgType.QtFatalMsg: logging.CRITICAL}
-_qt_handler = None   # gardé en vie : Qt n'en garde qu'un pointeur
+_qt_handler = None   # kept alive: Qt only keeps a pointer to it
 
 
 def redact(text):
@@ -39,7 +39,7 @@ def redact(text):
 
 class _Redact(logging.Filter):
     def filter(self, record):
-        # Message, traceback et pile rendus ici puis masqués : le formateur n'a plus rien à ajouter.
+        # Message, traceback and stack rendered here then redacted: the formatter has nothing left to add.
         text = record.getMessage()
         if record.exc_info:
             text += "\n" + "".join(traceback.format_exception(*record.exc_info)).rstrip()
@@ -54,13 +54,13 @@ class _Format(logging.Formatter):
         return datetime.datetime.fromtimestamp(record.created).astimezone().isoformat(timespec="milliseconds")
 
 
-def _uncaught(kind, value, tb, where="fil principal"):
-    logging.getLogger("agentburn").critical("exception non rattrapée (%s)", where, exc_info=(kind, value, tb))
+def _uncaught(kind, value, tb, where="main thread"):
+    logging.getLogger("agentburn").critical("uncaught exception (%s)", where, exc_info=(kind, value, tb))
 
 
 def setup(directory, stderr=None, qt_hook=None):
-    """Handlers du logger racine, niveau INFO ; qt_hook(kind, context, message) reçoit aussi chaque message
-    Qt (selftest). Renvoie le fichier du journal, None s'il n'a pas pu être ouvert (dit dans le journal)."""
+    """Root logger handlers, level INFO; qt_hook(kind, context, message) also receives every Qt message
+    (selftest). Returns the log file, None if it could not be opened (stated in the log)."""
     global _qt_handler
     root = logging.getLogger()
     root.setLevel(logging.INFO)
@@ -71,15 +71,15 @@ def setup(directory, stderr=None, qt_hook=None):
     except OSError as e:
         path, problem = None, e
     if stderr is not None:
-        if hasattr(stderr, "reconfigure"):   # redirigé sous Windows : code page ANSI, illisible à côté du fichier UTF-8
+        if hasattr(stderr, "reconfigure"):   # redirected on Windows: ANSI code page, unreadable next to the UTF-8 file
             stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
         handlers.append(logging.StreamHandler(stderr))
     for h in handlers:
-        h.setFormatter(_Format("%(asctime)s %(levelname)s %(name)s : %(message)s"))
+        h.setFormatter(_Format("%(asctime)s %(levelname)s %(name)s: %(message)s"))
         h.addFilter(_Redact())
         root.addHandler(h)
     if problem:
-        logging.getLogger("agentburn").warning("journal non écrit dans %s : %s", directory, problem)
+        logging.getLogger("agentburn").warning("log not written to %s: %s", directory, problem)
     sys.excepthook = _uncaught
     threading.excepthook = lambda a: _uncaught(a.exc_type, a.exc_value, a.exc_traceback,
                                                f"thread {getattr(a.thread, 'name', '?')}")
@@ -87,9 +87,9 @@ def setup(directory, stderr=None, qt_hook=None):
 
     def on_qt(kind, context, message):
         category = context.category or "default"
-        # Limite de la plateforme (raise() hors écran, selftest), pas un problème : journal détaillé seulement.
+        # Platform limit (raise() offscreen, selftest), not a problem: detailed log only.
         level = logging.DEBUG if message.startswith("This plugin does not support") else _LEVELS.get(kind, logging.WARNING)
-        qt.log(level, "%s", message if category == "default" else f"{category} : {message}")
+        qt.log(level, "%s", message if category == "default" else f"{category}: {message}")
         if qt_hook:
             qt_hook(kind, context, message)
 
@@ -99,5 +99,5 @@ def setup(directory, stderr=None, qt_hook=None):
 
 
 def debug(on):
-    """Journal détaillé (réglage debugLogging), sans redémarrer."""
+    """Detailed log (debugLogging setting), without restarting."""
     logging.getLogger().setLevel(logging.DEBUG if on else logging.INFO)

@@ -1,83 +1,79 @@
-# Agent Burn (app de bureau)
+# Agent Burn (desktop app)
 
-Agent Burn affiche, sous **Windows et Linux**, la dépense de vos agents de code (Claude Code, Codex et les autres
-agents que reconnaît son CLI), leurs jetons et leurs modèles, et les **limites de vos abonnements en direct**, avec
-le rythme à tenir : une **icône dans la zone de notification**, un **aperçu**, un **dashboard** et une fenêtre
-**Paramètres**. C'est une recréation pour Windows et Linux de l'app macOS
-[agent-burn](https://github.com/Melvynx/agent-burn) de Melvynx, dont elle embarque le CLI (Rust, révision
-épinglée dans [`cli.env`](cli.env)) pour lire les journaux, calculer les prix et relever les limites. Licence MIT.
+Agent Burn shows, on Windows and Linux, what your coding agents spend (Claude Code, Codex and the other agents its
+CLI knows), their tokens and models, and your live subscription limits with the pace to stay within them. It does
+this through a system tray icon, a popover, a dashboard and a Settings window. It is a Windows and Linux remake of
+Melvynx's macOS app [agent-burn](https://github.com/Melvynx/agent-burn), and it bundles that project's CLI (Rust,
+revision pinned in [`cli.env`](cli.env)) to read the logs, compute prices and read the limits. MIT license.
 
-Documentation : [guide d'utilisation](docs/USAGE.md) (icône, aperçu, dashboard, réglages, états, fichiers, vie
-privée, dépannage, désinstallation) ; pour les développeurs : [architecture](docs/ARCHITECTURE.md),
-[fournisseurs](docs/PROVIDERS.md), [suivi de l'amont](docs/UPSTREAM.md),
-[tests, build et release](docs/DEVELOPMENT.md).
+Documentation: the [user guide](docs/USAGE.md) (icon, popover, dashboard, settings, states, files, privacy,
+troubleshooting, uninstalling); for developers: [architecture](docs/ARCHITECTURE.md),
+[providers](docs/PROVIDERS.md), [upstream tracking](docs/UPSTREAM.md),
+[tests, build and release](docs/DEVELOPMENT.md).
 
-## Plateformes
+## Platforms
 
-| Plateforme | Formats | Ce qui a réellement été vérifié |
+| Platform | Formats | What was actually checked |
 |---|---|---|
-| Windows 10 (1809 ou plus) et 11, x64 | installeur, zip portable | Par la CI GitHub, sur le runner `windows-2025` (Windows Server 2025) : tests unitaires ; build (CLI compilé avec MSVC, bundle, selftest de l'app gelée) ; installation silencieuse, raccourcis et registre, selftest de l'app installée, icône pendant 10 s, 2e lancement, désinstallation app lancée, zip portable ([`windows/smoke.ps1`](windows/smoke.ps1)). **Jamais sur un Windows 10 ou 11 de bureau** : SmartScreen, vraie zone de notification et barre de titre sombre jamais vus. Avant la CI : sous Wine. |
-| Windows 11 ARM64 | installeur `arm64` expérimental, ou l'installeur x64 en émulation | Installeur arm64 compilé sous Wine pendant le développement ; la CI ne le construit qu'au lancement manuel (case `arm64`), jamais fait à ce jour. Jamais lancé sur une machine ARM, émulation x64 non essayée. |
-| Ubuntu 22.04 et 24.04, Debian 12 et 13 | `.deb` | Paquets construits par la CI (conteneur Debian 12), puis dans un conteneur de chaque distro, sans session de bureau : installation sans les paquets recommandés, commande, lanceur, icônes, AppStream, CLI embarqué, selftest de l'app installée (rendu logiciel, puis OpenGL Mesa sous Xvfb), désinstallation complète ([`linux/smoke.sh`](linux/smoke.sh)). |
-| Fedora 44 | `.rpm` (dnf) | Comme ci-dessus. |
-| openSUSE Tumbleweed | `.rpm` (zypper) | Comme ci-dessus. |
-| Arch Linux | archive `.tar.gz`, AppImage | Comme ci-dessus (archive installée dans `/opt`, AppImage lancée sans FUSE). |
-| Autre distro x86_64 avec glibc 2.35 ou plus | AppImage, archive | Non essayé. |
-| KDE Plasma (Wayland, et X11 par Xwayland) | — | En local, dans une session KWin imbriquée sans écran, sous Wayland et sous Xwayland, avec un hôte de zone de notification de test. App gelée (archive) : icône, clic, menu (Paramètres…, Journaux, Quitter), aperçu placé sous X11 ; sans hôte, dashboard puis sortie à sa fermeture. Depuis les sources : hôte apparu 130 s après l'app, hôte disparu, Quitter pendant un run du CLI. Jamais avec la vraie zone de notification de Plasma. |
-| GNOME | — | GNOME 50 sans écran (conteneur), pendant l'audit, avec l'ancienne version de l'app : pas de zone de notification sans l'extension AppIndicator, une avec. L'app actuelle n'y a pas tourné. |
-| XFCE, Cinnamon, Hyprland, autres | — | Non essayé. |
-| EL9 (AlmaLinux, Rocky…) et toute glibc antérieure à 2.35 | — | Non pris en charge. |
+| Windows 10 (1809 or later) and 11, x64 | installer, portable zip | By GitHub CI, on the `windows-2025` runner (Windows Server 2025): unit tests; build (CLI compiled with MSVC, bundle, selftest of the frozen app); silent install, shortcuts and registry, selftest of the installed app, tray mode for 10 s, 2nd launch, uninstall while the app runs, portable zip ([`windows/smoke.ps1`](windows/smoke.ps1)). Never on a desktop Windows 10 or 11: I have not seen SmartScreen, a real system tray or the dark title bar. Before CI, I tested it under Wine. |
+| Windows 11 ARM64 | experimental `arm64` installer, or the x64 installer under emulation | arm64 installer built under Wine during development; CI only builds it on a manual run (the `arm64` checkbox), never done so far. Never run on an ARM machine, x64 emulation not tried. |
+| Ubuntu 22.04 and 24.04, Debian 12 and 13 | `.deb` | Packages built by CI (Debian 12 container), then tested in a container of each distro, with no desktop session: install without the recommended packages, command, launcher, icons, AppStream, bundled CLI, selftest of the installed app (software rendering, then Mesa OpenGL under Xvfb), full uninstall ([`linux/smoke.sh`](linux/smoke.sh)). |
+| Fedora 44 | `.rpm` (dnf) | Same as above. |
+| openSUSE Tumbleweed | `.rpm` (zypper) | Same as above. |
+| Arch Linux | `.tar.gz` archive, AppImage | Same as above (archive installed in `/opt`, AppImage run without FUSE). |
+| Other x86_64 distro with glibc 2.35 or later | AppImage, archive | Not tried. |
+| KDE Plasma (Wayland, and X11 through Xwayland) | | Locally, in a headless nested KWin session, under Wayland and under Xwayland, with a test system tray host. Frozen app (archive): icon, click, menu (Settings…, Logs, Quit), popover placement under X11; with no host, the dashboard, then exit when it is closed. From source: a host showing up 130 s after the app, the host going away, Quit during a CLI run. Never with Plasma's real system tray. |
+| GNOME | | GNOME 50, headless (container), during the audit, with the old version of the app: no system tray without the AppIndicator extension, one with it. The current app has not run there. |
+| XFCE, Cinnamon, Hyprland, others | | Not tried. |
+| EL9 (AlmaLinux, Rocky…) and any glibc older than 2.35 | | Not supported. |
 
-La CI ([`ci.yml`](.github/workflows/ci.yml)) rejoue les vérifications Windows et Linux ci-dessus à chaque push
-(résultats : onglet Actions) ; son premier run complet, vert, date du 2026-10-25, juste avant que l'app ait son
-propre dépôt. S'y ajoutent, en local sous Linux et depuis les sources : tests unitaires (118), suite du cœur sous
-Quickshell 0.3.2 et sous l'app (274 contrôles, 27 avec des fichiers corrompus, 6 avec un CLI bloqué), selftests,
-et les sessions KWin imbriquées du tableau.
+CI ([`ci.yml`](.github/workflows/ci.yml)) reruns the Windows and Linux checks above on every push (results in the
+Actions tab). Its first complete run, all green, was on 2026-10-25, just before the app got its own repository. I
+also run, locally on Linux and from source: unit tests (118), the core suite under Quickshell 0.3.2 and under the
+app (274 checks, 27 with corrupted files, 6 with a stuck CLI), selftests, and the nested KWin sessions from the
+table.
 
-## Installer
+## Install
 
-### Où trouver les fichiers
+### Where to get the files
 
-- **[Releases](https://github.com/Magikdidi24/agent-burn-desktop/releases)** : la CI construit tous les paquets
-  pour chaque tag `desktop-v<version>` et en fait une release brouillon, publiée à la main. Aucune n'est publiée
-  à ce jour.
-- **En attendant la première release, les artefacts de la CI** : onglet
-  [Actions](https://github.com/Magikdidi24/agent-burn-desktop/actions) → workflow « Agent Burn (bureau) » → un
-  run réussi → `agent-burn-desktop-linux` ou `agent-burn-desktop-windows-x64`. Il faut être connecté à GitHub
-  pour les télécharger, et ils sont gardés 30 jours.
-- **Build local** : voir [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+- [Releases](https://github.com/Magikdidi24/agent-burn-desktop/releases): CI builds every package for each
+  `desktop-v<version>` tag and makes a draft release out of them, which I publish by hand.
+- Between releases, the CI artifacts: [Actions](https://github.com/Magikdidi24/agent-burn-desktop/actions) tab →
+  "Agent Burn (desktop)" workflow → a successful run → `agent-burn-desktop-linux` or
+  `agent-burn-desktop-windows-x64`. You have to be signed in to GitHub to download them, and they are kept for
+  30 days.
+- Local build: see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
-| Fichier | Pour |
+| File | For |
 |---|---|
-| `AgentBurn-Setup-<version>-x64.exe` | Windows, installeur |
-| `AgentBurn-portable-<version>-x64.zip` | Windows, sans installation |
+| `AgentBurn-Setup-<version>-x64.exe` | Windows, installer |
+| `AgentBurn-portable-<version>-x64.zip` | Windows, no install |
 | `agent-burn-desktop_<version>_amd64.deb` | Debian, Ubuntu |
 | `agent-burn-desktop-<version>-1.x86_64.rpm` | Fedora, openSUSE |
-| `agent-burn-desktop-<version>-x86_64.AppImage` | toute distro x86_64 récente |
-| `agent-burn-desktop-<version>-x86_64.tar.gz` | Arch, ou installation à la main |
-| `SHA256SUMS` | contrôle : `sha256sum -c --ignore-missing SHA256SUMS` (Windows : `Get-FileHash <fichier>`) |
+| `agent-burn-desktop-<version>-x86_64.AppImage` | any recent x86_64 distro |
+| `agent-burn-desktop-<version>-x86_64.tar.gz` | Arch, or a manual install |
+| `SHA256SUMS` | verification: `sha256sum -c --ignore-missing SHA256SUMS` (Windows: `Get-FileHash <file>`) |
 
 ### Windows
 
-1. Lancer `AgentBurn-Setup-<version>-x64.exe` : installation pour l'utilisateur seul, sans droits
-   administrateur, dans `%LOCALAPPDATA%\Programs\Agent Burn`, raccourci dans le menu Démarrer. Deux cases :
-   « Lancer Agent Burn au démarrage de Windows » (cochée) et « Créer un raccourci sur le Bureau » (décochée).
-   L'app se lance à la fin.
-2. **SmartScreen** : l'installeur n'est pas signé. « Windows a protégé votre ordinateur » →
-   **Informations complémentaires** → **Exécuter quand même**.
-3. Mise à jour : lancer l'installeur d'une version plus récente. Il ferme l'app si elle tourne, remplace
-   l'installation et garde données et réglages. Pas de mise à jour automatique.
-4. Dossier choisi à la main : l'installeur ne vide ses sous-dossiers (`bin`, `licenses`, `PySide6`…) que
-   par-dessus une installation d'Agent Burn (`AgentBurn.exe` et `unins000.dat` présents). Un dossier qui
-   contient autre chose garde ses fichiers.
+1. Run `AgentBurn-Setup-<version>-x64.exe`. It installs for your user only, without admin rights, in
+   `%LOCALAPPDATA%\Programs\Agent Burn`, with a Start menu shortcut. Two checkboxes: "Start Agent Burn at
+   Windows startup" (checked) and "Create a desktop shortcut" (unchecked). The app starts at the end.
+2. SmartScreen: the installer is not signed. "Windows protected your PC" → "More info" → "Run anyway".
+3. Updating: run the installer of a newer version. It closes the app if it is running, replaces the install and
+   keeps your data and settings. There is no automatic update.
+4. If you pick the folder yourself: the installer only empties its subfolders (`bin`, `licenses`, `PySide6`…)
+   when it goes over an existing Agent Burn install (`AgentBurn.exe` and `unins000.dat` present). A folder that
+   holds anything else keeps its files.
 
-Sans installation : dézipper `AgentBurn-portable-<version>-x64.zip` où l'on veut et lancer
-`AgentBurn\AgentBurn.exe`. Données et réglages vont quand même dans `%APPDATA%\AgentBurn`, cache et journaux
-dans `%LOCALAPPDATA%\AgentBurn`.
+Without installing: unzip `AgentBurn-portable-<version>-x64.zip` wherever you like and run
+`AgentBurn\AgentBurn.exe`. Data and settings still go to `%APPDATA%\AgentBurn`, cache and logs to
+`%LOCALAPPDATA%\AgentBurn`.
 
 ### Linux
 
-Formats x86_64, glibc 2.35 ou plus récente (Ubuntu 22.04, Debian 12, Fedora, openSUSE Tumbleweed, Arch…).
+x86_64 builds, glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora, openSUSE Tumbleweed, Arch…).
 
 ```sh
 sudo apt install ./agent-burn-desktop_<version>_amd64.deb                              # Debian, Ubuntu
@@ -85,137 +81,133 @@ sudo dnf install ./agent-burn-desktop-<version>-1.x86_64.rpm                    
 sudo zypper install --allow-unsigned-rpm ./agent-burn-desktop-<version>-1.x86_64.rpm   # openSUSE
 ```
 
-Les paquets ne sont pas signés. Ils posent l'app dans `/opt/agent-burn-desktop` (avec son propre CLI dans
-`bin/`, sans conflit avec un `agent-burn` installé à part), la commande `agent-burn-desktop`, l'entrée de menu
-« Agent Burn », les icônes et les métadonnées AppStream. Paquets recommandés : une police (DejaVu) et Mesa
-(OpenGL).
+The packages are not signed. They install the app in `/opt/agent-burn-desktop` (with its own CLI in `bin/`, so
+no clash with a separately installed `agent-burn`), the `agent-burn-desktop` command, the "Agent Burn" menu
+entry, the icons and the AppStream metadata. Recommended packages: a font (DejaVu) and Mesa (OpenGL).
 
-**AppImage** :
+AppImage:
 
 ```sh
 chmod +x agent-burn-desktop-<version>-x86_64.AppImage
 ./agent-burn-desktop-<version>-x86_64.AppImage
 ```
 
-Elle a besoin de FUSE. Sans FUSE : `./agent-burn-desktop-<version>-x86_64.AppImage --appimage-extract-and-run`
-(ou la variable `APPIMAGE_EXTRACT_AND_RUN=1`). Pas d'entrée de menu. Le lancement à l'ouverture de session
-pointe sur le fichier AppImage : après l'avoir déplacé, réactiver l'option.
+It needs FUSE. Without FUSE: `./agent-burn-desktop-<version>-x86_64.AppImage --appimage-extract-and-run` (or the
+`APPIMAGE_EXTRACT_AND_RUN=1` variable). No menu entry. "Start at login" points to the AppImage file: if you move
+the file, turn the option on again.
 
-**Archive** : décompresser et lancer, sans rien installer.
+Archive: unpack and run, nothing to install.
 
 ```sh
 tar -xzf agent-burn-desktop-<version>-x86_64.tar.gz
 ./agent-burn-desktop-<version>-x86_64/agent-burn-desktop
 ```
 
-Intégration au menu (facultatif), comme le fait le test des paquets sous Arch :
+Menu integration (optional), the way the package test does it on Arch:
 
 ```sh
-V=agent-burn-desktop-1.0.0-x86_64    # nom de l'archive sans .tar.gz
+V=agent-burn-desktop-1.0.0-x86_64    # archive name without .tar.gz
 sudo mkdir /opt/agent-burn-desktop
 sudo tar -xzf $V.tar.gz -C /opt/agent-burn-desktop --strip-components=1 --exclude=$V/share
 sudo ln -s /opt/agent-burn-desktop/agent-burn-desktop /usr/local/bin/agent-burn-desktop
 sudo tar -xzf $V.tar.gz -C /usr/local --strip-components=1 $V/share
 ```
 
-Dépendances sous Arch :
+Dependencies on Arch:
 `sudo pacman -S --needed fontconfig freetype2 libdrm libglvnd libx11 libxcb libxkbcommon libxkbcommon-x11 wayland mesa ttf-dejavu`.
 
-### Depuis les sources
+### From source
 
-Python 3.12 ou plus récent (les paquets Linux embarquent 3.12, ceux de Windows 3.13) et PySide6 6.12 : voir
+Python 3.12 or newer (the Linux packages bundle 3.12, the Windows ones 3.13) and PySide6 6.12: see
 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
-## Prérequis
+## Requirements
 
-- Claude Code et/ou Codex utilisés sur cette machine, avec ce compte : le CLI lit leurs journaux locaux. Rien
-  d'autre à installer : le CLI `agent-burn`, Python et Qt sont dans l'app.
-- Limites Claude en direct : Claude Code connecté (`claude` puis `/login`) et le réseau.
-- Limites Codex : lues dans les journaux de session de Codex, ou en direct quand Codex est connecté et le
-  réseau présent.
-- Pour l'icône : une zone de notification (Windows ; KDE ; GNOME avec l'extension AppIndicator). Sans elle,
-  l'app fonctionne en fenêtre seule.
+- Claude Code and/or Codex used on this machine, under this user account: the CLI reads their local logs. Nothing
+  else to install: the `agent-burn` CLI, Python and Qt come with the app.
+- Live Claude limits: Claude Code signed in (`claude`, then `/login`) and a network connection.
+- Codex limits: read from the Codex session logs, or live when Codex is signed in and the network is up.
+- For the icon: a system tray (Windows; KDE; GNOME with the AppIndicator extension). Without one, the app works as
+  a plain window.
 
-## Premier lancement
+## First launch
 
-- Windows : l'installeur lance l'app. L'icône apparaît dans la zone de notification, parfois rangée derrière
-  la flèche **^** : la glisser sur la barre des tâches.
-- Linux : entrée « Agent Burn » du menu, ou `agent-burn-desktop`.
-- Le premier rapport arrive quelques secondes après le lancement (plus longtemps hors ligne). Aux lancements
-  suivants, le dernier rapport est affiché tout de suite, marqué « En cache », jusqu'au nouveau.
-- Sans zone de notification, le dashboard s'ouvre. L'app revérifie toutes les 5 s, tant qu'elle tourne : un
-  panneau lancé après elle, ou l'extension AppIndicator activée plus tard, reçoit l'icône sans relancer l'app.
-- Relancer l'app alors qu'elle tourne ouvre son dashboard : une seule instance par utilisateur et par session.
-  Deux lancements simultanés ne font pas deux instances : un verrou les départage, et le second essaie pendant
-  3 s environ de joindre le premier (qui ouvre alors son dashboard), puis s'arrête.
+- Windows: the installer starts the app. The icon shows up in the system tray, sometimes tucked behind the ^
+  arrow: drag it onto the taskbar.
+- Linux: the "Agent Burn" menu entry, or `agent-burn-desktop`.
+- The first report arrives a few seconds after launch (longer when offline). On later launches, the last report
+  shows right away, marked "Cached", until the new one comes in.
+- With no system tray, the dashboard opens. The app checks again every 5 s for as long as it runs: a panel started
+  after it, or the AppIndicator extension turned on later, gets the icon without restarting the app.
+- Starting the app while it is already running opens its dashboard: one instance per user and per session. Two
+  launches at the same moment do not make two instances: a lock decides, and the second one tries for about 3 s
+  to reach the first (which then opens its dashboard), then exits.
 
-La suite (icône, aperçu, dashboard, réglages, dépannage, désinstallation) : [docs/USAGE.md](docs/USAGE.md).
+The rest (icon, popover, dashboard, settings, troubleshooting, uninstalling): [docs/USAGE.md](docs/USAGE.md).
 
-## Limites connues
+## Known limitations
 
-- Jamais lancée sur un Windows 10 ou 11 de bureau : seulement sur le Windows Server des runners de la CI (voir
-  [Plateformes](#plateformes)).
-- Non signé (SmartScreen, antivirus). Pas de mise à jour automatique.
-- Wayland : aperçu placé par le compositeur. GNOME : zone de notification seulement avec l'extension AppIndicator.
-- Linux : pas de détection d'inactivité, les relevés continuent quand la session est inactive (Windows les
-  suspend après 5 min sans saisie).
-- Codex n'a été vu que sur des données de test (synthétiques ou nettoyées), jamais avec un vrai compte Codex.
-- Hors Claude, les fenêtres de limite sont supposées de 5 h et de 7 jours.
-- Lecteurs d'écran : l'app expose les textes de l'aperçu et du dashboard, un résumé en une phrase de chaque
-  graphe (période, total et jour le plus cher ; quota restant et prévu au reset) et les noms des contrôles ; la
-  navigation au clavier est en place. Vérifié seulement sur l'arbre d'accessibilité de Qt, jamais avec Orca ni
-  Narrateur.
-- Linux : rendu Qt sans fil dédié (`QSG_RENDER_LOOP=basic`), car la boucle à fil de Qt 6.12 plante parfois sous
-  Wayland à l'ouverture d'une fenêtre, bien plus souvent avec les textes exposés aux lecteurs d'écran (vu en
-  session KWin imbriquée, rendu logiciel). L'app anime peu, la boucle basique lui suffit. Une valeur de
-  `QSG_RENDER_LOOP` déjà définie l'emporte ; la nôtre ne passe ni au CLI ni à `xdg-open`. Pas revérifié sur un vrai GPU ni un vrai compositeur ; bug Qt non
-  signalé.
-- Windows : barre de titre sombre non vérifiée (Wine ne l'applique pas), sans effet attendu avant Windows 10
-  20H1.
-- Taille : environ 195 Mo installés sous Linux ; installeur Windows d'environ 40 Mo.
-- Linux x86_64 seulement, glibc 2.35 ou plus. Windows ARM64 expérimental.
-- Le CLI est arrêté s'il dépasse 120 s, et par l'installeur ; à la fermeture, l'app attend 5 s au plus la fin
-  d'un run en cours avant de l'arrêter. S'il réécrivait à cet instant le jeton de Claude, Claude Code pourrait
-  redemander `/login` (risque lu dans le code du CLI, jamais observé).
+- I have never run it on a desktop Windows 10 or 11, only on the Windows Server of the CI runners (see
+  [Platforms](#platforms)).
+- Not signed (SmartScreen, antivirus). No automatic update.
+- Wayland: the compositor places the popover. GNOME: system tray only with the AppIndicator extension.
+- Linux: no idle detection, so readings go on while the session is idle (Windows pauses them after 5 min without
+  input).
+- I have only seen Codex with test data (synthetic or cleaned), never with a real Codex account.
+- Outside Claude, limit windows are assumed to be 5 h and 7 days.
+- Screen readers: the app exposes the texts of the popover and the dashboard, a one-sentence summary of each
+  chart (period, total and most expensive day; quota left and forecast at the reset) and the names of the
+  controls; keyboard navigation works. Only checked against Qt's accessibility tree, never with Orca or Narrator.
+- Linux: Qt renders without a dedicated render thread (`QSG_RENDER_LOOP=basic`), because the threaded loop of
+  Qt 6.12 sometimes crashes under Wayland when a window opens, much more often with texts exposed to screen
+  readers (seen in a nested KWin session, software rendering). The app has few animations, so the basic loop is
+  enough. A `QSG_RENDER_LOOP` value that is already set wins; ours is passed neither to the CLI nor to
+  `xdg-open`. Not rechecked on a real GPU or a real compositor; Qt bug not reported.
+- Windows: dark title bar not verified (Wine does not apply it), and no effect expected before Windows 10 20H1.
+- Size: about 195 MB installed on Linux; the Windows installer is about 40 MB.
+- Linux x86_64 only, glibc 2.35 or later. Windows ARM64 is experimental.
+- The CLI is killed if it runs longer than 120 s, and by the installer; on exit, the app waits at most 5 s for a
+  run in progress to finish before killing it. If the CLI were rewriting Claude's token at that moment, Claude
+  Code could ask for `/login` again (a risk I read in the CLI's code, never observed).
 
-## Développement
+## Development
 
-- `app/` : l'app PySide6 (couche de compatibilité Quickshell, fenêtres, icône, réglages), ses QML et ses tests ;
-  `shared/` : le cœur `Burn.qml` et les vues partagées (aperçu, dashboard, graphes) ; `linux/`, `windows/`,
-  `build.ps1`, `installer.iss`, `agentburn.spec` : builds et tests des paquets ; `scripts/` : suivi du projet
-  amont ; `tests/fixtures/` : sorties réelles du CLI, nettoyées ; [`cli.env`](cli.env) : révision épinglée du CLI.
-- `shared/` est aussi le cœur de la barre Quickshell (Hyprland) de l'auteur, qui en garde une copie synchronisée
-  depuis ce dépôt, à une révision épinglée, par un script. Ces fichiers doivent donc tourner tels quels sous
-  Quickshell et sous l'app : voir [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#contrat-plateforme).
-- Mise en place, tests, build et release : [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+- `app/`: the PySide6 app (Quickshell compatibility layer, windows, icon, settings), its QML and its tests;
+  `shared/`: the `Burn.qml` core and the shared views (popover, dashboard, charts); `linux/`, `windows/`,
+  `build.ps1`, `installer.iss`, `agentburn.spec`: package builds and tests; `scripts/`: upstream project
+  tracking; `tests/fixtures/`: real CLI output, cleaned; [`cli.env`](cli.env): pinned CLI revision.
+- `shared/` is also the core of my Quickshell bar (Hyprland), which keeps a copy synced from this repository, at
+  a pinned revision, through a script. So these files have to run as they are under both Quickshell and the app:
+  see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#platform-contract).
+- Setup, tests, build and release: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
-## Licences
+## Licenses
 
-- **Agent Burn (cette app)** : MIT, [LICENSE](LICENSE).
-- **CLI `agent-burn`** (embarqué) : MIT, © ryoppippi et Melvynx. Les licences des crates Rust liées dans le
-  binaire, texte compris, sont dans `THIRD-PARTY-NOTICES.txt`.
-- **Logos des agents** (`shared/assets/burn/`) **et icône de l'app** (`assets/`) : repris de
-  [agent-burn](https://github.com/Melvynx/agent-burn) de Melvynx, sous la même licence MIT que le CLI
-  (© ryoppippi et Melvynx, texte dans `LICENSE-agent-burn.txt`). Les logos sont des marques de leurs
-  propriétaires respectifs ; ils ne servent qu'à désigner chaque agent.
-- **Qt 6, PySide6, Shiboken6** : LGPL-3.0, utilisés sans modification. Ce sont des bibliothèques partagées
-  séparées (dossier `PySide6/` de l'app ; sous Linux, aussi les liens `lib*.so.6` à sa racine) : on peut les
-  remplacer par une version modifiée compatible sans recompiler l'app (LGPL-3.0, section 4 d) 1)). Notice et
-  liens vers les sources : `NOTICE-Qt-PySide6.txt` ; textes : `LGPL-3.0.txt`, `GPL-3.0.txt`.
-- **Composants tiers compilés dans Qt et PySide6** (ICU sous Linux, PCRE2, HarfBuzz, libpng, FreeType et zlib
-  sous Windows, données Unicode, protocoles Wayland…) : plateforme, licence SPDX, copyright et texte de chacun
-  dans `QT-THIRD-PARTY.txt`. Les plugins d'images que l'app n'ouvre jamais (JPEG, TIFF, WebP, GIF, TGA, WBMP,
-  ICNS) et l'OpenGL logiciel de Windows (`opengl32sw.dll`) ne sont pas livrés.
-- **JetBrainsMono Nerd Font** : SIL Open Font License 1.1.
-- **Python** : licence PSF, avec les bibliothèques C de sa distribution et les logiciels incorporés à CPython
-  (libmpdec, HACL*, Mersenne Twister…), dans `LICENSE-Python.txt`.
-- Linux : notices Debian des bibliothèques système embarquées (`licenses/debian/`).
-- **AppImage** seulement : son runtime (type2-runtime) contient libfuse (LGPL-2.1, avec ses sources et la façon
-  de le relier), squashfuse, zstd, zlib, mimalloc et musl : `NOTICE-AppImage-runtime.txt`.
+- Agent Burn (this app): MIT, [LICENSE](LICENSE).
+- The `agent-burn` CLI (bundled): MIT, © ryoppippi and Melvynx. The licenses of the Rust crates linked into the
+  binary, with their full text, are in `THIRD-PARTY-NOTICES.txt`.
+- Agent logos (`shared/assets/burn/`) and the app icon (`assets/`): taken from Melvynx's
+  [agent-burn](https://github.com/Melvynx/agent-burn), under the same MIT license as the CLI (© ryoppippi and
+  Melvynx, text in `LICENSE-agent-burn.txt`). The logos are trademarks of their respective owners; they are only
+  used to identify each agent.
+- Qt 6, PySide6, Shiboken6: LGPL-3.0, used unmodified. They are separate shared libraries (the app's `PySide6/`
+  folder; on Linux, also the `lib*.so.6` links at its root), so you can replace them with a compatible modified
+  version without recompiling the app (LGPL-3.0, section 4 d) 1)). Notice and links to the sources:
+  `NOTICE-Qt-PySide6.txt`; texts: `LGPL-3.0.txt`, `GPL-3.0.txt`.
+- Third-party components compiled into Qt and PySide6 (ICU on Linux, PCRE2, HarfBuzz, libpng, FreeType and zlib
+  on Windows, Unicode data, Wayland protocols…): platform, SPDX license, copyright and text of each one in
+  `QT-THIRD-PARTY.txt`. The image plugins the app never opens (JPEG, TIFF, WebP, GIF, TGA, WBMP, ICNS) and the
+  Windows software OpenGL (`opengl32sw.dll`) are not shipped.
+- JetBrainsMono Nerd Font: SIL Open Font License 1.1.
+- Python: PSF license, with the C libraries of its distribution and the software included in CPython (libmpdec,
+  HACL*, Mersenne Twister…), in `LICENSE-Python.txt`.
+- Linux: Debian notices of the bundled system libraries (`licenses/debian/`).
+- AppImage only: its runtime (type2-runtime) contains libfuse (LGPL-2.1, with its sources and how to relink it),
+  squashfuse, zstd, zlib, mimalloc and musl: `NOTICE-AppImage-runtime.txt`.
 
-Tous ces textes sont dans le dossier `licenses/` à côté de l'exécutable, qu'ouvre Paramètres → À propos →
-Licences. Le `.deb` a en plus `/usr/share/doc/agent-burn-desktop/copyright` (licence MIT de l'app, renvoi à
-`licenses/`) ; le champ License du `.rpm` est l'expression SPDX de tout le contenu.
+All these texts are in the `licenses/` folder next to the executable, which Settings → About → Licenses opens.
+The `.deb` also has `/usr/share/doc/agent-burn-desktop/copyright` (the app's MIT license and a pointer to
+`licenses/`); the License field of the `.rpm` is the SPDX expression for everything it contains.
 
-Merci à Melvynx pour [agent-burn](https://github.com/Melvynx/agent-burn) : l'app Mac a servi de modèle, et son
-CLI fait toute la lecture des journaux, le calcul des prix et le relevé des limites.
+Thanks to Melvynx for [agent-burn](https://github.com/Melvynx/agent-burn): the Mac app was the model for this
+one, and its CLI does all the work of reading the logs, computing prices and reading the limits.

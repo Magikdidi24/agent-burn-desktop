@@ -1,8 +1,8 @@
-# Produits par build.ps1 et linux/build.sh (venv, polices Nerd Font, CLI compilé, bundles, paquets, selftests)
+# Produced by build.ps1 and linux/build.sh (venv, Nerd Font fonts, compiled CLI, bundles, packages, selftests)
 .venv/
 app/fonts/
 build/
 dist/
 __pycache__/
-# Copie laissée par scripts/agent-burn-upstream.py update
+# Copy left by scripts/agent-burn-upstream.py update
 cli.env.bak

@@ -1,7 +1,7 @@
 #!/bin/sh
-# Faux agent-burn du test : journalise l'appel puis sert les fixtures selon le mode (fichier "mode") :
-# fail/err1/err2 (échecs, stderr réels du CLI pour err1/err2), garbage, slow (bloqué), delay (1 s de plus),
-# <nom> (summary-<nom>.json) ; sinon summary-a puis summary-b. Relevé seul (QUOTA_ONLY) : quota-claude.json.
+# Fake agent-burn for the test: logs the call, then serves the fixtures by mode ("mode" file):
+# fail/err1/err2 (failures, real CLI stderr for err1/err2), garbage, slow (stuck), delay (1 s more),
+# <name> (summary-<name>.json); otherwise summary-a then summary-b. Reading alone (QUOTA_ONLY): quota-claude.json.
 d=$(dirname "$0")
 echo "$* FORCE=${AGENT_BURN_FORCE_REFRESH:-0}${AGENT_BURN_QUOTA_ONLY:+ QUOTA=$AGENT_BURN_QUOTA_ONLY}" >> "$d/calls.log"
 m=$(cat "$d/mode")
@@ -9,7 +9,7 @@ case "$m" in
     fail) exit 3 ;;
     err1) echo "WARN  Failed to load Cursor usage from the dashboard API." >&2; cat "$d/stderr-1.txt" >&2; exit 1 ;;
     err2) cat "$d/stderr-2.txt" >&2; exit 2 ;;
-    garbage) echo "pas du json"; exit 0 ;;
+    garbage) echo "not json"; exit 0 ;;
     slow) exec sleep 300 ;;
     delay) sleep 1 ;;
 esac
@@ -17,8 +17,8 @@ case "$1" in
     harness)
         if [ -n "$AGENT_BURN_QUOTA_ONLY" ]; then exec cat "$d/quota-claude.json"; fi
         if [ ! -f "$d/harness-$2.json" ]; then
-            # forme Debug de Rust : guillemets et barres obliques inverses échappés
-            printf '%s\n' 'Error: CliError("pas de fixture \"harness-'"$2"'.json\" dans C:\\fake")' >&2
+            # Rust Debug form: quotes and backslashes escaped
+            printf '%s\n' 'Error: CliError("no fixture \"harness-'"$2"'.json\" in C:\\fake")' >&2
             exit 1
         fi
         cat "$d/harness-$2.json" ;;

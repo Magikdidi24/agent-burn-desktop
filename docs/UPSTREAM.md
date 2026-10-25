@@ -1,97 +1,97 @@
-# Suivre le projet amont
+# Tracking the upstream project
 
-Agent Burn suit [Melvynx/agent-burn](https://github.com/Melvynx/agent-burn) : l'app macOS (modèle des vues) et le
-CLI Rust (moteur de données). Le CLI est épinglé dans [`cli.env`](../cli.env) par deux lignes qui changent
-toujours ensemble :
+Agent Burn follows [Melvynx/agent-burn](https://github.com/Melvynx/agent-burn): the macOS app (model for the views)
+and the Rust CLI (data engine). The CLI is pinned in [`cli.env`](../cli.env) by two lines that always change
+together:
 
 ```sh
-AB_REV=<sha complet du commit amont>
-AB_VER="agent-burn <version>"      # ce que répond agent-burn --version
+AB_REV=<full sha of the upstream commit>
+AB_VER="agent-burn <version>"      # what agent-burn --version answers
 ```
 
-`build.ps1` et `linux/build.sh` compilent ce CLI pour l'app et vérifient que `--version` répond bien `AB_VER`.
-L'amont ne publie aucun binaire Linux ni Windows : il faut compiler.
+`build.ps1` and `linux/build.sh` compile this CLI for the app and check that `--version` does answer `AB_VER`.
+Upstream publishes no Linux or Windows binaries: it has to be compiled.
 
-## L'outil `agent-burn-upstream`
+## The `agent-burn-upstream` tool
 
-Script [`scripts/agent-burn-upstream.py`](../scripts/agent-burn-upstream.py), lancé depuis la racine du dépôt
-(`scripts/agent-burn-upstream.py status`) ; ci-dessous `agent-burn-upstream`, le nom qu'il se donne. Python 3 et
-git, rien d'autre (cargo pour `update`).
+Script [`scripts/agent-burn-upstream.py`](../scripts/agent-burn-upstream.py), run from the repo root
+(`scripts/agent-burn-upstream.py status`); called `agent-burn-upstream` below, the name it gives itself. Python 3
+and git, nothing else (cargo for `update`).
 
-| Commande | Effet |
+| Command | Effect |
 |---|---|
-| `agent-burn-upstream [status] [--fetch] [--json]` | Rapport (commande par défaut) : commits `AB_REV..main` de l'amont, regroupés, nouveaux tags, fichiers de ce dépôt à revoir. |
-| `agent-burn-upstream diff FICHIER` | Diff amont d'un fichier depuis `AB_REV`, par nom (`QuotaChart.swift`) ou chemin depuis la racine de l'amont. |
-| `agent-burn-upstream update [REV\|latest]` | Compile le CLI de `REV` (tag ou sha ; `latest` = `main` de l'amont), contrôle son JSON et l'épingle dans `cli.env`. N'installe rien. |
+| `agent-burn-upstream [status] [--fetch] [--json]` | Report (default command): upstream `AB_REV..main` commits, grouped, new tags, files of this repo to review. |
+| `agent-burn-upstream diff FILE` | Upstream diff of a file since `AB_REV`, by name (`QuotaChart.swift`) or path from the upstream root. |
+| `agent-burn-upstream update [REV\|latest]` | Compiles the CLI at `REV` (tag or sha; `latest` = upstream `main`), checks its JSON and pins it in `cli.env`. Installs nothing. |
 
-- `--fetch` va avec chaque commande : il met d'abord à jour la copie locale de l'amont (réseau). Sans lui, tout
-  se lit dans la copie. Hors ligne, `--fetch` prévient (« Attention : hors ligne, rapport depuis le cache ») et
-  continue sur la copie.
-- La copie est un clone sans blobs ni checkout dans `~/.cache/agent-burn-upstream/repo`. Sans copie, la
-  commande demande `agent-burn-upstream status --fetch`.
-- Anciennes formes, toujours valides : `--fetch --json` (celle du bandeau de la barre Quickshell), `--diff FICHIER`,
+- `--fetch` goes with every command: it first updates the local copy of upstream (network). Without it,
+  everything is read from the copy. Offline, `--fetch` warns ("Warning: offline, report from the cache") and
+  carries on with the copy.
+- The copy is a clone without blobs or checkout in `~/.cache/agent-burn-upstream/repo`. Without a copy, the
+  command asks for `agent-burn-upstream status --fetch`.
+- Old forms, still valid: `--fetch --json` (the one the Quickshell bar's banner uses), `--diff FILE`,
   `--bump [REV]`.
-- Codes de sortie : 0 succès (ou déjà épinglé) ; 1 échec, fichier introuvable ou CLI incompatible (en `--json`,
-  le JSON vide porte alors `error`) ; 2 erreur d'usage (commande inconnue, `diff` sans fichier, deux commandes).
-- Variables : `AGENT_BURN_UPSTREAM_URL` (dépôt amont), `AGENT_BURN_UPSTREAM_CACHE` (copie et CLI compilé),
-  `AGENT_BURN_CLI_ENV` (`cli.env` à lire et à modifier).
-- `--json` : `{ pinned, pinnedVersion, head, headDate, ahead, tags: { cli, mac }, categories: { mac, cli, docs,
+- Exit codes: 0 success (or already pinned); 1 failure, file not found or incompatible CLI (with `--json`,
+  the empty JSON then carries `error`); 2 usage error (unknown command, `diff` without a file, two commands).
+- Variables: `AGENT_BURN_UPSTREAM_URL` (upstream repo), `AGENT_BURN_UPSTREAM_CACHE` (copy and compiled CLI),
+  `AGENT_BURN_CLI_ENV` (`cli.env` to read and modify).
+- `--json`: `{ pinned, pinnedVersion, head, headDate, ahead, tags: { cli, mac }, categories: { mac, cli, docs,
   other }, toPort, compareUrl, fetchedAt, error }`.
-- Tout texte venu de l'amont (sujets de commits, noms de fichiers, erreurs de git, diff) est débarrassé de ses
-  caractères de contrôle (remplacés par `?`) : un sujet de commit ne peut rien faire au terminal. Les tags ne
-  sont gardés que s'ils ressemblent à une version (`v1.2.3`, `macos-v…`). `diff` n'a ni couleur ni pager :
-  ajouter `| less` pour paginer.
+- Any text coming from upstream (commit subjects, file names, git errors, diff) is stripped of its control
+  characters (replaced with `?`): a commit subject cannot do anything to the terminal. Tags are kept only
+  if they look like a version (`v1.2.3`, `macos-v…`). `diff` has neither color nor pager:
+  add `| less` to page through it.
 
-Lecture du rapport texte :
+Reading the text report:
 
-- groupes : App Mac, CLI, Docs, CI/infra, Autres ;
-- `[sortie JSON → vérifier Burn.qml]` : le JSON que lit `Burn.qml` change (summary, harness, relevé, compte
-  Claude) ;
-- `[tarifs]` : les prix changent ;
-- sous un commit de l'app Mac, `Fichier.swift → fichiers de ce dépôt` ; « à évaluer » : fichier absent de la
-  table `PORT` du script, à y ajouter ; « non porté » : écarté exprès (vue du compte Cursor ; mise à jour
-  automatique) ;
-- « Fichiers du repo à revoir », puis le lien « Comparer » vers GitHub.
+- groups: Mac app, CLI, Docs, CI/infra, Other;
+- `[JSON output → check Burn.qml]`: the JSON that `Burn.qml` reads changes (summary, harness, reading, Claude
+  account);
+- `[pricing]`: prices change;
+- under a Mac app commit, `File.swift → files of this repo`; "to assess": file missing from the
+  script's `PORT` table, to add there; "not ported": left out on purpose (Cursor account view; automatic
+  update);
+- "Repo files to review", then the "Compare" link to GitHub.
 
-**Dans la barre Quickshell** (`BurnUpstream.qml`, hors de ce dépôt) : `--fetch --json` une fois par jour
-(premier essai 2 min après le chargement), et à l'ouverture du dashboard si le rapport a plus d'une heure. Une nouvelle tête amont donne une seule notification et un bandeau dans le dashboard, jusqu'à ce
-que × le masque. Boutons du bandeau : « Rapport » (le rapport texte dans kitty) et « GitHub » (comparaison).
-L'app de bureau n'a pas ce suivi.
+In the Quickshell bar (`BurnUpstream.qml`, outside this repo): `--fetch --json` once a day
+(first try 2 min after loading), and when the dashboard opens if the report is more than an hour old. A new
+upstream head gives a single notification and a banner in the dashboard, until × dismisses it. Banner buttons:
+"Report" (the text report in kitty) and "GitHub" (comparison). The desktop app does not have this tracking.
 
-## Synchroniser en 7 étapes
+## Syncing in 7 steps
 
-1. **Vérifier l'amont.** Le bandeau de la barre Quickshell le fait chaque jour. À la main, sans réseau :
-   `agent-burn-upstream status` (JSON : `agent-burn-upstream status --json`).
+1. Check upstream. The Quickshell bar's banner does it every day. By hand, without network:
+   `agent-burn-upstream status` (JSON: `agent-burn-upstream status --json`).
 
-2. **Récupérer.** `agent-burn-upstream status --fetch` met à jour la copie, puis liste les commits
-   `AB_REV..main` regroupés, les nouveaux tags, les fichiers de ce dépôt à revoir et le lien de comparaison.
-   « À jour : aucun commit amont depuis ta version. » : rien à faire.
+2. Fetch. `agent-burn-upstream status --fetch` updates the copy, then lists the grouped `AB_REV..main`
+   commits, the new tags, the files of this repo to review and the compare link. If it prints
+   "Up to date: no upstream commit since your version.", there is nothing to do.
 
-3. **Analyser.** Pour chaque fichier amont cité :
-   `agent-burn-upstream diff QuotaChart.swift` ou
+3. Analyze. For each upstream file listed:
+   `agent-burn-upstream diff QuotaChart.swift` or
    `agent-burn-upstream diff rust/crates/agent-burn/src/adapter/all/summary.rs`.
-   Avant de porter, vérifier ce qui a déjà divergé ici, depuis la racine du dépôt : `git status`, puis
-   `git log -p -- <fichier>` pour chaque fichier à revoir.
+   Before porting, check what has already diverged here, from the repo root: `git status`, then
+   `git log -p -- <file>` for each file to review.
 
-4. **Intégrer.**
-   - Porter dans les fichiers cités : QML partagé (`shared/`), app (`app/…`).
-   - Monter le CLI : `agent-burn-upstream update --fetch` (dernier `main`) ou
-     `agent-burn-upstream update v20.0.22` (tag ou sha). Voir [ce que garantit `update`](#ce-que-garantit-update).
-   - CLI incompatible : rien n'a changé. Adapter le QML en essayant le CLI compilé
-     (`AGENT_BURN_BIN=~/.cache/agent-burn-upstream/cli/bin/agent-burn`), puis relancer `update`.
-   - [Recapturer les fixtures](#recapturer-les-fixtures) avec le nouveau CLI.
-   - Commit : `git add cli.env` (ou `add -p cli.env` si `update` a signalé des modifications locales), plus les
-     fichiers portés, puis `git commit -m "agent-burn : CLI épinglé sur <sha12> (agent-burn <version>)"` (le
-     message que propose `update`).
+4. Integrate.
+   - Port into the listed files: shared QML (`shared/`), app (`app/…`).
+   - Bump the CLI: `agent-burn-upstream update --fetch` (latest `main`) or
+     `agent-burn-upstream update v20.0.22` (tag or sha). See [what `update` guarantees](#what-update-guarantees).
+   - Incompatible CLI: nothing has changed. Adapt the QML while trying the compiled CLI
+     (`AGENT_BURN_BIN=~/.cache/agent-burn-upstream/cli/bin/agent-burn`), then run `update` again.
+   - [Recapture the fixtures](#recapturing-the-fixtures) with the new CLI.
+   - Commit: `git add cli.env` (or `add -p cli.env` if `update` reported local changes), plus the
+     ported files, then `git commit -m "agent-burn: CLI pinned to <sha12> (agent-burn <version>)"` (the
+     message that `update` suggests).
 
-5. **Vérifier Claude.** Le contrôle hors ligne de `update` ne voit pas `claudeAccount`, `claudeAccountStatus`
-   (présent seulement quand la connexion a expiré), le relevé léger (`observedAt`, `window`,
-   `sessionWindow`) ni les fenêtres de `harness claude` : ils n'existent qu'en ligne. Lancer l'app depuis les
-   sources avec le CLI compilé (depuis `app/` :
-   `AGENT_BURN_BIN=~/.cache/agent-burn-upstream/cli/bin/agent-burn python -m agentburn`), puis regarder l'icône
-   (reste de la limite la plus serrée), l'onglet Claude de l'aperçu (session, semaine, limites par modèle, heure
-   du relevé) et la page Claude du dashboard (économie du forfait, répartition par type de jeton, modèles). En
-   ligne, si besoin :
+5. Check Claude. The offline check of `update` does not see `claudeAccount`, `claudeAccountStatus`
+   (present only when the sign-in has expired), the light reading (`observedAt`, `window`,
+   `sessionWindow`) or the windows of `harness claude`: they only exist online. Run the app from
+   source with the compiled CLI (from `app/`:
+   `AGENT_BURN_BIN=~/.cache/agent-burn-upstream/cli/bin/agent-burn python -m agentburn`), then look at the icon
+   (what is left of the tightest limit), the Claude tab of the popover (session, week, per-model limits, time
+   of the reading) and the Claude page of the dashboard (plan economics, breakdown by token type, models).
+   Online, if needed:
 
    ```sh
    B=~/.cache/agent-burn-upstream/cli/bin/agent-burn
@@ -99,83 +99,83 @@ L'app de bureau n'a pas ce suivi.
    AGENT_BURN_QUOTA_ONLY=1 $B harness claude --json --no-color | jq '{observedAt, window, sessionWindow}'
    ```
 
-   Ces runs en ligne peuvent renouveler le jeton et réécrire `~/.claude/.credentials.json` (comportement du
+   These online runs may refresh the token and rewrite `~/.claude/.credentials.json` (behavior of the
    CLI).
 
-6. **Vérifier Codex.** `update` contrôle déjà `harness codex` et la fenêtre Codex du summary sur une session
-   Codex synthétique : attendu « harness codex : ok (10 clés) ». Avec Codex installé :
-   `$B harness codex --value --json --no-color | jq '{plan, economics, spendMix, window}'`, puis la
-   page Codex du dashboard et ses limites dans l'aperçu. Sans Codex sur la machine, noter « non vérifié sur
-   données réelles ».
+6. Check Codex. `update` already checks `harness codex` and the Codex window of the summary on a synthetic
+   Codex session: expected "harness codex: ok (10 keys)". With Codex installed:
+   `$B harness codex --value --json --no-color | jq '{plan, economics, spendMix, window}'`, then the
+   Codex page of the dashboard and its limits in the popover. Without Codex on the machine, note "not verified
+   on real data".
 
-7. **Vérifier l'app de bureau.** Depuis `app/`, avec le Python du développement : tests
-   unitaires, suite du cœur sous le shim (normal, `BURN_TEST=corrupt`, `BURN_TEST=timeout`) et sous qs, selftest
-   (OpenGL : session imbriquée ou `xvfb-run`), tests du suivi amont et des outils de licence ; commandes dans
-   [DEVELOPMENT.md](DEVELOPMENT.md#tests). Puis `git push` : la CI
-   ([`ci.yml`](../.github/workflows/ci.yml)) recompile le CLI épinglé
-   (ses caches, CLI et chaîne Rust de l'amont, sont indexés par `AB_REV`) et reconstruit les paquets. Les
-   notices des crates (`THIRD-PARTY-NOTICES.txt`) et le champ License du `.rpm` en sont recalculés : une crate
-   dont la licence n'est pas une expression SPDX arrête le build Linux (`tools/package_license.py` la refuse).
-   La barre Quickshell ne voit ces changements qu'à sa prochaine synchronisation depuis ce dépôt.
+7. Check the desktop app. From `app/`, with the development Python: unit
+   tests, core suite under the shim (normal, `BURN_TEST=corrupt`, `BURN_TEST=timeout`) and under qs, selftest
+   (OpenGL: nested session or `xvfb-run`), upstream tracking and license tools tests; commands in
+   [DEVELOPMENT.md](DEVELOPMENT.md#tests). Then `git push`: CI
+   ([`ci.yml`](../.github/workflows/ci.yml)) recompiles the pinned CLI
+   (its caches, the CLI and the upstream Rust toolchain, are keyed on `AB_REV`) and rebuilds the packages. The
+   crate notices (`THIRD-PARTY-NOTICES.txt`) and the License field of the `.rpm` are recomputed from it: a crate
+   whose license is not an SPDX expression stops the Linux build (`tools/package_license.py` rejects it).
+   The Quickshell bar only sees these changes at its next sync from this repo.
 
-## Ce que garantit `update`
+## What `update` guarantees
 
-Dans l'ordre :
+In order:
 
-1. Résout `REV` dans la copie (`latest`, `main` ou `HEAD` = `origin/main`, jamais la branche locale du clone).
-   Même sha qu'`AB_REV` : « cli.env épingle déjà … : rien à faire. », code 0.
-2. Lit la version dans `rust/crates/agent-burn/Cargo.toml` de ce commit et refuse ce qui n'est pas une version
-   (un shell peut sourcer la ligne `AB_VER="…"` de `cli.env`).
-3. Dit si `cli.env` a des modifications non commitées (« conservées ») ou aucune.
-4. Compile dans le cache : `cargo install --locked --force --git <amont> --rev <sha> agent-burn --bin agent-burn
-   --root ~/.cache/agent-burn-upstream/cli` (environ 2 min).
-5. Contrôle le CLI compilé **hors ligne, sur un HOME synthétique** (une session Claude avec forfait Max, une
-   session Codex Plus avec limites dans ses journaux), environnement réduit à `HOME` et `PATH`, dossier courant
-   = ce HOME : ni les données ni la configuration ni les variables de l'utilisateur ne faussent le résultat.
-   - `--version` doit répondre la version attendue ;
-   - `summary` : 22 clés lues par `Burn.qml` et les vues ;
-   - `harness claude` : 13 clés (les 3 de `window` restent « non vérifiable » hors ligne) ;
-   - `harness codex` : 10 clés.
+1. Resolves `REV` in the copy (`latest`, `main` or `HEAD` = `origin/main`, never the local branch of the clone).
+   Same sha as `AB_REV`: "cli.env already pins …: nothing to do.", code 0.
+2. Reads the version in `rust/crates/agent-burn/Cargo.toml` at that commit and refuses anything that is not a
+   version (a shell may source the `AB_VER="…"` line of `cli.env`).
+3. Says whether `cli.env` has uncommitted changes ("kept") or none.
+4. Compiles into the cache: `cargo install --locked --force --git <upstream> --rev <sha> agent-burn --bin agent-burn
+   --root ~/.cache/agent-burn-upstream/cli` (about 2 min).
+5. Checks the compiled CLI offline, on a synthetic HOME (a Claude session with a Max plan, a
+   Codex Plus session with limits in its logs), environment reduced to `HOME` and `PATH`, current directory
+   = that HOME: neither the data, the configuration nor the variables of the user skew the result.
+   - `--version` must answer the expected version;
+   - `summary`: 22 keys read by `Burn.qml` and the views;
+   - `harness claude`: 13 keys (the 3 of `window` stay "not checkable" offline);
+   - `harness codex`: 10 keys.
 
-   Une clé absente rend le CLI incompatible ; une clé `null` ou une liste vide est signalée « non vérifiable »
-   sans bloquer.
-6. Seulement si tout est compatible : réécriture atomique des seules lignes `AB_REV` et `AB_VER` de `cli.env`,
-   **relu après la compilation** (une modification faite pendant les 2 min reste), avec une copie `cli.env.bak`
-   (ignorée par git) et le diff affiché.
+   A missing key makes the CLI incompatible; a `null` key or an empty list is reported as "not checkable"
+   without blocking.
+6. Only if everything is compatible: atomic rewrite of only the `AB_REV` and `AB_VER` lines of `cli.env`,
+   read again after the compilation (an edit made during those 2 min stays), with a `cli.env.bak` copy
+   (ignored by git) and the diff shown.
 
-Échec de cargo, version différente ou JSON incompatible : `cli.env` ne change pas. Dans aucun cas `update`
-n'installe le CLI (`~/.local/bin` reste intact) : il reste dans le cache, à essayer avec `AGENT_BURN_BIN`. Ces
-cas sont couverts par `scripts/test_agent_burn_upstream.py` (faux dépôt amont, faux cargo).
+Cargo failure, different version or incompatible JSON: `cli.env` does not change. In no case does `update`
+install the CLI (`~/.local/bin` stays untouched): it stays in the cache, to try with `AGENT_BURN_BIN`. These
+cases are covered by `scripts/test_agent_burn_upstream.py` (fake upstream repo, fake cargo).
 
-## Recapturer les fixtures
+## Recapturing the fixtures
 
-Les tests et le selftest servent des sorties réelles du CLI, nettoyées, depuis
-[`tests/fixtures/`](../tests/fixtures/). Il n'y a pas de script de recapture : les commandes
-sont celles de l'app.
+The tests and the selftest serve real CLI outputs, cleaned up, from
+[`tests/fixtures/`](../tests/fixtures/). There is no recapture script: the commands
+are the app's.
 
-| Fichier | Capture |
+| File | Capture |
 |---|---|
-| `summary-live.json` | `agent-burn summary --value --json --no-color`, en ligne, compte Claude présent |
-| `summary-offline.json` | la même avec `--offline` (tarifs manquants) |
+| `summary-live.json` | `agent-burn summary --value --json --no-color`, online, Claude account present |
+| `summary-offline.json` | the same with `--offline` (pricing missing) |
 | `harness-claude.json` | `agent-burn harness claude --value --json --no-color` |
 | `quota-claude-live.json` | `AGENT_BURN_QUOTA_ONLY=1 agent-burn harness claude --json --no-color` |
-| `summary-claude-signin-expired.json` | summary avec `claudeAccountStatus: "signInExpired"` (aussi sans tarifs : coût total 0) |
-| `summary-codex-stale-logs.json` | summary sur des journaux Codex de plus de 7 jours |
-| `summary-empty-home.json`, `summary-installed-no-usage.json` | summary d'un HOME vide ; d'un compte Claude sans usage |
-| `summary-quota-env-leak.json` | summary lancé avec `AGENT_BURN_QUOTA_ONLY=1` hérité (pas d'`agents[]`) |
-| `error-claude-config-dir.stderr.txt`, `error-unknown-flag.stderr.txt` | stderr d'un code 1 (`CLAUDE_CONFIG_DIR` invalide) et d'un code 2 (option inconnue) |
-| `codex/` | dossier complet pour `AGENT_BURN_FAKE_DIR` : Claude en direct et une session Codex synthétique |
+| `summary-claude-signin-expired.json` | summary with `claudeAccountStatus: "signInExpired"` (also without pricing: total cost 0) |
+| `summary-codex-stale-logs.json` | summary on Codex logs older than 7 days |
+| `summary-empty-home.json`, `summary-installed-no-usage.json` | summary of an empty HOME; of a Claude account without usage |
+| `summary-quota-env-leak.json` | summary run with an inherited `AGENT_BURN_QUOTA_ONLY=1` (no `agents[]`) |
+| `error-claude-config-dir.stderr.txt`, `error-unknown-flag.stderr.txt` | stderr of a code 1 (invalid `CLAUDE_CONFIG_DIR`) and of a code 2 (unknown option) |
+| `codex/` | full directory for `AGENT_BURN_FAKE_DIR`: live Claude and a synthetic Codex session |
 
-Règles :
+Rules:
 
-- Lancer avec `--config <fichier absent>` comme l'app ; les cas hors ligne dans un HOME factice
-  (`env -i HOME=<dossier> PATH=$PATH agent-burn … --offline`).
-- Nettoyer : ni nom, ni e-mail, ni identifiant d'organisation ou de compte. Seuls les pourcentages, horodatages,
-  montants et noms de modèles restent.
-- Caler les dates sur un même jour de capture (dernier jour du rapport) et mettre ce jour dans les deux
-  constantes qui décalent les fixtures à aujourd'hui : `fake_cli()` de `app/agentburn/__main__.py` et
-  `app/tests/burn-suite/fake/gen.py` (aujourd'hui `date(2026, 10, 23)`).
-- Le dossier de premier niveau n'a volontairement pas de `harness-codex.json` : les tests y vérifient l'échec
-  du harness Codex. `codex/` en a un.
-- Relancer ensuite tests unitaires, suite du cœur (shim et qs) et selftest, avec les deux dossiers de
-  fixtures.
+- Run with `--config <missing file>` like the app; the offline cases in a fake HOME
+  (`env -i HOME=<directory> PATH=$PATH agent-burn … --offline`).
+- Clean up: no name, no email, no organization or account id. Only percentages, timestamps,
+  amounts and model names remain.
+- Align the dates on one capture day (the last day of the report) and put that day in the two
+  constants that shift the fixtures to today: `fake_cli()` in `app/agentburn/__main__.py` and
+  `app/tests/burn-suite/fake/gen.py` (currently `date(2026, 10, 23)`).
+- The top-level directory deliberately has no `harness-codex.json`: the tests check the failure of the
+  Codex harness there. `codex/` has one.
+- Then rerun the unit tests, the core suite (shim and qs) and the selftest, with both fixture
+  directories.

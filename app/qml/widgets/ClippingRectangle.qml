@@ -2,8 +2,8 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Effects
 
-// ClippingRectangle de Quickshell.Widgets : rectangle arrondi qui découpe son contenu sur ses coins
-// (le shader propre à Quickshell remplacé par un masque MultiEffect).
+// ClippingRectangle from Quickshell.Widgets: rounded rectangle that clips its content to its corners
+// (Quickshell's own shader replaced by a MultiEffect mask).
 Rectangle {
     id: root
     default property alias content: box.data

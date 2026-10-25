@@ -1,5 +1,5 @@
-# Builds et CI : l'app et PyInstaller. Installés depuis requirements.lock (versions et sha256 de tout l'arbre,
-# Linux x86_64 et Windows x64/ARM64), à régénérer après chaque changement ici ou dans requirements.txt :
+# Builds and CI: the app and PyInstaller. Installed from requirements.lock (versions and sha256 of the whole tree,
+# Linux x86_64 and Windows x64/ARM64), to regenerate after every change here or in requirements.txt:
 #   uv pip compile --universal --python-version 3.12 --generate-hashes requirements-build.txt -o requirements.lock
 -r requirements.txt
 pyinstaller==6.22.3

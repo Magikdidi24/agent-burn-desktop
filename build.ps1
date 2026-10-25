@@ -1,42 +1,42 @@
 #Requires -Version 7.4
-# Construit Agent Burn pour Windows : CLI Rust, polices, licences, bundle PyInstaller, selftest, zip portable, installeur.
+# Builds Agent Burn for Windows: Rust CLI, fonts, licenses, PyInstaller bundle, selftest, portable zip, installer.
 #   pwsh -File build.ps1 [-Arch x64|arm64] [-SkipCli]
-# Idempotent : une étape déjà faite est sautée (venv, polices, CLI à jour) ou écrasée (bundle, zip, setup).
+# Idempotent: a step already done is skipped (venv, fonts, up-to-date CLI) or overwritten (bundle, zip, setup).
 param(
-    # Sans compilation croisée : la machine et son Python doivent être de cette architecture (PyInstaller gèle la sienne).
+    # No cross-compilation: the machine and its Python must be of this architecture (PyInstaller freezes its own).
     [ValidateSet('x64', 'arm64', IgnoreCase = $false)][string]$Arch = 'x64',
-    [switch]$SkipCli  # ne compile pas le CLI : réutilise build\cli tel quel (itérations sans Rust)
+    [switch]$SkipCli  # does not build the CLI: reuses build\cli as is (iterations without Rust)
 )
 $ErrorActionPreference = 'Stop'
-$PSNativeCommandUseErrorActionPreference = $true  # un exe natif en échec arrête le script
-$ProgressPreference = 'SilentlyContinue'          # la barre de progression ralentit les téléchargements
+$PSNativeCommandUseErrorActionPreference = $true  # a failing native exe stops the script
+$ProgressPreference = 'SilentlyContinue'          # the progress bar slows down downloads
 Set-Location $PSScriptRoot
-# Repères de durée comme linux/build.sh (« == [Ns] étape ») : chaque étape du log CI a son coût.
+# Timing markers like linux/build.sh ("== [Ns] step"): each step of the CI log shows its cost.
 $sw = [Diagnostics.Stopwatch]::StartNew()
 function Step($what) { Write-Host "`n== [$([int]$sw.Elapsed.TotalSeconds)s] $what" }
 
-# Révision du CLI : cli.env, source unique (AB_REV et AB_VER changent ensemble).
+# CLI revision: cli.env, single source (AB_REV and AB_VER change together).
 $pin = Get-Content -Raw cli.env
 $rev = [regex]::Match($pin, '(?m)^AB_REV=(\w+)').Groups[1].Value
 $abVer = [regex]::Match($pin, '(?m)^AB_VER="([^"]+)"').Groups[1].Value
-# X.Y.Z : les ressources de version Windows (exe, installeur) n'acceptent que des nombres.
+# X.Y.Z: Windows version resources (exe, installer) accept only numbers.
 $ver = [regex]::Match((Get-Content -Raw app/agentburn/__init__.py), '__version__ = "(\d+\.\d+\.\d+)"').Groups[1].Value
-if (-not ($rev -and $abVer -and $ver)) { throw 'AB_REV / AB_VER (cli.env) ou __version__ X.Y.Z (app) introuvable' }
+if (-not ($rev -and $abVer -and $ver)) { throw 'AB_REV / AB_VER (cli.env) or __version__ X.Y.Z (app) not found' }
 $target = @{ x64 = 'x86_64-pc-windows-msvc'; arm64 = 'aarch64-pc-windows-msvc' }[$Arch]
 
-Step 'Python : venv, PySide6, PyInstaller'
-# Python : venv local, dépendances du verrou haché (versions et sha256 de tout l'arbre, PyInstaller compris).
+Step 'Python: venv, PySide6, PyInstaller'
+# Python: local venv, dependencies from the hashed lock (versions and sha256 of the whole tree, PyInstaller included).
 $py = "$PSScriptRoot/.venv/Scripts/python.exe"
 if (-not (Test-Path $py)) { python -m venv .venv }
 $pyPlatform = & $py -c 'import sysconfig; print(sysconfig.get_platform())'
 if ($pyPlatform -ne @{ x64 = 'win-amd64'; arm64 = 'win-arm64' }[$Arch]) {
-    throw "Python $pyPlatform pour -Arch $Arch : supprime .venv et relance avec un Python $Arch dans le PATH"
+    throw "Python $pyPlatform for -Arch ${Arch}: delete .venv and rerun with a $Arch Python on the PATH"
 }
 & $py -m pip install -q --disable-pip-version-check --require-hashes -r app/requirements.lock
 
-Step 'Polices JetBrainsMono Nerd Font v3.4.0'
-# Polices : JetBrainsMono Nerd Font v3.4.0 comme linux/build.sh (glyphes du QML validés sur cette version), et sa
-# licence. Sommes relevées le 2026-10-25 : un fichier de release peut être remplacé après coup.
+Step 'JetBrainsMono Nerd Font v3.4.0 fonts'
+# Fonts: JetBrainsMono Nerd Font v3.4.0 like linux/build.sh (QML glyphs validated on this version), and its
+# license. Sums recorded on 2026-10-25: a release file can be replaced afterwards.
 $fonts = @{
     'JetBrainsMonoNerdFont-Regular.ttf' = '0ec29a68b539ece7078fc714cebff0c0accb2f4948f8f7963d9f5e86633b12d9'
     'JetBrainsMonoNerdFont-Bold.ttf'    = 'e82e27a7f37c9a0a13cc4e417503a149c6a0280586930772d2ebed803159c864'
@@ -49,7 +49,7 @@ if ($fonts.Keys | Where-Object { -not (Test-Sha256 "app/fonts/$_" $fonts[$_]) })
     Invoke-WebRequest https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/JetBrainsMono.zip -OutFile $zipPath
     if (-not (Test-Sha256 $zipPath '76f05ff3ace48a464a6ca57977998784ff7bdbb65a6d915d7e401cd3927c493c')) {
         Remove-Item $zipPath
-        throw 'JetBrainsMono.zip ne correspond pas à la somme sha256 attendue (release v3.4.0 modifiée ?)'
+        throw 'JetBrainsMono.zip does not match the expected sha256 sum (v3.4.0 release modified?)'
     }
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $zip = [IO.Compression.ZipFile]::OpenRead($zipPath)
@@ -59,14 +59,14 @@ if ($fonts.Keys | Where-Object { -not (Test-Sha256 "app/fonts/$_" $fonts[$_]) })
         }
     } finally { $zip.Dispose() }
     Remove-Item $zipPath
-    # Zip vérifié : un écart ici est une somme mal relevée, qui ferait retélécharger le zip à chaque build.
-    foreach ($f in $fonts.Keys) { if (-not (Test-Sha256 "app/fonts/$f" $fonts[$f])) { throw "app/fonts/$f : somme sha256 inattendue" } }
+    # Zip verified: a mismatch here is a wrongly recorded sum, which would download the zip again on every build.
+    foreach ($f in $fonts.Keys) { if (-not (Test-Sha256 "app/fonts/$f" $fonts[$f])) { throw "app/fonts/${f}: unexpected sha256 sum" } }
 }
 
 Step "CLI $abVer ($rev)"
-# CLI agent-burn : compilé depuis une copie superficielle de l'amont à la révision épinglée, seulement si elle ou la
-# cible a changé. Témoin build\cli\rev plutôt que --version : l'amont corrige le CLI sans changer sa version. La copie
-# fournit aussi sa licence et son Cargo.lock (notices tierces), gardées dans build\cli avec l'exe (cache de la CI).
+# agent-burn CLI: built from a shallow upstream copy at the pinned revision, only if the revision or the target
+# changed. Marker build\cli\rev rather than --version: upstream fixes the CLI without changing its version. The copy
+# also provides its license and its Cargo.lock (third-party notices), kept in build\cli with the exe (CI cache).
 $cli = "$PSScriptRoot/build/cli/bin/agent-burn.exe"
 $stamp = "$PSScriptRoot/build/cli/rev"
 $cliLicense = "$PSScriptRoot/build/cli/LICENSE-agent-burn.txt"
@@ -74,79 +74,80 @@ $cliNotices = "$PSScriptRoot/build/cli/THIRD-PARTY-NOTICES.txt"
 $cliFiles = $cli, $stamp, $cliLicense, $cliNotices
 if (-not $SkipCli -and -not ((Test-Path $cliFiles) -notcontains $false -and (Get-Content $stamp) -eq "$rev $target")) {
     foreach ($tool in 'git', 'cargo') {
-        if (-not (Get-Command $tool -ErrorAction Ignore)) { throw "$tool introuvable : installe Git et Rust (rustup) ou relance avec -SkipCli" }
+        if (-not (Get-Command $tool -ErrorAction Ignore)) { throw "$tool not found: install Git and Rust (rustup) or rerun with -SkipCli" }
     }
-    # Dans %TEMP% comme cargo install : chemins courts pour les compilations C (aws-lc, SQLite), quelques centaines
-    # de Mo effacés après.
+    # In %TEMP% like cargo install: short paths for the C builds (aws-lc, SQLite), a few hundred MB deleted
+    # afterwards.
     $src = Join-Path ([IO.Path]::GetTempPath()) 'agent-burn-cli'
     Remove-Item $src -Recurse -Force -ErrorAction Ignore
     git init -q $src
     git -C $src fetch -q --depth 1 https://github.com/Melvynx/agent-burn $rev
     git -C $src -c core.autocrlf=false checkout -q FETCH_HEAD
-    # aws-lc (TLS du CLI) veut NASM, absent de Windows : objets précompilés. CRT statique : l'exe, seul
-    # dans bin\ loin des DLL du bundle, tourne sans le Redistribuable Visual C++.
+    # aws-lc (the CLI's TLS) wants NASM, missing on Windows: prebuilt objects. Static CRT: the exe, alone
+    # in bin\ away from the bundle DLLs, runs without the Visual C++ Redistributable.
     $env:AWS_LC_SYS_PREBUILT_NASM = '1'
     $env:RUSTFLAGS = '-C target-feature=+crt-static'
-    # Depuis la copie : son rust-toolchain.toml (version de Rust) et son .cargo/config.toml (options SQLite) s'appliquent.
+    # From the copy: its rust-toolchain.toml (Rust version) and its .cargo/config.toml (SQLite options) apply.
     Push-Location "$src/rust"
     try {
         cargo build --release --locked -p agent-burn --bin agent-burn --target $target --target-dir "$src/target"
     } finally { Pop-Location; Remove-Item Env:AWS_LC_SYS_PREBUILT_NASM, Env:RUSTFLAGS }
     New-Item -ItemType Directory -Force (Split-Path $cli) | Out-Null
     Copy-Item "$src/target/$target/release/agent-burn.exe" $cli
-    # AB_VER doit décrire ce CLI : un écart veut dire AB_REV changé sans AB_VER.
-    if ((& $cli --version) -ne $abVer) { throw "Le CLI compilé ne répond pas « $abVer » : AB_REV et AB_VER divergent dans cli.env" }
+    # AB_VER must describe this CLI: a mismatch means AB_REV changed without AB_VER.
+    # PowerShell reads “ and ” as string quotes: backtick-escaped to print them.
+    if ((& $cli --version) -ne $abVer) { throw "The compiled CLI does not answer `“$abVer`”: AB_REV and AB_VER disagree in cli.env" }
     Copy-Item "$src/apps/agent-burn/LICENSE" $cliLicense
     & $py tools/third_party_notices.py $src $cliNotices --target $target
     Set-Content $stamp "$rev $target"
     Remove-Item $src -Recurse -Force
 }
-# Sinon agentburn.spec omet le CLI sans rien dire (bundle Linux de test) et l'app installée n'a pas de CLI.
+# Otherwise agentburn.spec silently leaves out the CLI (Linux test bundle) and the installed app has no CLI.
 if (-not ((Test-Path $cliFiles) -notcontains $false -and (Get-Content $stamp) -match " $target$")) {
-    throw "build\cli incomplet ou compilé pour une autre cible que $target : relance sans -SkipCli (Git et Rust requis)"
+    throw "build\cli incomplete or built for a target other than ${target}: rerun without -SkipCli (Git and Rust required)"
 }
 
-Step 'Licences, build-info.json, ressource de version'
-# Fichiers ajoutés à la racine du bundle (build\bundle-extra, repris par agentburn.spec) : licences et build-info.json.
-# Recréés à chaque build : rien d'un build précédent ne traîne.
+Step 'Licenses, build-info.json, version resource'
+# Files added to the bundle root (build\bundle-extra, picked up by agentburn.spec): licenses and build-info.json.
+# Recreated on every build: nothing from a previous build lingers.
 $extra = "$PSScriptRoot/build/bundle-extra"
 Remove-Item $extra -Recurse -Force -ErrorAction Ignore
 New-Item -ItemType Directory -Force "$extra/licenses" | Out-Null
 Copy-Item $cliLicense, $cliNotices, tools/licenses/LGPL-3.0.txt, tools/licenses/GPL-3.0.txt "$extra/licenses"
 Copy-Item LICENSE "$extra/licenses/LICENSE-agent-burn-desktop.txt"
 Copy-Item app/fonts/OFL.txt "$extra/licenses/LICENSE-JetBrainsMono-NerdFont.txt"
-# Qt et PySide6 (LGPL v3) : leurs wheels ne livrent que la notice commerciale ; versions lues dans le venv.
+# Qt and PySide6 (LGPL v3): their wheels ship only the commercial notice; versions read from the venv.
 $pyside, $qt, $pyVer = & $py -c 'import sys, PySide6, PySide6.QtCore as c; print(PySide6.__version__); print(c.qVersion()); print(*sys.version_info[:2], sep=chr(46))'
 (Get-Content -Raw tools/licenses/NOTICE-Qt-PySide6.txt) -replace '@QT@', $qt -replace '@PYSIDE6@', $pyside |
     Set-Content -NoNewline "$extra/licenses/NOTICE-Qt-PySide6.txt"
-# Composants tiers de Qt et logiciels incorporés à Python : relevés pour ces versions, à refaire quand elles changent.
+# Qt third-party components and software incorporated in Python: collected for these versions, redo when they change.
 $qtThird = Get-Content -Raw tools/licenses/QT-THIRD-PARTY.txt
-$pyThird = Get-Content -Raw "tools/licenses/PYTHON-$pyVer-THIRD-PARTY.txt"   # une notice par version mineure livrée
-if (-not $qtThird.StartsWith("Qt $qt et PySide6 $pyside :")) { throw "tools\licenses\QT-THIRD-PARTY.txt ne décrit pas Qt $qt et PySide6 $pyside : à refaire" }
-if (-not $pyThird.StartsWith("Python $pyVer :")) { throw "tools\licenses\PYTHON-$pyVer-THIRD-PARTY.txt ne décrit pas Python $pyVer : à refaire" }
+$pyThird = Get-Content -Raw "tools/licenses/PYTHON-$pyVer-THIRD-PARTY.txt"   # one notice per shipped minor version
+if (-not $qtThird.StartsWith("Qt $qt and PySide6 ${pyside}:")) { throw "tools\licenses\QT-THIRD-PARTY.txt does not describe Qt $qt and PySide6 ${pyside}: redo it" }
+if (-not $pyThird.StartsWith("Python ${pyVer}:")) { throw "tools\licenses\PYTHON-$pyVer-THIRD-PARTY.txt does not describe Python ${pyVer}: redo it" }
 Copy-Item tools/licenses/QT-THIRD-PARTY.txt "$extra/licenses"
-# Python et les bibliothèques C de sa distribution (OpenSSL, libffi…) : LICENSE.txt, à sa racine sous Windows, sans
-# les logiciels incorporés de Doc/license.rst, ajoutés à la suite.
+# Python and the C libraries of its distribution (OpenSSL, libffi…): LICENSE.txt, at its root on Windows, without
+# the incorporated software of Doc/license.rst, appended after it.
 $pyLicense = Get-Content -Raw (Join-Path (& $py -c 'import sys; print(sys.base_prefix)') LICENSE.txt)
 if (-not $pyLicense.Contains('Licenses and Acknowledgements for Incorporated Software')) { $pyLicense += "`n`n$pyThird" }
 $pyLicense | Set-Content -NoNewline "$extra/licenses/LICENSE-Python.txt"
 [ordered]@{
     appVersion = $ver
-    cliRev     = (Get-Content $stamp) -replace ' .*'   # celui de build\cli, même avec -SkipCli
+    cliRev     = (Get-Content $stamp) -replace ' .*'   # the one in build\cli, even with -SkipCli
     cliVersion = & $cli --version
     target     = "windows-$Arch"
     cliTarget  = $target
     builtAt    = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
 } | ConvertTo-Json | Set-Content "$extra/build-info.json"
 
-# Ressource de version de AgentBurn.exe (Propriétés → Détails, nom dans le Gestionnaire des tâches), reprise par
+# Version resource of AgentBurn.exe (Properties → Details, name in Task Manager), picked up by
 # agentburn.spec.
 $nums = ($ver -split '\.') + '0' -join ', '
 @"
 VSVersionInfo(
   ffi=FixedFileInfo(filevers=($nums), prodvers=($nums)),
   kids=[
-    StringFileInfo([StringTable('040C04B0', [
+    StringFileInfo([StringTable('040904B0', [
       StringStruct('CompanyName', 'Berthelot Samuel'),
       StringStruct('FileDescription', 'Agent Burn'),
       StringStruct('FileVersion', '$ver'),
@@ -155,53 +156,53 @@ VSVersionInfo(
       StringStruct('OriginalFilename', 'AgentBurn.exe'),
       StringStruct('ProductName', 'Agent Burn'),
       StringStruct('ProductVersion', '$ver')])]),
-    VarFileInfo([VarStruct('Translation', [0x040C, 1200])])])
+    VarFileInfo([VarStruct('Translation', [0x0409, 1200])])])
 "@ | Set-Content build/version_info.txt
 
-Step 'Bundle PyInstaller'
-# Bundle onedir → dist\AgentBurn
+Step 'PyInstaller bundle'
+# onedir bundle → dist\AgentBurn
 & $py -m PyInstaller --noconfirm agentburn.spec
-# Contrat avec agentburn.spec : sans lui, un bundle sans licences ni version partirait quand même.
+# Contract with agentburn.spec: without it, a bundle without licenses or version would still ship.
 foreach ($f in Get-ChildItem $extra -Recurse -File) {
     $rel = [IO.Path]::GetRelativePath($extra, $f.FullName)
-    if (-not (Test-Path "dist/AgentBurn/$rel")) { throw "agentburn.spec n'a pas repris build\bundle-extra : $rel absent du bundle" }
+    if (-not (Test-Path "dist/AgentBurn/$rel")) { throw "agentburn.spec did not pick up build\bundle-extra: $rel missing from the bundle" }
 }
 if ((Get-Item dist/AgentBurn/AgentBurn.exe).VersionInfo.ProductVersion -ne $ver) {
-    throw "agentburn.spec n'a pas repris build\version_info.txt : AgentBurn.exe sans version $ver"
+    throw "agentburn.spec did not pick up build\version_info.txt: AgentBurn.exe has no version $ver"
 }
 
-Step 'Selftest du bundle gelé'
-# Selftest du bundle gelé : l'exe sert lui-même les fixtures (faux CLI) et ses données vont dans build\,
-# jamais dans l'historique réel (%APPDATA%\AgentBurn).
+Step 'Frozen bundle selftest'
+# Frozen bundle selftest: the exe serves the fixtures itself (fake CLI) and its data goes to build\,
+# never to the real history (%APPDATA%\AgentBurn).
 $exe = "$PSScriptRoot/dist/AgentBurn/AgentBurn.exe"
 Remove-Item dist/selftest, build/selftest-data -Recurse -Force -ErrorAction Ignore
 New-Item -ItemType Directory -Force dist/selftest | Out-Null
 $env:AGENT_BURN_FAKE_DIR = "$PSScriptRoot/tests/fixtures"
 $env:AGENT_BURN_BIN = $exe
 $env:AGENT_BURN_DATA = "$PSScriptRoot/build/selftest-data"
-$env:QT_FORCE_STDERR_LOGGING = '1'   # exe fenêtré, sans console : Qt écrirait par OutputDebugString
+$env:QT_FORCE_STDERR_LOGGING = '1'   # windowed exe, without a console: Qt would write through OutputDebugString
 try {
-    # Start-Process : lancée directement, une app fenêtrée rend la main sans attendre sa fin. Son stderr
-    # (artefact de la CI) est la seule trace d'un plantage survenu avant selftest.json.
+    # Start-Process: launched directly, a windowed app returns without waiting for its end. Its stderr
+    # (CI artifact) is the only trace of a crash that happens before selftest.json.
     $p = Start-Process $exe -ArgumentList '--selftest', 'dist/selftest' -WorkingDirectory $PSScriptRoot `
         -RedirectStandardError dist/selftest/stderr.txt -PassThru
-    $null = $p.Handle  # sans handle gardé, ExitCode reste vide une fois le processus terminé
-    if (-not $p.WaitForExit(300000)) { $p.Kill(); throw 'Selftest bloqué depuis 5 min : processus arrêté' }
+    $null = $p.Handle  # without a kept handle, ExitCode stays empty once the process has ended
+    if (-not $p.WaitForExit(300000)) { $p.Kill(); throw 'Selftest stuck for 5 min: process killed' }
 } finally {
     Remove-Item Env:AGENT_BURN_FAKE_DIR, Env:AGENT_BURN_BIN, Env:AGENT_BURN_DATA, Env:QT_FORCE_STDERR_LOGGING
 }
-if ($p.ExitCode -ne 0) { throw "Selftest en échec (code $($p.ExitCode)) : voir dist\selftest\selftest.json et stderr.txt" }
+if ($p.ExitCode -ne 0) { throw "Selftest failed (code $($p.ExitCode)): see dist\selftest\selftest.json and stderr.txt" }
 
-# Zip portable puis installeur Inno Setup (sortie : installer.iss → OutputDir=dist). Noms attendus par la CI.
-Step 'Zip portable'
+# Portable zip, then Inno Setup installer (output: installer.iss → OutputDir=dist). Names expected by CI.
+Step 'Portable zip'
 Compress-Archive -Path dist/AgentBurn -DestinationPath "dist/AgentBurn-portable-$ver-$Arch.zip" -Force
-Step 'Installeur Inno Setup'
+Step 'Inno Setup installer'
 $iscc = (Get-Command iscc -ErrorAction Ignore).Source
 if (-not $iscc) { $iscc = 'C:/Program Files (x86)/Inno Setup 6/ISCC.exe' }
-if (-not (Test-Path $iscc)) { throw 'Inno Setup 6 introuvable (https://jrsoftware.org/isdl.php)' }
-# Pas /Q, qui tait aussi les avertissements : on en garde la version du compilateur, les avertissements et la
-# durée, sans la liste des fichiers compressés (erreurs sur stderr, code ≠ 0 fatal).
+if (-not (Test-Path $iscc)) { throw 'Inno Setup 6 not found (https://jrsoftware.org/isdl.php)' }
+# No /Q, which also hides the warnings: we keep the compiler version, the warnings and the
+# duration, without the list of compressed files (errors on stderr, code ≠ 0 fatal).
 & $iscc "/DAppVersion=$ver" "/DArch=$Arch" installer.iss |
     Where-Object { $_ -match '^(Warning: |Compiler engine version|Successful compile)' }
 
-Step "OK : dist\AgentBurn-Setup-$ver-$Arch.exe, dist\AgentBurn-portable-$ver-$Arch.zip, dist\selftest\"
+Step "OK: dist\AgentBurn-Setup-$ver-$Arch.exe, dist\AgentBurn-portable-$ver-$Arch.zip, dist\selftest\"

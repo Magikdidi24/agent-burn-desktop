@@ -1,6 +1,6 @@
 import QtQuick
 
-// IconImage de Quickshell.Widgets (même rendu) : image carrée, décodée à sa taille d'affichage.
+// IconImage from Quickshell.Widgets (same rendering): square image, decoded at its display size.
 Item {
     id: root
     property alias source: image.source

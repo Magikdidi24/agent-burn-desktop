@@ -1,6 +1,6 @@
-# Icône de la zone de notification : % restant de la limite la plus serrée sur une pastille teintée
-# selon le rythme (le pill de la barre Linux) ; clic = aperçu ou dashboard (réglage), double-clic =
-# dashboard, clic du milieu = rafraîchir, clic droit = menu avec l'état en tête.
+# System tray icon: % left of the tightest limit on a badge tinted by pace
+# (the Linux bar's pill); click = popover or dashboard (setting), double-click =
+# dashboard, middle click = refresh, right click = menu with the status on top.
 import logging
 import time
 
@@ -8,19 +8,19 @@ from PySide6.QtCore import QMetaObject, QObject, QPoint, QRect, QRectF, QSize, Q
 from PySide6.QtGui import QCursor, QFont, QGuiApplication, QIcon, QPainter, QPainterPath, QPixmap, QTransform
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
-GAP = 16   # carte ↔ barre des tâches ; = marge d'ombre (pad) de PopoverWindow, rien ne déborde dessus
-# Tailles réelles de l'icône selon l'échelle d'affichage (100 % → 16 px … 200 % → 32 px) : chacune
-# dessinée à sa taille, jamais mise à l'échelle.
+GAP = 16   # card ↔ taskbar; = PopoverWindow's shadow margin (pad), nothing spills onto it
+# Actual icon sizes by display scale (100% → 16 px … 200% → 32 px): each one
+# drawn at its size, never scaled.
 SIZES = (16, 20, 24, 28, 32, 40, 48, 64)
-LINES = 3   # lignes d'état en tête du menu (Main.menuLines)
+LINES = 3   # status lines at the top of the menu (Main.menuLines)
 log = logging.getLogger("agentburn.tray")
 
 
 def place(icon, screen, avail, card):
-    """Coin haut-gauche de la carte contre l'icône, côté barre des tâches, et ce bord (Qt.Edge)."""
+    """Top-left corner of the card against the icon, on the taskbar side, and that edge (Qt.Edge)."""
     left, top = avail.x(), avail.y()
-    right, bottom = left + avail.width(), top + avail.height()   # bords exclusifs
-    cx, cy = icon.x() + icon.width() // 2, icon.y() + icon.height() // 2   # QRect.center() arrondit en dessous
+    right, bottom = left + avail.width(), top + avail.height()   # exclusive edges
+    cx, cy = icon.x() + icon.width() // 2, icon.y() + icon.height() // 2   # QRect.center() rounds down
     if bottom < screen.y() + screen.height():
         edge = Qt.BottomEdge
     elif top > screen.y():
@@ -29,7 +29,7 @@ def place(icon, screen, avail, card):
         edge = Qt.LeftEdge
     elif right < screen.x() + screen.width():
         edge = Qt.RightEdge
-    else:   # barre masquée automatiquement : le bord le plus proche de l'icône
+    else:   # auto-hidden bar: the edge closest to the icon
         gaps = {Qt.BottomEdge: bottom - cy, Qt.TopEdge: cy - top, Qt.LeftEdge: cx - left, Qt.RightEdge: right - cx}
         edge = min(gaps, key=gaps.get)
     x = cx - card.width() // 2
@@ -48,13 +48,13 @@ def place(icon, screen, avail, card):
 
 
 def _fit(text, family, weight, rect):
-    """Contour du texte, à l'échelle de rect et centré dedans."""
+    """Outline of the text, scaled to rect and centered in it."""
     font = QFont(family)
     font.setPixelSize(64)
     font.setWeight(weight)
     path = QPainterPath()
     path.addText(0, 0, font, text)
-    path.setFillRule(Qt.WindingFill)   # contours qui se chevauchent (polices variables) : pas de trous
+    path.setFillRule(Qt.WindingFill)   # overlapping outlines (variable fonts): no holes
     b = path.boundingRect()
     s = min(rect.width() / b.width(), rect.height() / b.height())
     t = QTransform().translate(rect.center().x(), rect.center().y()).scale(s, s).translate(-b.center().x(), -b.center().y())
@@ -62,9 +62,9 @@ def _fit(text, family, weight, rect):
 
 
 def pixmap(n, remaining, tone):
-    """Icône de n px : % restant sur une pastille teintée (relevé ancien : teinte grise), lisible dès
-    16 px sur barre claire ou sombre, là où des chiffres posés sur la flamme se brouillent ; sans
-    données, flamme grise pleine (atténuée, elle se perdait sur la barre des tâches)."""
+    """Icon of n px: % left on a tinted badge (stale reading: gray tint), readable from
+    16 px on a light or dark bar, where digits drawn over the flame blur; without
+    data, a solid gray flame (dimmed, it got lost on the taskbar)."""
     pm = QPixmap(n, n)
     pm.fill(Qt.transparent)
     p = QPainter(pm)
@@ -75,9 +75,9 @@ def pixmap(n, remaining, tone):
         p.setPen(Qt.NoPen)
         p.setBrush(tone)
         p.drawRoundedRect(QRectF(0, 0, n, n), n / 5, n / 5)
-        # Segoe UI Black (le zéro pointé de JetBrains Mono se brouille à 16 px), arrondi de Math.round
-        # comme le pill ; noir ou blanc selon la luminance de la teinte (pas sa clarté HSL), seuil d'égal
-        # contraste ≈ 0,18 : le plus contrasté pour les 8 teintes de Colors.
+        # Segoe UI Black (the dotted zero of JetBrains Mono blurs at 16 px), rounded like Math.round
+        # as in the pill; black or white by the tint's luminance (not its HSL lightness), equal-contrast
+        # threshold ≈ 0.18: the highest contrast for the 8 Colors tints.
         digits = _fit(str(int(remaining + 0.5)), "Segoe UI", QFont.Black, QRectF(n * 0.08, n * 0.2, n * 0.84, n * 0.6))
         y = 0.2126 * tone.redF() ** 2.2 + 0.7152 * tone.greenF() ** 2.2 + 0.0722 * tone.blueF() ** 2.2
         p.fillPath(digits, Qt.black if y > 0.18 else Qt.white)
@@ -86,15 +86,15 @@ def pixmap(n, remaining, tone):
 
 
 def open_popover(pop, icon):
-    """Pose le popover contre l'icône (ou le pointeur : icône rangée dans le menu de débordement). Sous
-    Wayland le compositeur ignore la position demandée (et le pointeur reste à 0,0) : affiché tel quel, sa
-    hauteur bornée par l'écran où il s'affiche."""
+    """Places the popover against the icon (or the pointer: icon tucked in the overflow menu). On
+    Wayland the compositor ignores the requested position (and the pointer stays at 0,0): shown as is, its
+    height capped by the screen it shows on."""
     wayland = QGuiApplication.platformName() == "wayland"
     r = icon if icon is not None and icon.isValid() else QRect(QCursor.pos(), QSize(1, 1))
     screen = pop.screen() if wayland else QGuiApplication.screenAt(r.center()) or QGuiApplication.primaryScreen()
     avail = screen.availableGeometry()
     pad = pop.property("pad")
-    pop.setProperty("maxHeight", avail.height() - 2 * GAP)   # avant de lire la hauteur : plus haute, la carte défile
+    pop.setProperty("maxHeight", avail.height() - 2 * GAP)   # before reading the height: if taller, the card scrolls
     if wayland:
         return
     pos, edge = place(r, screen.geometry(), avail, QSize(pop.width() - 2 * pad, pop.height() - 2 * pad))
@@ -104,33 +104,33 @@ def open_popover(pop, icon):
 
 
 class Tray(QObject):
-    """Icône et son menu. Créée même sans zone de notification ; celle-ci est revérifiée toutes les 5 s : hôte
-    apparu après l'app (panneau lancé plus tard, extension AppIndicator activée), disparu ou revenu (panneau
-    redémarré). L'icône est recréée sous xcb quand un hôte apparaît."""
+    """Icon and its menu. Created even without a system tray; the tray is rechecked every 5 s: host
+    appearing after the app (panel started later, AppIndicator extension enabled), gone or back (panel
+    restarted). The icon is recreated on xcb when a host appears."""
 
     def __init__(self, root, settings, desktop):
         super().__init__()
         self.root, self.settings, self.desktop = root, settings, desktop
         self.pop = root.property("popover")
         menu = self.menu = QMenu()
-        self.lines = [menu.addAction("") for _ in range(LINES)]   # état : lignes inactives
+        self.lines = [menu.addAction("") for _ in range(LINES)]   # status: disabled lines
         for line in self.lines:
             line.setEnabled(False)
         menu.addSeparator()
-        menu.addAction("Ouvrir l'aperçu", self.popover)
-        menu.addAction("Ouvrir le dashboard", self.dashboard)
-        menu.addAction("Rafraîchir", self.refresh)
+        menu.addAction("Open popover", self.popover)
+        menu.addAction("Open dashboard", self.dashboard)
+        menu.addAction("Refresh", self.refresh)
         menu.addSeparator()
-        boot = self.boot = menu.addAction("Lancer à l'ouverture de session")
+        boot = self.boot = menu.addAction("Start at login")
         boot.setCheckable(True)
-        boot.setEnabled(settings.property("autostartAvailable"))   # dev : pas d'exe installé à lancer
+        boot.setEnabled(settings.property("autostartAvailable"))   # dev: no installed exe to launch
         boot.triggered.connect(lambda on: settings.setProperty("autostart", on))
-        menu.addAction("Paramètres…", lambda: self.open_settings("general"))
-        menu.addAction("Journaux", lambda: desktop.openLogs())
-        menu.addAction("À propos", lambda: self.open_settings("about"))
+        menu.addAction("Settings…", lambda: self.open_settings("general"))
+        menu.addAction("Logs", lambda: desktop.openLogs())
+        menu.addAction("About", lambda: self.open_settings("about"))
         menu.addSeparator()
-        menu.addAction("Quitter", QApplication.quit)
-        # Coche relue à l'ouverture (l'installeur ou le bureau a pu la changer) ; lignes tenues à jour.
+        menu.addAction("Quit", QApplication.quit)
+        # Check mark reread on opening (the installer or the desktop may have changed it); lines kept up to date.
         menu.aboutToShow.connect(lambda: boot.setChecked(settings.property("autostart")))
         root.menuLinesChanged.connect(self.show_lines)
         self.show_lines()
@@ -138,7 +138,7 @@ class Tray(QObject):
         for name in ("remainingChanged", "toneChanged"):
             getattr(root, name).connect(self.paint)
         root.tooltipChanged.connect(self.tip)
-        # Reposé quand sa hauteur change, ou son écran (Wayland : celui choisi par le compositeur).
+        # Placed again when its height or its screen changes (Wayland: the one chosen by the compositor).
         follow = lambda *_: self.pop.isVisible() and open_popover(self.pop, self.icon.geometry())  # noqa: E731
         self.pop.heightChanged.connect(follow)
         self.pop.screenChanged.connect(follow)
@@ -150,8 +150,8 @@ class Tray(QObject):
         self.timer.start()
 
     def dock(self):
-        """(Re)crée l'icône : sous xcb, une icône créée sans zone de notification reste sur XEmbed et ne
-        s'enregistre jamais auprès de l'hôte SNI apparu ensuite."""
+        """(Re)creates the icon: on xcb, an icon created without a system tray stays on XEmbed and never
+        registers with the SNI host that appears later."""
         if self.icon:
             self.icon.hide()
             self.icon.deleteLater()
@@ -166,11 +166,11 @@ class Tray(QObject):
         available = QSystemTrayIcon.isSystemTrayAvailable()
         if available == self.docked:
             return
-        log.info("zone de notification %s", "disponible" if available else "disparue")
-        if available and QGuiApplication.platformName() == "xcb":   # Wayland : réenregistrée seule, rien à refaire
+        log.info("system tray %s", "available" if available else "gone")
+        if available and QGuiApplication.platformName() == "xcb":   # Wayland: re-registered by itself, nothing to redo
             self.dock()
         self.docked = available
-        self.desktop.setTrayAvailable(available)   # absente : fermer la dernière fenêtre quitte l'app
+        self.desktop.setTrayAvailable(available)   # missing: closing the last window quits the app
 
     def paint(self):
         icon = QIcon()
@@ -189,10 +189,10 @@ class Tray(QObject):
 
     def clicked(self, reason):
         R = QSystemTrayIcon.ActivationReason
-        log.debug("icône : %s", reason.name)
+        log.debug("icon: %s", reason.name)
         if reason == R.Trigger:
             self.dashboard() if self.settings.property("trayClick") == "dashboard" else self.popover()
-        elif reason == R.DoubleClick:   # Windows : le 1er clic a déjà fait son effet
+        elif reason == R.DoubleClick:   # Windows: the 1st click already took effect
             self.dashboard()
         elif reason == R.MiddleClick:
             self.refresh()
@@ -200,7 +200,7 @@ class Tray(QObject):
     def popover(self):
         if self.pop.isVisible():
             QMetaObject.invokeMethod(self.pop, "dismiss")
-        # Ce clic vient de fermer le popover (perte du focus) : il ne le rouvre pas.
+        # This click just closed the popover (focus loss): it does not reopen it.
         elif time.time() * 1000 - self.pop.property("closedAt") > 400:
             open_popover(self.pop, self.icon.geometry())
             QMetaObject.invokeMethod(self.pop, "open")

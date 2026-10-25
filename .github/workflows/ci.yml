@@ -1,13 +1,12 @@
-# App de bureau Agent Burn (Windows + Linux) : tests, paquets Linux essayés sur 7 distros, installeur et zip
-# Windows, brouillon de release sur un tag desktop-v*. Caches, paquets gardés 30 jours (7 pour les journaux), runs
-# dépassés annulés.
-name: Agent Burn (bureau)
+# Agent Burn desktop app (Windows + Linux): tests, Linux packages tried on 7 distros, Windows installer and zip,
+# draft release on a desktop-v* tag. Caches, packages kept 30 days (7 for logs), superseded runs canceled.
+name: Agent Burn (desktop)
 
 on:
   push:
     branches: ['**']
-    tags: ['desktop-v*']   # chemins non évalués pour un tag : il lance tout, release comprise
-    paths-ignore:   # docs seules : rien à construire
+    tags: ['desktop-v*']   # paths not evaluated for a tag: it runs everything, release included
+    paths-ignore:   # docs only: nothing to build
       - '**/*.md'
       - 'docs/**'
   pull_request:
@@ -17,15 +16,15 @@ on:
   workflow_dispatch:
     inputs:
       arm64:
-        description: Construire aussi Windows ARM64 (expérimental)
+        description: Also build Windows ARM64 (experimental)
         type: boolean
         default: false
 
 permissions:
   contents: read
 
-# Par PR, sinon par branche ou tag : un nouveau push annule le run en cours. Pas de github.head_ref : la PR d'un
-# fork depuis une branche « main » (ou « desktop-v… ») annulerait le run de celle du dépôt.
+# Per PR, otherwise per branch or tag: a new push cancels the run in progress. No github.head_ref: a PR from a
+# fork's "main" (or "desktop-v…") branch would cancel the run of the repo's branch of the same name.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -35,7 +34,7 @@ defaults:
     shell: bash
 
 env:
-  PIP_DISABLE_PIP_VERSION_CHECK: '1'   # pas d'avis « nouvelle version de pip » dans les logs
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'   # no "new pip version" notice in the logs
 
 jobs:
   test:
@@ -44,7 +43,7 @@ jobs:
     timeout-minutes: 15
     env:
       QT_QPA_PLATFORM: offscreen
-      # Plateforme offscreen sans zone de notification : avertissements de connexion internes à Qt, du bruit ici.
+      # Offscreen platform without a system tray: Qt-internal connection warnings, noise here.
       QT_LOGGING_RULES: qt.core.qobject.connect=false
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -57,8 +56,8 @@ jobs:
           cache: pip
           cache-dependency-path: app/requirements.lock
 
-      # Le selftest rend avec OpenGL même hors écran : Xvfb + Mesa (llvmpipe) le lui fournissent.
-      - name: Bibliothèques Qt, Xvfb et Mesa
+      # The selftest renders with OpenGL even offscreen: Xvfb + Mesa (llvmpipe) provide it.
+      - name: Qt libraries, Xvfb and Mesa
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq --no-install-recommends \
@@ -67,32 +66,32 @@ jobs:
             libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1 \
             xvfb xauth
 
-      # Verrou haché (versions et sha256 de tout l'arbre) : celui des builds.
-      - name: Dépendances Python
+      # Hashed lock (versions and sha256 of the whole tree): the one the builds use.
+      - name: Python dependencies
         run: python -m pip install --require-hashes -r app/requirements.lock
 
-      - name: Tests unitaires
+      - name: Unit tests
         working-directory: app
         run: dbus-run-session -- python -X faulthandler -m unittest discover -s tests -v
 
-      # Générateur des notices des crates du CLI, livrées dans chaque paquet.
-      - name: Outils de licence
+      # Generator of the CLI crate notices, shipped in every package.
+      - name: License tools
         run: python -m unittest discover -s tools -v
 
-      - name: Suite Burn.qml (shim)
+      - name: Burn.qml suite (shim)
         working-directory: app
         run: dbus-run-session -- python tests/run_burn_suite.py
 
-      - name: 'Suite Burn.qml : fichiers persistés corrompus'
+      - name: 'Burn.qml suite: corrupted persisted files'
         working-directory: app
         run: BURN_TEST=corrupt dbus-run-session -- python tests/run_burn_suite.py
 
-      # La suite abaisse le délai du CLI de Burn.qml (cliTimeoutMs, 120 s dans l'app) à 10 s : ~20 s d'attente.
-      - name: 'Suite Burn.qml : CLI bloqué'
+      # The suite lowers the Burn.qml CLI timeout (cliTimeoutMs, 120 s in the app) to 10 s: ~20 s of waiting.
+      - name: 'Burn.qml suite: stuck CLI'
         working-directory: app
         run: BURN_TEST=timeout dbus-run-session -- python tests/run_burn_suite.py
 
-      - name: Suivi amont
+      - name: Upstream tracking
         run: python3 -I scripts/test_agent_burn_upstream.py
 
       - name: Selftest (Xvfb, fixtures)
@@ -111,15 +110,15 @@ jobs:
           retention-days: 7
 
   linux:
-    name: Linux (paquets)
+    name: Linux (packages)
     needs: test
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     container:
-      # Épinglée par empreinte (index multi-arch), comme dans linux/build-local.sh : elle produit les paquets.
+      # Pinned by digest (multi-arch index), as in linux/build-local.sh: it produces the packages.
       image: docker.io/library/python:3.12-slim-bookworm@sha256:6a0e06f5ba0b373d051aabd3fffb9b873f27f9a2a3a14bcbe37dee6f0e3bbc70
     env:
-      # Une seule liste pour restaurer et sauvegarder : elle entre dans la version du cache.
+      # A single list to restore and save: it is part of the cache version.
       CLI_CACHE: |
         ~/.cargo/registry/index/
         ~/.cargo/registry/cache/
@@ -130,11 +129,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Révision du CLI (cli.env)
+      - name: CLI revision (cli.env)
         id: rev
         run: |
           rev=$(sed -nE 's/^AB_REV=([0-9a-f]+).*/\1/p' cli.env)
-          echo "rev=${rev:?AB_REV introuvable dans cli.env}" >> "$GITHUB_OUTPUT"
+          echo "rev=${rev:?AB_REV not found in cli.env}" >> "$GITHUB_OUTPUT"
 
       - id: cli
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
@@ -143,77 +142,77 @@ jobs:
           key: agent-burn-cli-linux-x64-${{ steps.rev.outputs.rev }}
           restore-keys: agent-burn-cli-linux-x64-
 
-      # Polices extraites (app/fonts, ignoré par git) : build.sh revérifie leurs sha256 et retélécharge au moindre écart.
+      # Extracted fonts (app/fonts, ignored by git): build.sh rechecks their sha256 and downloads again on any mismatch.
       - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: app/fonts
-          key: fonts-jetbrainsmono-nf-v3.4.0   # à changer avec la version des polices de build.sh et build.ps1
+          key: fonts-jetbrainsmono-nf-v3.4.0   # change it along with the font version in build.sh and build.ps1
 
-      - name: 'Build : bundle, AppImage, .deb, .rpm, archive'
+      - name: 'Build: bundle, AppImage, .deb, .rpm, archive'
         env:
           CLI_HIT: ${{ steps.cli.outputs.cache-hit }}
-          # build-info.json d'une PR : son commit de tête, pas le commit de fusion de GITHUB_SHA (non modifiable).
+          # build-info.json of a PR: its head commit, not the merge commit in GITHUB_SHA (read-only).
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          # Restauré par restore-keys (CLI d'une autre révision) ou tag de release (CLI toujours compilé depuis les
-          # sources, jamais repris d'un cache) : seul le registre cargo resservira.
+          # Restored by restore-keys (CLI of another revision) or release tag (CLI always built from source,
+          # never taken from a cache): only the cargo registry will be reused.
           if [ "$CLI_HIT" = true ] && [[ "$GITHUB_REF" != refs/tags/* ]]; then export SKIP_CLI=1; else rm -rf build/cli-linux; fi
           bash linux/build.sh
 
-      # Dès que le CLI est compilé, même si la suite échoue : le prochain essai ne le recompile pas.
+      # As soon as the CLI is built, even if the rest fails: the next attempt does not rebuild it.
       - uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         if: ${{ !cancelled() && steps.cli.outputs.cache-hit != 'true' && hashFiles('build/cli-linux/**/agent-burn') != '' }}
         with:
           path: ${{ env.CLI_CACHE }}
           key: ${{ steps.cli.outputs.cache-primary-key }}
 
-      # Aussi en échec : dist/linux/selftest/ dit pourquoi.
+      # Also on failure: dist/linux/selftest/ says why.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ !cancelled() }}
         with:
           name: agent-burn-desktop-linux
           path: dist/linux/
           if-no-files-found: error
-          compression-level: 0   # .deb, .rpm, AppImage et .tar.gz déjà compressés
-          retention-days: 30     # en attendant la première release, seul endroit où trouver les paquets (README)
+          compression-level: 0   # .deb, .rpm, AppImage and .tar.gz already compressed
+          retention-days: 30     # between releases, the only place to get the packages (README)
 
-      # Suivi amont : le contrôle qui demande le vrai CLI (~/.local/bin/agent-burn), sauté dans « Tests », tourne ici
-      # avec celui de ce build.
-      - name: Suivi amont avec le vrai CLI
+      # Upstream tracking: the check that needs the real CLI (~/.local/bin/agent-burn), skipped in "Tests", runs here
+      # with the CLI from this build.
+      - name: Upstream tracking with the real CLI
         run: |
           mkdir -p ~/.local/bin && cp build/cli-linux/bin/agent-burn ~/.local/bin/
           python3 -I scripts/test_agent_burn_upstream.py Upstream.test_synthetic_home_fills_the_keys_with_the_real_cli
 
   linux-smoke:
-    name: Paquets sur ${{ matrix.image }}
+    name: Packages on ${{ matrix.image }}
     needs: linux
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        # Étiquettes, pas d'empreinte : ces images ne produisent rien, elles essaient les paquets sur des distros à jour.
+        # Tags, not digests: these images produce nothing, they try the packages on up-to-date distros.
         image: [ubuntu:22.04, ubuntu:24.04, debian:12, debian:13, fedora:44, archlinux:latest, opensuse/tumbleweed]
     container:
       image: ${{ matrix.image }}
     steps:
-      # Sans git dans l'image : checkout par l'API (archive), suffisant pour smoke.sh.
+      # No git in the image: checkout through the API (archive), enough for smoke.sh.
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
 
-      # Chemin relatif à l'espace de travail : dans un job « container », ${{ runner.temp }} serait le chemin de
-      # l'hôte et $RUNNER_TEMP celui du conteneur.
+      # Path relative to the workspace: in a "container" job, ${{ runner.temp }} would be the host path and
+      # $RUNNER_TEMP the container path.
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: agent-burn-desktop-linux
           path: dist-in
 
-      # Un artefact perd le bit exécutable : smoke.sh rend exécutable sa copie de l'AppImage (Arch).
-      - name: Installation et selftest
+      # An artifact loses the executable bit: smoke.sh makes its copy of the AppImage executable (Arch).
+      - name: Installation and selftest
         run: bash linux/smoke.sh "$PWD/dist-in"
 
-      # Journaux d'installation, de selftest et de désinstallation de smoke.sh (dist-in/smoke-<distro>/).
+      # Installation, selftest and uninstallation logs from smoke.sh (dist-in/smoke-<distro>/).
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
@@ -222,7 +221,7 @@ jobs:
           retention-days: 7
 
   windows:
-    name: ${{ matrix.arch == 'arm64' && 'Windows ARM64 (expérimental)' || 'Windows x64' }}
+    name: ${{ matrix.arch == 'arm64' && 'Windows ARM64 (experimental)' || 'Windows x64' }}
     needs: test
     runs-on: ${{ matrix.arch == 'arm64' && 'windows-11-arm' || 'windows-2025' }}
     timeout-minutes: 45
@@ -230,7 +229,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # ARM64 seulement à la demande (workflow_dispatch, case arm64) ; son échec ne fait pas échouer le run.
+        # ARM64 only on request (workflow_dispatch, arm64 checkbox); its failure does not fail the run.
         arch: ${{ fromJSON(inputs.arm64 && '["x64", "arm64"]' || '["x64"]') }}
     defaults:
       run:
@@ -249,34 +248,33 @@ jobs:
 
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          # 3.13 : python.org ne publie plus de binaires Windows de 3.12 (sources seules), son OpenSSL ou sa SQLite
-          # ne seraient plus corrigés. Linux garde 3.12 (image de build).
+          # 3.13: python.org no longer publishes Windows binaries for 3.12 (source only), its OpenSSL or SQLite
+          # would no longer get fixes. Linux keeps 3.12 (build image).
           python-version: '3.13'
           architecture: ${{ matrix.arch }}
           cache: pip
           cache-dependency-path: app/requirements.lock
 
-      # Dans le venv de build.ps1 (.venv) : les tests voient l'environnement du build, que build.ps1 ne fait que
-      # revérifier.
-      - name: Dépendances Python
+      # In the build.ps1 venv (.venv): the tests see the build environment, which build.ps1 only rechecks.
+      - name: Python dependencies
         run: |
           python -m venv .venv
           ./.venv/Scripts/python.exe -m pip install --require-hashes -r app/requirements.lock
 
-      # Sur un vrai Windows : winreg, ctypes et chemins Windows ne sont pas simulés. UTF-8 dans ce step seulement
-      # (sinon cp1252, et les messages en français arrivent abîmés) : build.ps1 et le selftest restent en cp1252.
-      - name: Tests unitaires
+      # On a real Windows: winreg, ctypes and Windows paths are not simulated. UTF-8 in this step only
+      # (otherwise cp1252, and non-ASCII messages arrive garbled): build.ps1 and the selftest stay in cp1252.
+      - name: Unit tests
         working-directory: app
-        timeout-minutes: 5   # ~20 s : une fenêtre Qt bloquée ne tient pas le job 45 min
+        timeout-minutes: 5   # ~20 s: a stuck Qt window does not hold the job for 45 min
         env:
           PYTHONIOENCODING: utf-8
         run: ../.venv/Scripts/python.exe -X faulthandler -m unittest discover -s tests -v
 
-      - name: Révision du CLI (cli.env)
+      - name: CLI revision (cli.env)
         id: rev
         run: |
           $rev = [regex]::Match((Get-Content -Raw cli.env), '(?m)^AB_REV=(\w+)').Groups[1].Value
-          if (-not $rev) { throw 'AB_REV introuvable dans cli.env' }
+          if (-not $rev) { throw 'AB_REV not found in cli.env' }
           "rev=$rev" >> $env:GITHUB_OUTPUT
 
       - id: cli
@@ -286,37 +284,37 @@ jobs:
           key: agent-burn-cli-windows-${{ matrix.arch }}-${{ steps.rev.outputs.rev }}
           restore-keys: agent-burn-cli-windows-${{ matrix.arch }}-
 
-      # Comme sous Linux : build.ps1 revérifie les sha256 (zip de 129 Mo sinon téléchargé à chaque run).
+      # As on Linux: build.ps1 rechecks the sha256 sums (otherwise a 129 MB zip downloaded on every run).
       - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: app/fonts
           key: fonts-jetbrainsmono-nf-v3.4.0
 
-      - name: Inno Setup (si absent de l'image)
+      - name: Inno Setup (if missing from the image)
         run: |
           if (-not (Test-Path 'C:/Program Files (x86)/Inno Setup 6/ISCC.exe')) { choco install innosetup --version=6.7.1 -y --no-progress }
 
-      - name: 'Build : CLI, bundle, selftest, zip, installeur'
+      - name: 'Build: CLI, bundle, selftest, zip, installer'
         id: build
         env:
           CLI_HIT: ${{ steps.cli.outputs.cache-hit }}
         run: |
           if ($env:CLI_HIT -eq 'true' -and $env:GITHUB_REF -notlike 'refs/tags/*') { pwsh -File build.ps1 -Arch $env:ARCH -SkipCli }
           else {
-              # Restauré par restore-keys (CLI d'une autre révision) ou tag de release (CLI toujours compilé depuis
-              # les sources) : seul le registre cargo resservira.
+              # Restored by restore-keys (CLI of another revision) or release tag (CLI always built from
+              # source): only the cargo registry will be reused.
               Remove-Item build/cli -Recurse -Force -ErrorAction Ignore
               pwsh -File build.ps1 -Arch $env:ARCH
           }
 
-      # Dès que le CLI est compilé, même si la suite échoue : le prochain essai ne le recompile pas.
+      # As soon as the CLI is built, even if the rest fails: the next attempt does not rebuild it.
       - uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         if: ${{ !cancelled() && steps.cli.outputs.cache-hit != 'true' && hashFiles('build/cli/**/agent-burn.exe') != '' }}
         with:
           path: ${{ env.CLI_CACHE }}
           key: ${{ steps.cli.outputs.cache-primary-key }}
 
-      # Avant smoke.ps1 : en cas d'échec, l'installeur reste téléchargeable pour l'essayer à la main.
+      # Before smoke.ps1: on failure, the installer stays downloadable to try it by hand.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: agent-burn-desktop-windows-${{ matrix.arch }}
@@ -324,19 +322,19 @@ jobs:
             dist/AgentBurn-Setup-*-${{ matrix.arch }}.exe
             dist/AgentBurn-portable-*-${{ matrix.arch }}.zip
           if-no-files-found: error
-          compression-level: 0   # installeur (LZMA) et zip déjà compressés
-          retention-days: 30     # comme les paquets Linux
+          compression-level: 0   # installer (LZMA) and zip already compressed
+          retention-days: 30     # like the Linux packages
 
-      - name: Installation, lancement, désinstallation
+      - name: Installation, launch, uninstallation
         run: |
           $setup = (Resolve-Path "dist/AgentBurn-Setup-*-$env:ARCH.exe").Path
           $zip = (Resolve-Path "dist/AgentBurn-portable-*-$env:ARCH.zip").Path
           pwsh -File windows/smoke.ps1 -Setup $setup -Portable $zip
 
-      # dist/smoke/ de smoke.ps1 : journaux d'installation et de désinstallation, selftests de l'exe installé et du
-      # zip ; sans la copie extraite du zip (~170 Mo).
+      # dist/smoke/ from smoke.ps1: installation and uninstallation logs, selftests of the installed exe and of the
+      # zip; without the extracted copy of the zip (~170 MB).
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ !cancelled() && steps.build.outcome != 'skipped' }}   # rien à déposer sans build
+        if: ${{ !cancelled() && steps.build.outcome != 'skipped' }}   # nothing to upload without a build
         with:
           name: selftest-windows-${{ matrix.arch }}
           path: |
@@ -346,7 +344,7 @@ jobs:
           retention-days: 7
 
   release:
-    name: Release (brouillon)
+    name: Release (draft)
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/desktop-v')
     needs: [linux, linux-smoke, windows]
     runs-on: ubuntu-24.04
@@ -359,20 +357,20 @@ jobs:
           pattern: agent-burn-desktop-*
           path: dl
 
-      # Paquets seulement (ni selftest ni SHA256SUMS partiel du build Linux) ; une somme pour tous.
-      - name: SHA256SUMS et brouillon de release
+      # Packages only (neither selftest nor the partial SHA256SUMS of the Linux build); one checksum file for all.
+      - name: SHA256SUMS and draft release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Paquets nommés d'après __version__ : un tag d'une autre version donnerait une release au titre faux.
+          # Packages named after __version__: a tag for another version would give a release with a wrong title.
           v=${GITHUB_REF_NAME#desktop-v}
           [ -f "dl/agent-burn-desktop-linux/agent-burn-desktop_${v}_amd64.deb" ] &&
             [ -f "dl/agent-burn-desktop-windows-x64/AgentBurn-Setup-$v-x64.exe" ] ||
-            { echo "::error::tag $GITHUB_REF_NAME : pas de paquets $v (__version__ de l'app différente ?)"; exit 1; }
+            { echo "::error::tag $GITHUB_REF_NAME: no $v packages (app __version__ differs?)"; exit 1; }
           mkdir release
           cp dl/agent-burn-desktop-linux/*.{tar.gz,AppImage,deb,rpm} dl/agent-burn-desktop-windows-x64/*.{exe,zip} release/
           (cd release && sha256sum -- * > SHA256SUMS && cat SHA256SUMS)
           gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
-            --title "Agent Burn $v (app de bureau)" \
-            --notes "Brouillon créé par la CI : $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. Vérification : sha256sum -c --ignore-missing SHA256SUMS" \
+            --title "Agent Burn $v" \
+            --notes "Draft created by CI: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. Verification: sha256sum -c --ignore-missing SHA256SUMS" \
             -- release/*

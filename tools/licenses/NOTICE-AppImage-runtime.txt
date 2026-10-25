@@ -1,30 +1,30 @@
-Runtime AppImage type2-runtime 20251108 (commit dd6cebe) : le programme placé en tête du fichier .AppImage, qui
-monte ou extrait l'image squashfs de l'app au lancement. Binaire statique publié par le projet AppImage, livré sans
-modification : https://github.com/AppImage/type2-runtime/releases/tag/20251108
+AppImage runtime type2-runtime 20251108 (commit dd6cebe): the program at the start of the .AppImage file, which
+mounts or extracts the app's squashfs image at launch. Static binary published by the AppImage project, shipped
+unmodified: https://github.com/AppImage/type2-runtime/releases/tag/20251108
 
-Composants liés dans ce runtime :
-  type2-runtime : MIT (probonopd et contributeurs AppImage)
-  libfuse 3.15.0, bibliothèque (lib/ et include/), avec le correctif patches/libfuse/mount.c.diff du runtime :
+Components linked into this runtime:
+  type2-runtime: MIT (probonopd and AppImage contributors)
+  libfuse 3.15.0, library (lib/ and include/), with the runtime's patches/libfuse/mount.c.diff patch:
     LGPL-2.1-only
-  squashfuse 0.5.2 : BSD-2-Clause
-  zstd 1.5.6 : BSD-3-Clause (au choix avec GPL-2.0-only)
-  zlib 1.3.1 : Zlib
-  mimalloc (paquet d'Alpine 3.21) : MIT
-  musl libc (paquet d'Alpine 3.21) : MIT
+  squashfuse 0.5.2: BSD-2-Clause
+  zstd 1.5.6: BSD-3-Clause (or GPL-2.0-only, at your choice)
+  zlib 1.3.1: Zlib
+  mimalloc (Alpine 3.21 package): MIT
+  musl libc (Alpine 3.21 package): MIT
 
-Sources correspondantes : https://github.com/AppImage/type2-runtime/tree/20251108 (src/runtime/runtime.c et les
-scripts de build, qui téléchargent libfuse et squashfuse épinglés par somme sha256, appliquent le correctif et
-prennent le reste dans Alpine 3.21).
-LGPL-2.1, section 6 : pour lier le runtime à une libfuse modifiée, le recompiler avec ces scripts, extraire l'app
-(« agent-burn-desktop-<version>-x86_64.AppImage --appimage-extract ») puis refaire l'AppImage avec ce runtime
-(« appimagetool --runtime-file <runtime> squashfs-root »).
-
-================================================================================
-Textes de licence
-================================================================================
+Corresponding sources: https://github.com/AppImage/type2-runtime/tree/20251108 (src/runtime/runtime.c and the
+build scripts, which download libfuse and squashfuse pinned by sha256 sum, apply the patch and
+take the rest from Alpine 3.21).
+LGPL-2.1, section 6: to link the runtime against a modified libfuse, rebuild it with these scripts, extract the app
+(“agent-burn-desktop-<version>-x86_64.AppImage --appimage-extract”) then rebuild the AppImage with this runtime
+(“appimagetool --runtime-file <runtime> squashfs-root”).
 
 ================================================================================
-Pour : type2-runtime
+License texts
+================================================================================
+
+================================================================================
+For: type2-runtime
 --------------------------------------------------------------------------------
 MIT License
 
@@ -64,7 +64,7 @@ the following terms:
   https://zlib.net/zlib_license.html
 
 ================================================================================
-Pour : libfuse 3.15.0 (répartition des licences)
+For: libfuse 3.15.0 (license breakdown)
 --------------------------------------------------------------------------------
 The following files may be used under the terms of the GNU Lesser
 General Public License, version 2.1 ("LGPL"):
@@ -81,7 +81,7 @@ Public License, version 2 ("GPL"). The full text of this license can
 be found in the GPL2.txt file.
 
 ================================================================================
-Pour : libfuse 3.15.0 (LGPL-2.1)
+For: libfuse 3.15.0 (LGPL-2.1)
 --------------------------------------------------------------------------------
 GNU LESSER GENERAL PUBLIC LICENSE
                        Version 2.1, February 1999
@@ -587,7 +587,7 @@ necessary.  Here is a sample; alter the names:
 That's all there is to it!
 
 ================================================================================
-Pour : squashfuse 0.5.2
+For: squashfuse 0.5.2
 --------------------------------------------------------------------------------
 The squashfuse distribution as a whole is copyright Dave
 Vasilevsky and is subject to the copyright notice reproduced at
@@ -622,7 +622,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ================================================================================
-Pour : zstd 1.5.6
+For: zstd 1.5.6
 --------------------------------------------------------------------------------
 BSD License
 
@@ -656,7 +656,7 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ================================================================================
-Pour : zlib 1.3.1
+For: zlib 1.3.1
 --------------------------------------------------------------------------------
 Copyright notice:
 
@@ -682,7 +682,7 @@ Copyright notice:
   jloup@gzip.org          madler@alumni.caltech.edu
 
 ================================================================================
-Pour : mimalloc
+For: mimalloc
 --------------------------------------------------------------------------------
 MIT License
 
@@ -707,7 +707,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ================================================================================
-Pour : musl libc
+For: musl libc
 --------------------------------------------------------------------------------
 musl as a whole is licensed under the following standard MIT license:
 

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Build Linux sur un poste de dev : linux/build.sh dans la même image que la CI, avec podman (sans root).
-#   linux/build-local.sh          SKIP_CLI=1 … : réutilise build/cli-linux
-# Caches cargo, rustup et pip gardés d'un build à l'autre dans AB_CACHE : un volume podman
-# (agent-burn-build-cache par défaut) ou un dossier absolu. Sorties : dist/linux/.
+# Linux build on a dev workstation: linux/build.sh in the same image as CI, with podman (rootless).
+#   linux/build-local.sh          SKIP_CLI=1 …: reuses build/cli-linux
+# cargo, rustup and pip caches kept from one build to the next in AB_CACHE: a podman volume
+# (agent-burn-build-cache by default) or an absolute directory. Outputs: dist/linux/.
 set -euo pipefail
 REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-# label=disable : sous SELinux (Fedora), le conteneur ne lirait pas le dépôt monté sans réétiqueter ses fichiers.
-# Image épinglée par empreinte, la même que la CI (.github/workflows/ci.yml).
-# GITHUB_SHA : commit lu ici, build.sh s'y replie ; dans un worktree, le .git monté pointe hors du conteneur.
+# label=disable: under SELinux (Fedora), the container could not read the mounted repo without relabeling its files.
+# Image pinned by digest, the same as CI (.github/workflows/ci.yml).
+# GITHUB_SHA: commit read here, build.sh falls back to it; in a worktree, the mounted .git points outside the container.
 exec podman run --rm --pull=missing --security-opt label=disable \
     -v "$REPO:/src" -v "${AB_CACHE:-agent-burn-build-cache}:/cache" \
     -e CARGO_HOME=/cache/cargo -e RUSTUP_HOME=/cache/rustup -e PIP_CACHE_DIR=/cache/pip -e SKIP_CLI="${SKIP_CLI:-}" \

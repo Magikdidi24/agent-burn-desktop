@@ -1,6 +1,6 @@
-# --selftest DIR : rendu de l'icône, du popover, du dashboard et des réglages avec les données du CLI (vrai
-# ou faux) ; selftest.json liste erreurs et avertissements QML, captures ratées et dernière erreur du CLI.
-# Code 0 : tout propre, chargé et capturé.
+# --selftest DIR: renders the icon, the popover, the dashboard and the settings with the CLI data (real
+# or fake); selftest.json lists QML errors and warnings, failed captures and the last CLI error.
+# Exit code 0: everything clean, loaded and captured.
 import json
 import time
 
@@ -12,19 +12,19 @@ from agentburn import tray
 
 
 def flaw(image, size, dpr, opaque):
-    """Défaut d'une capture, '' si elle est bonne : vide ou d'une seule couleur (rien de rendu), taille autre
-    que fenêtre × devicePixelRatio, ou coin transparent sur une fenêtre opaque (contenu rendu dans un coin)."""
+    """Defect of a capture, '' if it is good: empty or a single color (nothing rendered), size other
+    than window × devicePixelRatio, or a transparent corner on an opaque window (content rendered in a corner)."""
     if image.isNull():
-        return "capture vide"
-    want = size * dpr   # arrondi de Qt (qRound), comme la capture
+        return "empty capture"
+    want = size * dpr   # Qt rounding (qRound), like the capture
     if image.size() != want:
-        return f"{image.width()}×{image.height()} au lieu de {want.width()}×{want.height()}"
+        return f"{image.width()}×{image.height()} instead of {want.width()}×{want.height()}"
     argb = image.convertToFormat(QImage.Format.Format_ARGB32)
-    raw = bytes(argb.constBits())   # ARGB32 : 4 octets par pixel, lignes sans remplissage
+    raw = bytes(argb.constBits())   # ARGB32: 4 bytes per pixel, rows without padding
     if raw == raw[:4] * (len(raw) // 4):
-        return "une seule couleur"
+        return "single color"
     if opaque and argb.pixelColor(argb.width() - 1, argb.height() - 1).alpha() < 255:
-        return "coin bas droit transparent"
+        return "transparent bottom-right corner"
     return ""
 
 
@@ -42,11 +42,11 @@ def run(root, out, problems):
             QCoreApplication.processEvents(QEventLoop.ProcessEventsFlag.AllEvents, 50)
         return bool(js(code))
 
-    def settle(seconds):   # animations, chargements des Loader, mise en page
+    def settle(seconds):   # animations, Loader loads, layout
         wait("false", seconds)
 
     def save(win, name):
-        # Deux captures identiques de suite : rien ne bouge plus (onglet qui glisse, fondu d'ouverture).
+        # Two identical captures in a row: nothing moves anymore (sliding tab, opening fade).
         last = None
         for _ in range(20):
             image = win.grabWindow()
@@ -55,19 +55,19 @@ def run(root, out, problems):
             last = image
             settle(0.15)
         else:
-            captures.append(f"{name} : rendu jamais stable")
+            captures.append(f"{name}: rendering never stable")
         defect = flaw(image, win.size(), win.devicePixelRatio(), win.color().alpha() == 255)
         if defect:
-            captures.append(f"{name} : {defect}")
+            captures.append(f"{name}: {defect}")
         if not image.save(str(out / name)):
-            captures.append(f"{name} : non écrite")
+            captures.append(f"{name}: not written")
 
-    js("Burn.refresh(false)")   # sans attendre le 1er tour à 3 s
+    js("Burn.refresh(false)")   # without waiting for the 1st round at 3 s
     loaded = wait("Burn.summary !== null && !Burn.loading", 150)
     for n in (16, 24, 32):
         if not tray.pixmap(n, root.property("remaining"), root.property("tone")).save(str(out / f"tray-{n}.png")):
-            captures.append(f"tray-{n}.png : non écrite")
-    codex = bool(js("!!Burn.subEntry('codex')"))   # fixtures avec Codex : son onglet et sa page aussi
+            captures.append(f"tray-{n}.png: not written")
+    codex = bool(js("!!Burn.subEntry('codex')"))   # fixtures with Codex: its tab and its page too
 
     pop = root.property("popover")
     for tab in ("claude", "general") + (("codex",) if codex else ()):
@@ -80,7 +80,7 @@ def run(root, out, problems):
     dash = root.property("dashboard")
     dash.resize(1200, 800)
     js("Burn.dashboardPage = 'all'; Burn.dashboardOpen = true")
-    # Économie du forfait : harness lancés à l'ouverture.
+    # Plan economics: harnesses launched on opening.
     harness = wait("!!Burn.harnesses.claude && !Burn.loading" + (" && !!Burn.harnesses.codex" if codex else ""), 60)
     settle(0.8)
     save(dash, "dashboard-all.png")
@@ -92,15 +92,15 @@ def run(root, out, problems):
 
     prefs = root.property("settingsWindow")
     js("openSettings('general')")
-    wait("Desktop.cliVersion !== ''", 10)   # version lue en tâche de fond à l'ouverture
+    wait("Desktop.cliVersion !== ''", 10)   # version read in the background on opening
     for i, name in enumerate(("", "-providers", "-diagnostic", "-about")):
         prefs.setProperty("section", i)
         settle(0.5)
         save(prefs, f"selftest-settings{name}.png")
     prefs.close()
-    wait("!Burn.loading", 120)   # pas de CLI tué en plein run (il écrit son relevé partagé)
+    wait("!Burn.loading", 120)   # no CLI killed mid-run (it writes its shared reading)
 
-    cli = js("Burn.error")   # un appel du CLI en échec ne laisse aucun avertissement QML, seulement ce texte
+    cli = js("Burn.error")   # a failed CLI call leaves no QML warning, only this text
     ok = loaded and harness and not cli and not captures and not problems["qmlErrors"] and not problems["warnings"]
     (out / "selftest.json").write_text(json.dumps({"ok": ok, **problems, "captureErrors": captures, "dataLoaded": loaded,
                                                    "cliError": cli}, ensure_ascii=False, indent=2),

@@ -1,6 +1,6 @@
-Python 3.13 : logiciels tiers incorporés à Python, en complément de la licence ci-dessus. Section « Licenses and
-Acknowledgements for Incorporated Software » de Doc/license.rst (CPython v3.13.17), suivie de la notice de
-HACL* (Modules/_hacl), que cette liste n'a pas.
+Python 3.13: third-party software incorporated in Python, in addition to the license above. Section “Licenses and
+Acknowledgements for Incorporated Software” of Doc/license.rst (CPython v3.13.17), followed by the
+HACL* notice (Modules/_hacl), which that list lacks.
 
 Licenses and Acknowledgements for Incorporated Software
 =======================================================
