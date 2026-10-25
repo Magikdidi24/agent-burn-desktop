@@ -6,6 +6,7 @@ git seulement, rien d'écrit hors du dossier temporaire (HOME, cache et install.
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -18,6 +19,14 @@ HERE = Path(__file__).resolve().parent
 QS = HERE.parent
 SCRIPT = HERE / "agent-burn-upstream.py"
 FIX = HERE.parents[2] / "desktop/agent-burn/tests/fixtures"   # sorties réelles du CLI
+
+
+def load():
+    spec = importlib.util.spec_from_file_location("abu", SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
 
 INSTALL_SH = """#!/usr/bin/env bash
 # en-tête
@@ -45,6 +54,7 @@ with open(os.environ["FAKE_AB_LOG"], "a") as f:
     f.write(" ".join(sys.argv[1:]) + "\\n")
 sys.stdout.write(open(os.environ["FAKE_AB_" + ("SUMMARY" if sys.argv[1] == "summary" else "HARNESS")]).read())
 """
+CTRL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")   # contrôles qu'un terminal interpréterait
 
 
 def sh(cwd, *args, env=None):
@@ -414,12 +424,51 @@ class Upstream(unittest.TestCase):
         self.assertIn("harness claude : ok (6 clés), non vérifiable (null) : window.usedPercent, window.elapsedPercent, "
                       "window.windowMinutes\n", r.stdout)
 
+    def test_bump_refuses_a_non_semver_version(self):
+        # Recopiée dans AB_VER="…" d'install.sh, que bash évalue : $(…) y serait exécuté.
+        up2 = self.copy_upstream()
+        self.commit(up2, "chore: release", {"rust/crates/agent-burn/Cargo.toml":
+                                            '[package]\nname = "agent-burn"\nversion = "20.0.23$(touch pwned)"\n'})
+        before = self.install.read_text()
+        r = self.run_script("--fetch", "update")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("version introuvable", r.stderr)
+        self.assertFalse((self.dir / "cargo.log").exists())
+        self.assert_nothing_installed(before)
+
     def test_bump_version_mismatch_changes_nothing(self):
         before = self.install.read_text()
         r = self.run_script("--fetch", "--bump", FAKE_AB_VERSION="agent-burn 99.0.0")
         self.assertEqual(r.returncode, 1)
         self.assertIn("--version", r.stdout)
         self.assert_nothing_installed(before)
+
+    # ── amont hostile : séquences terminal (bouton Rapport → kitty) et balisage (notification) ──
+    def test_control_chars_never_reach_the_terminal(self):
+        up2 = self.copy_upstream()
+        esc = "\x1b]52;c;ZWNobyBwd25lZA==\x07\x1b[2J\u009b31m"   # presse-papiers (OSC 52), écran effacé, CSI en C1
+        self.commit(up2, "feat: titre " + esc + "fin", {"apps/macos/Sources/AgentBurn/Evil\u009b2J.swift": "x\n",
+                                                        "rust/crates/agent-burn/src/adapter/all/x.rs": "a" + esc + "b\n"})
+        for t in ("v9<b>x</b>", "v99.0.0", "macos-v9.0.0", "vnope", "v1\u009b", "macos", "v1.2.3-rc.1+b5"):
+            sh(up2, "git", "tag", t)
+        self.pin(self.head)
+        d = self.report("--fetch")
+        self.assertEqual(d["tags"], {"cli": ["v1.2.3-rc.1+b5", "v99.0.0"], "mac": ["macos-v9.0.0"]})
+        self.assertIsNone(CTRL.search(json.dumps(d, ensure_ascii=False)))
+        out = self.run_script().stdout
+        self.assertIsNone(CTRL.search(out))
+        self.assertIn("feat: titre ?]52;c;ZWNobyBwd25lZA==??[2J?31mfin", out)
+        self.assertIn("Evil?2J.swift → à évaluer", out)
+        r = self.run_script("diff", "x.rs")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIsNone(CTRL.search(r.stdout))
+        self.assertIn("+a?]52;c;ZWNobyBwd25lZA==??[2J?31mb\n", r.stdout)
+
+    def test_git_errors_are_cleaned(self):
+        mod = load()
+        with self.assertRaises(mod.Fail) as e:
+            mod.run("sh", "-c", "printf 'remote: \\033]0;titre\\007 oups\\n' >&2; exit 3")
+        self.assertEqual(str(e.exception), "remote: ?]0;titre? oups")
 
     # ── sous-commandes ──
     def test_subcommands_are_aliases(self):
@@ -442,9 +491,7 @@ class Upstream(unittest.TestCase):
 
     # ── liste des clés ──
     def test_keys_are_read_by_the_qml(self):
-        spec = importlib.util.spec_from_file_location("abu", SCRIPT)
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
+        mod = load()
         qml = "".join((QS / f).read_text() for f in ("Burn.qml", "BurnPopover.qml", "BurnDashboardView.qml"))
         for paths in mod.KEYS.values():
             for p in paths:

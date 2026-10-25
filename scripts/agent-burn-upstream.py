@@ -63,6 +63,11 @@ KEYS = {
                        "spendMix[].key", "spendMix[].label", "spendMix[].costPercent", "spendMix[].tokens",
                        "spendMix[].costUSD"],
 }
+# Texte venu de l'amont (sujets, noms de fichiers, erreurs de git, diff), affiché par kitty (bouton Rapport) ou
+# mis dans le JSON : plus aucun contrôle C0 (sauf \t \n), DEL ni C1, ESC compris.
+CTRL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
+# Les tags finissent dans le corps d'une notification, où le balisage est interprété : versions seulement.
+TAG = re.compile(r"(macos-)?v[0-9][0-9A-Za-z.+-]*")
 EMPTY = {"pinned": "", "pinnedVersion": "", "head": "", "headDate": "", "ahead": 0, "tags": {"cli": [], "mac": []},
          "categories": {"mac": 0, "cli": 0, "docs": 0, "other": 0}, "toPort": [], "compareUrl": "", "fetchedAt": "",
          "error": ""}
@@ -72,10 +77,14 @@ class Fail(Exception):
     pass
 
 
+def clean(s):
+    return CTRL.sub("?", s)
+
+
 def run(*cmd):
-    r = subprocess.run(cmd, capture_output=True, text=True, timeout=300, env=ENV)
+    r = subprocess.run(cmd, capture_output=True, encoding="utf-8", errors="replace", timeout=300, env=ENV)
     if r.returncode:
-        raise Fail((r.stderr.strip() or f"{cmd[0]} : code {r.returncode}").splitlines()[0])
+        raise Fail(clean((r.stderr.strip() or f"{cmd[0]} : code {r.returncode}").splitlines()[0]))
     return r.stdout
 
 
@@ -169,13 +178,13 @@ def report(warning):
                      f"{pinned}..origin/main").split("\0")[1:]:
         header, *files = chunk.strip("\n").split("\n")
         sha, date, subject = header.split("\t", 2)
-        files = [f for f in files if f]
-        commits.append({"sha": sha, "date": date, "subject": subject, "files": files,
+        files = [clean(f) for f in files if f]   # git échappe déjà les contrôles C0 des noms, pas les C1
+        commits.append({"sha": sha, "date": date, "subject": clean(subject), "files": files,
                         "cats": {category(f) for f in files} or {"other"}})
     tags = {"cli": [], "mac": []}
     for t in git("tag", "--no-merged", pinned, "--sort=version:refname").split():
-        if t.startswith(("macos-v", "v")):
-            tags["mac" if t.startswith("macos-v") else "cli"].append(t)
+        if TAG.fullmatch(t):
+            tags["mac" if t.startswith("macos-") else "cli"].append(t)
     sources = {}   # fichier du repo à revoir → ce qui a changé en amont
     for f in (f for c in commits for f in c["files"]):
         if category(f) == "mac":
@@ -239,7 +248,9 @@ def diff(name):
     paths = sorted(f for f in files if f == name or f.rsplit("/", 1)[-1] in (name, name + ".swift"))
     if not paths:
         raise Fail(f"« {name} » introuvable dans l'amont (nom de fichier ou chemin depuis la racine)")
-    return subprocess.run(["git", "-C", str(REPO), "diff", pinned, "origin/main", "--", *paths], env=ENV).returncode
+    # Capté puis nettoyé (ni couleurs ni pager) : git passerait au terminal les contrôles des fichiers amont.
+    sys.stdout.write(clean(git("diff", "--no-color", pinned, "origin/main", "--", *paths)))
+    return 0
 
 
 def lacks(node, path):
@@ -263,7 +274,7 @@ def lacks(node, path):
 def check(binary, ver):
     """Ce CLI donne-t-il la version attendue et les clés que lisent Burn.qml et les vues ?"""
     call = lambda *a: subprocess.run([str(binary), *a], capture_output=True, text=True, timeout=300)
-    got = call("--version").stdout.strip()
+    got = clean(call("--version").stdout.strip())
     ok = got == ver
     print(f"  --version : {got or '?'}" + ("" if ok else f" ≠ « {ver} » (install.sh recompilerait à chaque lancement)"))
     for cmd, keys in KEYS.items():
@@ -295,7 +306,9 @@ def bump(rev):
     if sha == pinned:
         print(f"install.sh épingle déjà {sha[:12]} : rien à faire.")
         return 0
-    m = re.search(r'^version\s*=\s*"([^"]+)"', git("show", f"{sha}:rust/crates/agent-burn/Cargo.toml"), re.M)
+    # Version recopiée dans AB_VER="…", que bash évalue : semver seulement.
+    m = re.search(r'^version\s*=\s*"([0-9][0-9A-Za-z.+-]*)"', git("show", f"{sha}:rust/crates/agent-burn/Cargo.toml"),
+                  re.M)
     if not m:
         raise Fail(f"version introuvable dans rust/crates/agent-burn/Cargo.toml de {sha[:12]}")
     ver = "agent-burn " + m[1]
