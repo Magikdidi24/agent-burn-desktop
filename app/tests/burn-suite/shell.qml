@@ -578,10 +578,31 @@ Scope {
             eq(Burn.cliMissing, false, "cliMissing intact");
             eq(Burn.error, "", "UI muette");
             Burn.bin = Quickshell.env("AGENT_BURN_BIN");
-            ipc.running = true;
+            // Dashboard ouvert pendant un summary : plage chargée à sa fin, jamais en parallèle (429).
+            mode.setText("delay\n");
+            Burn.rangeCache = ({});
+            mark = calls().length;
+            Burn.refresh(false);
+            Burn.dashboardOpen = true;
             next();
             break;
         case 26:
+            if (calls().length === mark) return;
+            check(Burn.loading && !calls().slice(mark).some(c => c.indexOf("--since") >= 0),
+                  "plage différée pendant le summary : " + calls().slice(mark));
+            next();
+            break;
+        case 27:
+            l = calls().slice(mark);
+            if (Burn.loading || !l.some(c => c.indexOf("--since") >= 0)) return;
+            check(l[0].startsWith("summary --value --json --no-color FORCE=0") && l[0].indexOf("--since") < 0,
+                  "summary d'abord, plage ensuite : " + l);
+            mode.setText("ok\n");
+            Burn.dashboardOpen = false;
+            ipc.running = true;
+            next();
+            break;
+        case 28:
             if (!Burn.dashboardOpen) return;
             check(true, "IPC burn dashboard");
             l = rawCalls();

@@ -271,9 +271,11 @@ Singleton {
         range = r;
         loadRange(false);
     }
+    // Pendant un summary : rien en parallèle (429 de l'API d'usage), son exited relance la plage (dashboard ouvert).
     function loadRange(force) {
         var c = rangeCache[range];
-        if (!spans.hasOwnProperty(range) || rangeProc.running || (!force && c && Date.now() - c.at < 300000)) return;
+        if (!spans.hasOwnProperty(range) || rangeProc.running || sumProc.running
+            || (!force && c && Date.now() - c.at < 300000)) return;
         var t = new Date();
         rangeProc.key = range;
         launch(rangeProc, ["summary"].concat(flags, ["--since",
