@@ -20,6 +20,9 @@ UninstallDisplayName=Agent Burn
 VersionInfoVersion={#AppVersion}
 VersionInfoProductName=Agent Burn
 DefaultDirName={localappdata}\Programs\Agent Burn
+; Pas de choix du dossier : un dossier existant pris à la main serait vidé par [InstallDelete] à la mise à jour
+; suivante (OwnInstall y deviendrait vrai). /DIR= reste possible en ligne de commande.
+DisableDirPage=yes
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 #if Arch == "arm64"
