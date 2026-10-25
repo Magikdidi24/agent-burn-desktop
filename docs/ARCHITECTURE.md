@@ -245,7 +245,8 @@ Le JSON doit dépendre des seules données des agents, pas de la configuration d
    selftest de l'app gelée, où `AGENT_BURN_BIN` est l'exe lui-même. Hors selftest, la variable est signalée
    dans le journal.
 2. Options : `--selftest DIR`, `--show popover|dashboard` (dev : cette fenêtre seule, sans icône).
-3. Sous Linux, `QSG_RENDER_LOOP=basic` sauf valeur déjà définie ou plateforme `offscreen` (selftest) : la boucle
+3. Sous Linux, `QSG_RENDER_LOOP=basic` (retirée des process lancés : `shim.APP_VARS`) sauf valeur déjà définie
+   ou plateforme `offscreen` (selftest) : la boucle
    de rendu à fil de Qt 6.12 plante dans QtWaylandClient (`QWaylandWindow::beginFrame`) pendant l'affichage d'une
    fenêtre, bien plus souvent avec les textes exposés aux lecteurs d'écran (vu en session KWin imbriquée, Mesa
    llvmpipe : aucun plantage en 9 essais avec la boucle basique). Hors écran, rien de Wayland, et la boucle
@@ -352,8 +353,9 @@ Le JSON doit dépendre des seules données des agents, pas de la configuration d
   (`app/requirements.lock`, `--require-hashes`) ; image de build Linux épinglée par empreinte. CI : actions
   épinglées par SHA, `persist-credentials: false`, `contents: read` partout sauf le job de release.
 - Installeur Windows : ses lignes `[InstallDelete]` ne vident les sous-dossiers du bundle que par-dessus une
-  installation d'Agent Burn (`OwnInstall` : `AgentBurn.exe` et `unins000.dat` présents) ; un dossier choisi à la
-  main garde ses fichiers.
+  installation d'Agent Burn (`OwnInstall` : `AgentBurn.exe` et `unins000.dat` présents), et l'installeur ne
+  propose pas de choisir le dossier (`DisableDirPage`) : sinon un dossier existant pris à la main serait vidé à la
+  mise à jour suivante. Seul `/DIR=` en ligne de commande peut encore viser un autre dossier.
 - Points connus : `AllowSetForegroundWindow(ASFW_ANY)` au 2e lancement sous Windows (tout process peut prendre
   le premier plan jusqu'à la saisie suivante) ; en dev sous Windows, `shutil.which("agent-burn")` cherche aussi
   dans le dossier courant ; la désinstallation Windows arrête tout `AgentBurn.exe` de l'utilisateur par son nom.

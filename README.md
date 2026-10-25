@@ -470,7 +470,7 @@ Sous Linux, un lancement à l'ouverture de session resté actif laisse
 - Linux : rendu Qt sans fil dédié (`QSG_RENDER_LOOP=basic`), car la boucle à fil de Qt 6.12 plante parfois sous
   Wayland à l'ouverture d'une fenêtre, bien plus souvent avec les textes exposés aux lecteurs d'écran (vu en
   session KWin imbriquée, rendu logiciel). L'app anime peu, la boucle basique lui suffit. Une valeur de
-  `QSG_RENDER_LOOP` déjà définie l'emporte. Pas revérifié sur un vrai GPU ni un vrai compositeur ; bug Qt non
+  `QSG_RENDER_LOOP` déjà définie l'emporte ; la nôtre ne passe ni au CLI ni à `xdg-open`. Pas revérifié sur un vrai GPU ni un vrai compositeur ; bug Qt non
   signalé.
 - Windows : barre de titre sombre non vérifiée (Wine ne l'applique pas), sans effet attendu avant Windows 10
   20H1.

@@ -281,7 +281,8 @@ Sorties dans `desktop\agent-burn\dist\` : `AgentBurn\` (bundle), `AgentBurn-port
 `AgentBurn-Setup-<ver>-<arch>.exe`, `selftest\`. [`installer.iss`](../installer.iss) ne se compile que par
 `build.ps1` (`/DAppVersion` et `/DArch` obligatoires). Ses lignes `[InstallDelete]` vident les sous-dossiers du
 bundle (fichiers d'une version précédente) seulement par-dessus une installation d'Agent Burn (`OwnInstall` :
-`AgentBurn.exe` et `unins000.dat` présents dans `{app}`). `build.ps1` n'a jamais tourné de bout en bout (pas de
+`AgentBurn.exe` et `unins000.dat` présents dans `{app}`), et le choix du dossier est désactivé
+(`DisableDirPage`) : un dossier existant pris à la main serait vidé à la mise à jour suivante. `build.ps1` n'a jamais tourné de bout en bout (pas de
 PowerShell sous Wine) : son premier run sera celui de la CI.
 
 ### Monter Qt, PySide6, Python ou le runtime AppImage
