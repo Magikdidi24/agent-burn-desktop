@@ -1,5 +1,6 @@
 # App de bureau Agent Burn (Windows + Linux) : tests, paquets Linux essayés sur 7 distros, installeur et zip
-# Windows, brouillon de release sur un tag desktop-v*. Caches, artefacts de courte durée, runs dépassés annulés.
+# Windows, brouillon de release sur un tag desktop-v*. Caches, paquets gardés 30 jours (7 pour les journaux), runs
+# dépassés annulés.
 name: Agent Burn (bureau)
 
 on:
