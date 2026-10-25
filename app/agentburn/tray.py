@@ -87,13 +87,15 @@ def pixmap(n, remaining, tone):
 
 def open_popover(pop, icon):
     """Pose le popover contre l'icône (ou le pointeur : icône rangée dans le menu de débordement). Sous
-    Wayland le compositeur ignore la position demandée (et le pointeur reste à 0,0) : affiché tel quel."""
+    Wayland le compositeur ignore la position demandée (et le pointeur reste à 0,0) : affiché tel quel, sa
+    hauteur bornée par l'écran où il s'affiche."""
+    wayland = QGuiApplication.platformName() == "wayland"
     r = icon if icon is not None and icon.isValid() else QRect(QCursor.pos(), QSize(1, 1))
-    screen = QGuiApplication.screenAt(r.center()) or QGuiApplication.primaryScreen()
+    screen = pop.screen() if wayland else QGuiApplication.screenAt(r.center()) or QGuiApplication.primaryScreen()
     avail = screen.availableGeometry()
     pad = pop.property("pad")
     pop.setProperty("maxHeight", avail.height() - 2 * GAP)   # avant de lire la hauteur : plus haute, la carte défile
-    if QGuiApplication.platformName() == "wayland":
+    if wayland:
         return
     pos, edge = place(r, screen.geometry(), avail, QSize(pop.width() - 2 * pad, pop.height() - 2 * pad))
     pop.setScreen(screen)
@@ -136,7 +138,10 @@ class Tray(QObject):
         for name in ("remainingChanged", "toneChanged"):
             getattr(root, name).connect(self.paint)
         root.tooltipChanged.connect(self.tip)
-        self.pop.heightChanged.connect(lambda: self.pop.isVisible() and open_popover(self.pop, self.icon.geometry()))
+        # Reposé quand sa hauteur change, ou son écran (Wayland : celui choisi par le compositeur).
+        follow = lambda *_: self.pop.isVisible() and open_popover(self.pop, self.icon.geometry())  # noqa: E731
+        self.pop.heightChanged.connect(follow)
+        self.pop.screenChanged.connect(follow)
         self.icon = None
         self.dock()
         self.docked = QSystemTrayIcon.isSystemTrayAvailable()

@@ -12,7 +12,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from test_app import js, main_root, qml_env, wait_for  # noqa: E402
 
-from PySide6.QtCore import QPoint  # noqa: E402
+from PySide6.QtCore import QPoint, QRect  # noqa: E402
+from PySide6.QtGui import QGuiApplication  # noqa: E402
+from PySide6.QtQuick import QQuickWindow  # noqa: E402
 from PySide6.QtWidgets import QSystemTrayIcon  # noqa: E402
 
 from agentburn import settings, tray  # noqa: E402
@@ -189,6 +191,19 @@ class TrayIcon(unittest.TestCase):
             tray.open_popover(self.pop, None)
         self.assertEqual(self.pop.position(), QPoint(7, 9))
         self.assertGreater(self.pop.property("maxHeight"), 0)
+
+    def test_wayland_popover_height_follows_its_own_screen(self):
+        # Pointeur à 0,0 sous Wayland : l'écran du popover, pas celui du pointeur ; suivi s'il en change.
+        self.make()
+        screen = types.SimpleNamespace(availableGeometry=lambda: QRect(0, 0, 1280, 720))
+        with mock.patch.object(tray.QGuiApplication, "platformName", return_value="wayland"), \
+                mock.patch.object(QQuickWindow, "screen", return_value=screen):
+            tray.open_popover(self.pop, None)
+            self.assertEqual(self.pop.property("maxHeight"), 720 - 2 * tray.GAP)
+            self.pop.setVisible(True)
+            screen.availableGeometry = lambda: QRect(1280, 0, 2560, 1400)   # posé sur l'autre écran
+            self.pop.screenChanged.emit(QGuiApplication.primaryScreen())
+            self.assertEqual(self.pop.property("maxHeight"), 1400 - 2 * tray.GAP)
 
 
 if __name__ == "__main__":
