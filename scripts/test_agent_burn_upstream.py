@@ -77,6 +77,13 @@ def sh(cwd, *args, env=None):
                           env=env).stdout.strip()
 
 
+class Port(unittest.TestCase):
+    def test_every_target_exists(self):
+        # Un fichier renommé ou supprimé : le rapport enverrait revoir un fichier absent.
+        root = HERE.parents[2]
+        self.assertEqual(sorted({t for ts in load().PORT.values() for t in ts if not (root / t).exists()}), [])
+
+
 class Upstream(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
