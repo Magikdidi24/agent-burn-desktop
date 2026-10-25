@@ -80,7 +80,7 @@ t() { env -u DISPLAY -u WAYLAND_DISPLAY QT_QPA_PLATFORM=offscreen PYTHONDONTWRIT
 | Tests unitaires | `t python -m unittest discover -s tests -v` (depuis `app/`) | Linux et Windows |
 | Suite du cœur sous le shim | `t python tests/run_burn_suite.py`, puis avec `BURN_TEST=corrupt` et `BURN_TEST=timeout` | Linux |
 | Suite du cœur sous Quickshell | voir plus bas | non |
-| Suivi de l'amont | `python3 -I scripts/test_agent_burn_upstream.py` (depuis la racine) | Linux |
+| Suivi de l'amont | `python3 -I scripts/test_agent_burn_upstream.py` (depuis la racine) | Linux ; le contrôle qui demande le vrai CLI (`~/.local/bin/agent-burn`, sauté sans lui) tourne dans le job des paquets, avec le CLI qu'il vient de construire |
 | Outils de licence (notices des crates, licence du `.rpm`) | `python3 -m unittest discover -s .` (depuis `tools/`) | Linux |
 | Selftest | voir plus bas | Linux (Xvfb), et sur chaque build gelé |
 | Paquets Linux | `linux/smoke-local.sh IMAGE` | 7 distros |
@@ -342,7 +342,7 @@ branche, du même tag ou de la même pull request ; un push et la pull request d
 | Job | Machine | Contenu | Artefacts |
 |---|---|---|---|
 | Tests | `ubuntu-24.04` | bibliothèques Qt, Xvfb et Mesa ; dépendances du verrou haché ; tests unitaires ; outils de licence (`tools/`) ; suite du cœur (normal, corrompu, CLI bloqué) ; suivi de l'amont ; selftest sous Xvfb | `selftest-linux-dev` (7 jours) |
-| Linux (paquets) | conteneur `python:3.12-slim-bookworm`, épinglé par empreinte | `linux/build.sh` | `agent-burn-desktop-linux` (1 jour) |
+| Linux (paquets) | conteneur `python:3.12-slim-bookworm`, épinglé par empreinte | `linux/build.sh`, puis le contrôle du suivi amont avec le CLI construit | `agent-burn-desktop-linux` (1 jour) |
 | Paquets sur … | 7 conteneurs de distros (étiquettes, pas d'empreinte : des distros à jour) | `linux/smoke.sh` sur l'artefact téléchargé dans `dist-in/` | `smoke-<n>` en cas d'échec (7 jours) : journaux et captures de `smoke.sh` |
 | Windows x64 | `windows-2025` (image épinglée : `windows-latest` en changerait sans prévenir) | Python 3.13 ; venv `.venv` rempli du verrou haché (celui de `build.ps1`), tests unitaires sur un vrai Windows (sortie en UTF-8, 5 min au plus), Inno Setup (choco 6.7.1 si absent), `build.ps1`, `smoke.ps1` | `agent-burn-desktop-windows-x64` (1 jour, déposé avant `smoke.ps1`), `selftest-windows-x64` (7 jours, dès que le build a tourné : selftest du build et sorties de `smoke.ps1`, sans la copie extraite du zip) |
 | Windows ARM64 (expérimental) | `windows-11-arm` | comme x64 ; seulement au lancement manuel avec `arm64`, son échec n'échoue pas le run | idem, `-arm64` |

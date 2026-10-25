@@ -168,6 +168,13 @@ jobs:
           if-no-files-found: error
           retention-days: 1   # ~300 Mo par run ; les releases gardent les paquets
 
+      # Suivi amont : le contrôle qui demande le vrai CLI (~/.local/bin/agent-burn), sauté dans « Tests », tourne ici
+      # avec celui de ce build.
+      - name: Suivi amont avec le vrai CLI
+        run: |
+          mkdir -p ~/.local/bin && cp build/cli-linux/bin/agent-burn ~/.local/bin/
+          python3 -I scripts/test_agent_burn_upstream.py Upstream.test_synthetic_home_fills_the_keys_with_the_real_cli
+
   linux-smoke:
     name: Paquets sur ${{ matrix.image }}
     needs: linux
