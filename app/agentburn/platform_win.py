@@ -36,9 +36,10 @@ def autostart():
         return False
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, APPROVED) as key:
-            return not winreg.QueryValueEx(key, NAME)[0][0] & 1
+            data = winreg.QueryValueEx(key, NAME)[0]
     except OSError:   # absente : activée
         return True
+    return not (isinstance(data, bytes) and data[:1] and data[0] & 1)   # vide ou d'un autre type : pas une désactivation
 
 
 def _delete(path):

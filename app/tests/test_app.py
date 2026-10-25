@@ -198,6 +198,9 @@ class Autostart(unittest.TestCase):
             self.assertNotIn(pw.NAME, reg[pw.APPROVED])
             pw.set_autostart(False)
             self.assertFalse(pw.autostart())
+            pw.set_autostart(True)
+            reg[pw.APPROVED][pw.NAME] = b""   # REG_BINARY vide : pas une désactivation (plus d'IndexError)
+            self.assertTrue(pw.autostart())
 
 
 if __name__ == "__main__":
