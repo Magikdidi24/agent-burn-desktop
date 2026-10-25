@@ -111,4 +111,4 @@ if ($Portable) {
     Test-Selftest "$out\portable\AgentBurn\AgentBurn.exe" portable-selftest
     Remove-Item $local -Recurse -Force -ErrorAction Ignore   # cache QML de ce selftest
 }
-Write-Host "OK : installation, raccourcis, registre, selftest, tray, 2e lancement, désinstallation$(if ($Portable) { ', zip portable' })"
+Write-Host "OK : installation, raccourcis, registre, selftest, mode tray (sans zone de notification), 2e lancement, désinstallation$(if ($Portable) { ', zip portable' })"
