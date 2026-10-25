@@ -110,6 +110,29 @@ Item {
 
     onPageChanged: flick.contentY = 0
 
+    // Clavier : le contrôle focalisé (Tab) reste visible, chaque Flickable qui le contient (page, liste
+    // « Par agent ») défile jusqu'à lui.
+    function reveal(item) {
+        for (let f = item?.parent; f; f = f.parent) {
+            if (!(f instanceof Flickable)) continue;
+            const y = item.mapToItem(f.contentItem, 0, 0).y, bottom = f.originY + Math.max(0, f.contentHeight - f.height);
+            if (y - 12 < f.contentY)
+                f.contentY = Math.max(f.originY, y - 12);
+            else if (y + item.height + 12 > f.contentY + f.height)
+                f.contentY = Math.min(bottom, y + item.height + 12 - f.height);
+        }
+    }
+    Window.onActiveFocusItemChanged: root.reveal(Window.activeFocusItem)
+    // PageUp / PageDown / Début / Fin font défiler la page (touches que le contrôle focalisé n'a pas prises).
+    Keys.onPressed: event => {
+        const bottom = Math.max(0, flick.contentHeight - flick.height), step = flick.height - 40;
+        const to = event.key === Qt.Key_PageDown ? flick.contentY + step : event.key === Qt.Key_PageUp ? flick.contentY - step
+                 : event.key === Qt.Key_Home ? 0 : event.key === Qt.Key_End ? bottom : NaN;
+        if (isNaN(to)) return;
+        flick.contentY = Math.max(0, Math.min(bottom, to));
+        event.accepted = true;
+    }
+
     component Txt: Text {
         color: Colors.foreground
         font.family: "JetBrainsMono Nerd Font"
