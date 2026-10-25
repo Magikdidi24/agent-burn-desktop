@@ -16,8 +16,8 @@ Singleton {
     property var harnessErrors: ({})   // { agent: message } du dernier harness en échec, effacé à son succès
     property var account: null   // claudeAccount le plus récent, persisté : reste affiché si le CLI échoue
     property bool signInExpired: false   // renouvellement refusé : connexion expirée, ou réseau coupé (jeton expiré)
-    // Relevé Claude de plus de 10 min, ou connexion expirée : toujours affiché, mais signalé ancien.
-    readonly property bool limitsStale: !!account && (signInExpired || now - (account.observedAtMs ?? 0) > 600000)
+    // Relevé Claude plus vieux que staleAfter, ou connexion expirée : toujours affiché, mais signalé ancien.
+    readonly property bool limitsStale: !!account && (signInExpired || now - (account.observedAtMs ?? 0) > staleAfter)
     property bool loading: sumProc.running || rangeProc.running || claudeProc.running || codexProc.running
     property string error: ""   // summary et CLI ; les harness ont harnessErrors
     property var recentErrors: []   // 20 derniers échecs { t, source, msg }, le plus récent en dernier, sans stdout
@@ -35,6 +35,8 @@ Singleton {
     readonly property var rangeSummary: range === "all" ? summary : rangeCache[range]?.data ?? null
     property int refreshInterval: 300000   // tour de fond en ms, réglé par l'app de bureau
     readonly property int cadence: Math.max(60000, refreshInterval)
+    // Relevé Claude ancien après 2 tours de fond (un relevé manqué), 10 min au moins.
+    readonly property real staleAfter: Math.max(600000, 2 * cadence)
     // En cache : relu du disque, dernier summary en échec, ou plus vieux que le rythme horaire de la pill.
     readonly property string dataState: !summary ? "unavailable"
         : summaryCached || sumProc.failed || now - updatedAt > 3600000 + cadence ? "cached" : "live"
@@ -196,7 +198,8 @@ Singleton {
             if (a ? !limitsStale : dataState === "live")
                 return set("live", "En direct", claude ? "Limites lues sur le compte Claude, relevé récent."
                     : "Limites du dernier rapport agent-burn (API ou logs de session).");
-            return set("stale", "Relevé ancien", claude ? "Dernières limites connues : aucun relevé depuis plus de 10 min."
+            return set("stale", "Relevé ancien", claude ? "Dernières limites connues : aucun relevé depuis plus de "
+                + Math.round(staleAfter / 60000) + " min."
                 : "Dernières limites connues, rapport agent-burn en cache.");
         }
         return set("local", "Usage local", claude ? "Dépense lue dans les logs ; limites indisponibles (non connecté ou hors ligne)."
@@ -547,7 +550,7 @@ Singleton {
         }
     }
     // Relevé léger de la pill. Échec muet (recentErrors seulement) : le dernier relevé reste, signalé ancien
-    // après 10 min. Le relevé ne porte que semaine et session : limites par modèle et crédits gardent ceux du summary.
+    // après staleAfter. Le relevé ne porte que semaine et session : limites par modèle et crédits gardent ceux du summary.
     Cli {
         id: quotaProc
         source: "quota"

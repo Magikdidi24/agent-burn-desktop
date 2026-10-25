@@ -456,6 +456,21 @@ Scope {
             eq(Burn.dataState, "live", "1 h 50 s : encore en direct");
             Burn.refreshInterval = 300000;
             Burn.updatedAt = u;
+            // Relevé Claude ancien après 2 tours de fond, 10 min au moins.
+            var acc = Burn.account;
+            Burn.account = Object.assign({}, acc, { observedAtMs: Burn.now - 11 * 60000 });
+            eq(Burn.limitsStale, true, "cadence 5 min : relevé de 11 min ancien");
+            eq(Burn.providerState("claude").detail, "Dernières limites connues : aucun relevé depuis plus de 10 min.",
+               "détail : seuil de 10 min");
+            Burn.refreshInterval = 900000;
+            eq(Burn.limitsStale, false, "cadence 15 min : relevé de 11 min encore récent");
+            Burn.account = Object.assign({}, acc, { observedAtMs: Burn.now - 31 * 60000 });
+            eq(Burn.limitsStale, true, "cadence 15 min : ancien après 2 tours");
+            eq(Burn.providerState("claude").detail, "Dernières limites connues : aucun relevé depuis plus de 30 min.",
+               "détail : seuil de 2 tours");
+            Burn.refreshInterval = 300000;
+            Burn.account = acc;
+            eq(Burn.limitsStale, false, "relevé récent rétabli");
             eq(Burn.dashboardOpen, false, "dashboard fermé");
             // Rejoués depuis exited : running doit y être déjà faux (sinon rien n'est relancé).
             mark = summaryCalls().length;
