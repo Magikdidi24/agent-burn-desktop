@@ -208,7 +208,7 @@ jobs:
   windows:
     name: ${{ matrix.arch == 'arm64' && 'Windows ARM64 (expérimental)' || 'Windows x64' }}
     needs: test
-    runs-on: ${{ matrix.arch == 'arm64' && 'windows-11-arm' || 'windows-latest' }}
+    runs-on: ${{ matrix.arch == 'arm64' && 'windows-11-arm' || 'windows-2025' }}
     timeout-minutes: 45
     continue-on-error: ${{ matrix.arch == 'arm64' }}
     strategy:

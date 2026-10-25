@@ -189,8 +189,8 @@ virtuelle jetable. Contrôles : installation silencieuse (fichiers, raccourcis, 
 désinstallation), selftest de l'exe installé, mode icône pendant 10 s, 2e lancement qui rend la main en 0,
 désinstallation app lancée (dossier, raccourcis, valeurs `Run` et `StartupApproved`, cache et journaux partis,
 `%APPDATA%\AgentBurn` gardé), puis selftest du zip portable. Sorties dans `dist/smoke/` (dans la CI, artefact
-`selftest-windows-<arch>`, sans la copie extraite du zip). Il tourne dans la CI, sur le runner `windows-latest`
-(Windows Server), jamais sur un Windows de bureau ; avant la CI, sa logique avait été rejouée en Python sous Wine
+`selftest-windows-<arch>`, sans la copie extraite du zip). Il tourne dans la CI, sur le runner `windows-2025`
+(Windows Server 2025), jamais sur un Windows de bureau ; avant la CI, sa logique avait été rejouée en Python sous Wine
 (43 contrôles sur 43, avec en plus une mise à jour par-dessus une ancienne installation et le refus de
 l'installeur arm64 sur x64).
 
@@ -285,7 +285,7 @@ Sorties dans `dist\` : `AgentBurn\` (bundle), `AgentBurn-portable-<ver>-<arch>.z
 bundle (fichiers d'une version précédente) seulement par-dessus une installation d'Agent Burn (`OwnInstall` :
 `AgentBurn.exe` et `unins000.dat` présents dans `{app}`), et le choix du dossier est désactivé
 (`DisableDirPage`) : un dossier existant pris à la main serait vidé à la mise à jour suivante. `build.ps1` ne
-tourne pas sous Wine (pas de PowerShell 7) : il n'a tourné que dans la CI, sur le runner `windows-latest`.
+tourne pas sous Wine (pas de PowerShell 7) : il n'a tourné que dans la CI, sur le runner `windows-2025`.
 
 ### Monter Qt, PySide6, Python ou le runtime AppImage
 
@@ -339,7 +339,7 @@ branche, du même tag ou de la même pull request ; un push et la pull request d
 | Tests | `ubuntu-24.04` | bibliothèques Qt, Xvfb et Mesa ; dépendances du verrou haché ; tests unitaires ; outils de licence (`tools/`) ; suite du cœur (normal, corrompu) ; suivi de l'amont ; selftest sous Xvfb ; suite « CLI bloqué » en dernier | `selftest-linux-dev` (7 jours) |
 | Linux (paquets) | conteneur `python:3.12-slim-bookworm`, épinglé par empreinte | `linux/build.sh` | `agent-burn-desktop-linux` (1 jour) |
 | Paquets sur … | 7 conteneurs de distros (étiquettes, pas d'empreinte : des distros à jour) | `linux/smoke.sh` sur l'artefact téléchargé dans `dist-in/` | `smoke-<n>` en cas d'échec (7 jours) : journaux et captures de `smoke.sh` |
-| Windows x64 | `windows-latest` | venv `.venv` rempli du verrou haché (celui de `build.ps1`), tests unitaires sur un vrai Windows (sortie en UTF-8, 5 min au plus), Inno Setup (choco 6.7.1 si absent), `build.ps1`, `smoke.ps1` | `agent-burn-desktop-windows-x64` (1 jour, déposé avant `smoke.ps1`), `selftest-windows-x64` (7 jours : selftest du build et sorties de `smoke.ps1`, sans la copie extraite du zip) |
+| Windows x64 | `windows-2025` (image épinglée : `windows-latest` en changerait sans prévenir) | venv `.venv` rempli du verrou haché (celui de `build.ps1`), tests unitaires sur un vrai Windows (sortie en UTF-8, 5 min au plus), Inno Setup (choco 6.7.1 si absent), `build.ps1`, `smoke.ps1` | `agent-burn-desktop-windows-x64` (1 jour, déposé avant `smoke.ps1`), `selftest-windows-x64` (7 jours : selftest du build et sorties de `smoke.ps1`, sans la copie extraite du zip) |
 | Windows ARM64 (expérimental) | `windows-11-arm` | comme x64 ; seulement au lancement manuel avec `arm64`, son échec n'échoue pas le run | idem, `-arm64` |
 | Release (brouillon) | `ubuntu-24.04` | tags `desktop-v*` seulement, après les paquets et Windows : refus d'un tag dont la version n'est pas celle des paquets, `SHA256SUMS`, `gh release create --draft --verify-tag` | release brouillon |
 
