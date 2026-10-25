@@ -1,12 +1,15 @@
 pragma Singleton
 import QtQuick
 
-// Couleurs de l'app Windows, même API que le Colors.qml de Quickshell : suivent en direct le thème
-// clair/sombre et la couleur d'accentuation de Windows ; fonds et gris d'après l'app Mac.
+// Couleurs de l'app de bureau, même API que le Colors.qml de Quickshell : thème choisi dans les réglages,
+// ou en direct le clair/sombre du système, et sa couleur d'accentuation ; fonds et gris d'après l'app Mac.
 QtObject {
     id: root
 
-    readonly property bool dark: Qt.styleHints.colorScheme !== Qt.ColorScheme.Light
+    property string theme: "system"   // réglage de l'app (Main.qml) : system, light ou dark
+    // Explicite plutôt que via styleHints.setColorScheme, que certaines plateformes ignorent ; système
+    // inconnu (pas de portail) : sombre.
+    readonly property bool dark: theme === "dark" || theme !== "light" && Qt.styleHints.colorScheme !== Qt.ColorScheme.Light
     readonly property color background: dark ? "#1c1c1e" : "#ececf0"
     readonly property color foreground: dark ? "#f5f5f7" : "#1d1d1f"
     readonly property color surface: dark ? "#363638" : "#ffffff"   // cartes : surface à 55 % sur le fond

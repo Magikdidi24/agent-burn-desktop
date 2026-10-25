@@ -64,6 +64,7 @@ Window {
         }
         // Portable en 1080p à 150 % : l'onglet d'un agent dépasse la hauteur utile de l'écran.
         Flickable {
+            id: flick
             anchors.fill: parent
             clip: true
             contentHeight: content.implicitHeight
@@ -74,6 +75,16 @@ Window {
                 visible: win.visible   // contenu créé et rafraîchi (poke) seulement popover ouvert
                 onCloseRequested: win.dismiss()
             }
+        }
+        // Indicateur de défilement, celui du dashboard (le Flickable n'en dessine pas).
+        Rectangle {
+            x: flick.x + flick.width - 7
+            y: flick.y + flick.visibleArea.yPosition * flick.height
+            width: 4
+            height: flick.visibleArea.heightRatio * flick.height
+            radius: 2
+            visible: flick.visibleArea.heightRatio < 1
+            color: Colors.withAlpha(Colors.muted, 0.35)
         }
     }
 
