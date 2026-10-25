@@ -105,8 +105,20 @@ def register(qml, data, cfg, desktop):
     qmlRegisterSingletonInstance(diagnostics.Desktop, "AgentBurn", 1, 0, "Desktop", desktop)
 
 
+def fit(w, width, height, area):
+    """Fenêtre de width×height centrée dans area, réduite sur un petit écran (48 px de marge pour le cadre)
+    mais jamais sous sa taille minimale ; écran plus petit que ce minimum : minimum ramené à l'écran, la
+    fenêtre y tient entière (le contenu défile) au lieu d'en déborder."""
+    from PySide6.QtCore import QPoint, QSize
+
+    room = area.size() - QSize(48, 48)
+    w.setMinimumSize(w.minimumSize().boundedTo(room))
+    w.resize(QSize(width, height).boundedTo(room).expandedTo(w.minimumSize()))
+    w.setPosition(area.topLeft() + QPoint((area.width() - w.width()) // 2, (area.height() - w.height()) // 2))
+
+
 def run(args):
-    from PySide6.QtCore import QCoreApplication, QFileInfo, QLockFile, QMetaObject, QPoint, Qt, QtMsgType, QTimer, QUrl
+    from PySide6.QtCore import QCoreApplication, QFileInfo, QLockFile, QMetaObject, Qt, QtMsgType, QTimer, QUrl
     from PySide6.QtGui import QFontDatabase, QGuiApplication, QIcon
     from PySide6.QtNetwork import QLocalServer, QLocalSocket
     from PySide6.QtQml import QQmlApplicationEngine
@@ -221,11 +233,9 @@ def run(args):
     desktop.probeCli()
     pop, dash, prefs = root.property("popover"), root.property("dashboard"), root.property("settingsWindow")
 
-    # Dashboard et réglages centrés, réduits sur les petits écrans (leur taille minimale l'emporte).
     area = QGuiApplication.primaryScreen().availableGeometry()
-    for w, width, height in ((dash, 1200, 800), (prefs, 620, 680)):
-        w.resize(min(width, area.width() - 48), min(height, area.height() - 48))
-        w.setPosition(area.center() - QPoint(w.width() // 2, w.height() // 2))
+    fit(dash, 1200, 800, area)
+    fit(prefs, 620, 680, area)
 
     if mode == "selftest":
         from agentburn import selftest

@@ -179,6 +179,26 @@ class SingleInstance(unittest.TestCase):
             server.close()
 
 
+class WindowSize(unittest.TestCase):
+    def test_never_below_the_minimum_unless_the_screen_is_smaller(self):
+        dash = main_root().property("dashboard")
+        declared = dash.minimumSize()
+        self.assertEqual(declared, QSize(900, 600))
+        self.addCleanup(dash.setMinimumSize, declared)
+        # Écran 1080p, 1366×768 à 100 %, 1366×768 à 125 % (barre de 40 px), 1280×720 à 150 %.
+        for area, size, minimum in ((QRect(0, 0, 1920, 1040), QSize(1200, 800), QSize(900, 600)),
+                                    (QRect(0, 0, 1366, 728), QSize(1200, 680), QSize(900, 600)),
+                                    (QRect(0, 0, 1093, 574), QSize(1045, 526), QSize(900, 526)),
+                                    (QRect(1920, 0, 853, 440), QSize(805, 392), QSize(805, 392))):
+            dash.setMinimumSize(declared)
+            appmain.fit(dash, 1200, 800, area)
+            self.assertEqual((dash.size(), dash.minimumSize()), (size, minimum), area)
+            # Centrée, tout entière dans l'écran, jamais plus petite que son minimum.
+            self.assertTrue(area.contains(dash.geometry()), (area, dash.geometry()))
+            self.assertEqual(dash.geometry().center().x() - area.center().x(), 0, area)
+            self.assertTrue(dash.width() >= dash.minimumWidth() and dash.height() >= dash.minimumHeight())
+
+
 SCREEN = QRect(0, 0, 1920, 1080)
 CARD = QSize(440, 600)
 
