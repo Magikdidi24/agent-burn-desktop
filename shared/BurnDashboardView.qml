@@ -442,6 +442,7 @@ Item {
                                     anchors.centerIn: parent
                                     text: opt.modelData.label
                                     color: opt.sel ? Colors.foreground : Colors.muted
+                                    font.bold: opt.sel   // la sélection ne tient pas qu'à la couleur
                                 }
                             }
                         }
