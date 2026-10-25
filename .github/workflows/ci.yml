@@ -319,10 +319,8 @@ jobs:
         run: |
           mkdir release
           cp dl/agent-burn-desktop-linux/*.{tar.gz,AppImage,deb,rpm} dl/agent-burn-desktop-windows-x64/*.{exe,zip} release/
-          cd release
-          sha256sum -- * > SHA256SUMS
-          cat SHA256SUMS
+          (cd release && sha256sum -- * > SHA256SUMS && cat SHA256SUMS)
           gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
             --title "Agent Burn ${GITHUB_REF_NAME#desktop-v} (app de bureau)" \
             --notes "Brouillon créé par la CI : $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. Vérification : sha256sum -c SHA256SUMS" \
-            -- *
+            -- release/*
