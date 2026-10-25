@@ -1,5 +1,5 @@
 #Requires -Version 7.4
-# Construit Agent Burn pour Windows : CLI Rust, polices, bundle PyInstaller, selftest, zip portable, installeur.
+# Construit Agent Burn pour Windows : CLI Rust, polices, licences, bundle PyInstaller, selftest, zip portable, installeur.
 #   pwsh -File desktop\agent-burn\build.ps1 [-Arch x64|arm64] [-SkipCli]
 # Idempotent : une étape déjà faite est sautée (venv, polices, CLI à jour) ou écrasée (bundle, zip, setup).
 param(
@@ -100,8 +100,56 @@ if (-not ((Test-Path $cliFiles) -notcontains $false -and (Get-Content $stamp) -m
     throw "build\cli incomplet ou compilé pour une autre cible que $target : relance sans -SkipCli (Git et Rust requis)"
 }
 
+# Fichiers ajoutés à la racine du bundle (build\bundle-extra, repris par agentburn.spec) : licences et build-info.json.
+# Recréés à chaque build : rien d'un build précédent ne traîne.
+$extra = "$PSScriptRoot/build/bundle-extra"
+Remove-Item $extra -Recurse -Force -ErrorAction Ignore
+New-Item -ItemType Directory -Force "$extra/licenses" | Out-Null
+Copy-Item $cliLicense, $cliNotices, tools/licenses/LGPL-3.0.txt, tools/licenses/GPL-3.0.txt "$extra/licenses"
+Copy-Item app/fonts/OFL.txt "$extra/licenses/LICENSE-JetBrainsMono-NerdFont.txt"
+# Python et les bibliothèques C de sa distribution (OpenSSL, libffi…) ; sous Windows, LICENSE.txt est à sa racine.
+Copy-Item (Join-Path (& $py -c 'import sys; print(sys.base_prefix)') LICENSE.txt) "$extra/licenses/LICENSE-Python.txt"
+# Qt et PySide6 (LGPL v3) : leurs wheels ne livrent que la notice commerciale ; versions lues dans le venv.
+$pyside, $qt = & $py -c 'import PySide6, PySide6.QtCore as c; print(PySide6.__version__); print(c.qVersion())'
+(Get-Content -Raw tools/licenses/NOTICE-Qt-PySide6.txt) -replace '@QT@', $qt -replace '@PYSIDE6@', $pyside |
+    Set-Content -NoNewline "$extra/licenses/NOTICE-Qt-PySide6.txt"
+[ordered]@{
+    appVersion = $ver
+    cliRev     = (Get-Content $stamp) -replace ' .*'   # celui de build\cli, même avec -SkipCli
+    cliVersion = & $cli --version
+    target     = $target
+    builtAt    = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+} | ConvertTo-Json | Set-Content "$extra/build-info.json"
+
+# Ressource de version de AgentBurn.exe (Propriétés → Détails, nom dans le Gestionnaire des tâches), reprise par
+# agentburn.spec.
+$nums = ($ver -split '\.') + '0' -join ', '
+@"
+VSVersionInfo(
+  ffi=FixedFileInfo(filevers=($nums), prodvers=($nums)),
+  kids=[
+    StringFileInfo([StringTable('040C04B0', [
+      StringStruct('CompanyName', 'Berthelot Samuel'),
+      StringStruct('FileDescription', 'Agent Burn'),
+      StringStruct('FileVersion', '$ver'),
+      StringStruct('InternalName', 'AgentBurn'),
+      StringStruct('LegalCopyright', '© 2026 Berthelot Samuel'),
+      StringStruct('OriginalFilename', 'AgentBurn.exe'),
+      StringStruct('ProductName', 'Agent Burn'),
+      StringStruct('ProductVersion', '$ver')])]),
+    VarFileInfo([VarStruct('Translation', [0x040C, 1200])])])
+"@ | Set-Content build/version_info.txt
+
 # Bundle onedir → dist\AgentBurn
 & $py -m PyInstaller --noconfirm agentburn.spec
+# Contrat avec agentburn.spec : sans lui, un bundle sans licences ni version partirait quand même.
+foreach ($f in Get-ChildItem $extra -Recurse -File) {
+    $rel = [IO.Path]::GetRelativePath($extra, $f.FullName)
+    if (-not (Test-Path "dist/AgentBurn/$rel")) { throw "agentburn.spec n'a pas repris build\bundle-extra : $rel absent du bundle" }
+}
+if ((Get-Item dist/AgentBurn/AgentBurn.exe).VersionInfo.ProductVersion -ne $ver) {
+    throw "agentburn.spec n'a pas repris build\version_info.txt : AgentBurn.exe sans version $ver"
+}
 
 # Selftest du bundle gelé : l'exe sert lui-même les fixtures (faux CLI) et ses données vont dans build\,
 # jamais dans l'historique réel (%APPDATA%\AgentBurn).
