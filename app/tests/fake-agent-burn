@@ -1,0 +1,4 @@
+#!/bin/sh
+# Faux agent-burn de dev (Linux) : l'app sert elle-même les fixtures de AGENT_BURN_FAKE_DIR, sans Qt,
+# comme l'exe gelé du selftest. AGENT_BURN_BIN=<ce fichier> python -m agentburn --selftest DIR
+cd "$(dirname "$0")/.." && exec python3 -m agentburn "$@"

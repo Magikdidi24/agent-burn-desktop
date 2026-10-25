@@ -1,0 +1,6 @@
+# Produits par build.ps1 (venv, polices Nerd Font téléchargées, CLI compilé, bundles, installeur)
+.venv/
+app/fonts/
+build/
+dist/
+__pycache__/

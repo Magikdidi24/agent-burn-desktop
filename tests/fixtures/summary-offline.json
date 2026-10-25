@@ -1,0 +1,244 @@
+{
+  "agents": [
+    {
+      "agent": "claude",
+      "daily": [
+        {
+          "cost": 0,
+          "date": "2026-09-28",
+          "tokens": 1518455
+        },
+        {
+          "cost": 0,
+          "date": "2026-09-30",
+          "tokens": 15709075
+        },
+        {
+          "cost": 0,
+          "date": "2026-10-02",
+          "tokens": 3765317
+        },
+        {
+          "cost": 0,
+          "date": "2026-10-06",
+          "tokens": 114145
+        },
+        {
+          "cost": 0,
+          "date": "2026-10-07",
+          "tokens": 2516161
+        },
+        {
+          "cost": 0,
+          "date": "2026-10-10",
+          "tokens": 4135431
+        },
+        {
+          "cost": 0,
+          "date": "2026-10-12",
+          "tokens": 579210
+        },
+        {
+          "cost": 0,
+          "date": "2026-10-15",
+          "tokens": 18524393
+        },
+        {
+          "cost": 0,
+          "date": "2026-10-16",
+          "tokens": 5270867
+        },
+        {
+          "cost": 0,
+          "date": "2026-10-18",
+          "tokens": 12828380
+        },
+        {
+          "cost": 0,
+          "date": "2026-10-19",
+          "tokens": 39043582
+        },
+        {
+          "cost": 0,
+          "date": "2026-10-20",
+          "tokens": 365519530
+        },
+        {
+          "cost": 0,
+          "date": "2026-10-21",
+          "tokens": 154807049
+        },
+        {
+          "cost": 0,
+          "date": "2026-10-22",
+          "tokens": 1199324996
+        },
+        {
+          "cost": 0,
+          "date": "2026-10-23",
+          "tokens": 181805390
+        }
+      ],
+      "models": [
+        {
+          "model": "claude-opus-5-5",
+          "percentage": 0,
+          "totalCost": 0,
+          "totalTokens": 1779034649
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "percentage": 0,
+          "totalCost": 0,
+          "totalTokens": 223602526
+        },
+        {
+          "model": "claude-opus-5",
+          "percentage": 0,
+          "totalCost": 0,
+          "totalTokens": 1518455
+        },
+        {
+          "model": "claude-haiku-5-5",
+          "percentage": 0,
+          "totalCost": 0,
+          "totalTokens": 1306351
+        }
+      ],
+      "tokenBreakdown": {
+        "cacheRead": 1952839270,
+        "cacheWrite": 38166460,
+        "input": 21402,
+        "output": 14434849
+      },
+      "totalCost": 0,
+      "totalTokens": 2005461981
+    }
+  ],
+  "daily": [
+    {
+      "cost": 0,
+      "date": "2026-09-28",
+      "tokens": 1518455
+    },
+    {
+      "cost": 0,
+      "date": "2026-09-30",
+      "tokens": 15709075
+    },
+    {
+      "cost": 0,
+      "date": "2026-10-02",
+      "tokens": 3765317
+    },
+    {
+      "cost": 0,
+      "date": "2026-10-06",
+      "tokens": 114145
+    },
+    {
+      "cost": 0,
+      "date": "2026-10-07",
+      "tokens": 2516161
+    },
+    {
+      "cost": 0,
+      "date": "2026-10-10",
+      "tokens": 4135431
+    },
+    {
+      "cost": 0,
+      "date": "2026-10-12",
+      "tokens": 579210
+    },
+    {
+      "cost": 0,
+      "date": "2026-10-15",
+      "tokens": 18524393
+    },
+    {
+      "cost": 0,
+      "date": "2026-10-16",
+      "tokens": 5270867
+    },
+    {
+      "cost": 0,
+      "date": "2026-10-18",
+      "tokens": 12828380
+    },
+    {
+      "cost": 0,
+      "date": "2026-10-19",
+      "tokens": 39043582
+    },
+    {
+      "cost": 0,
+      "date": "2026-10-20",
+      "tokens": 365519530
+    },
+    {
+      "cost": 0,
+      "date": "2026-10-21",
+      "tokens": 154807049
+    },
+    {
+      "cost": 0,
+      "date": "2026-10-22",
+      "tokens": 1199324996
+    },
+    {
+      "cost": 0,
+      "date": "2026-10-23",
+      "tokens": 181805390
+    }
+  ],
+  "models": [
+    {
+      "model": "claude-opus-5-5",
+      "percentage": 0,
+      "totalCost": 0,
+      "totalTokens": 1779034649
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "percentage": 0,
+      "totalCost": 0,
+      "totalTokens": 223602526
+    },
+    {
+      "model": "claude-opus-5",
+      "percentage": 0,
+      "totalCost": 0,
+      "totalTokens": 1518455
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "percentage": 0,
+      "totalCost": 0,
+      "totalTokens": 1306351
+    }
+  ],
+  "subscription": {
+    "agents": [
+      {
+        "agent": "claude",
+        "estimate": null,
+        "liveLimits": false,
+        "periodUsage": 0,
+        "plan": "Max 5×",
+        "pricePerMonth": 100,
+        "resetCreditsAvailable": null,
+        "shortWindow": null,
+        "window": null
+      }
+    ],
+    "period": {
+      "from": "2026-09-28",
+      "to": "2026-10-23"
+    }
+  },
+  "totals": {
+    "totalCost": 0,
+    "totalTokens": 2005461981
+  }
+}

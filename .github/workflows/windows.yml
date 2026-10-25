@@ -1,0 +1,68 @@
+# App Windows Agent Burn : CLI Rust, bundle PyInstaller, selftest, zip portable et installeur (build.ps1).
+name: Agent Burn (Windows)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - windows/agent-burn/**
+      - config/quickshell/Burn.qml
+      - config/quickshell/BurnPopover.qml
+      - config/quickshell/BurnDashboardView.qml
+      - config/quickshell/BurnQuotaChart.qml
+      - config/quickshell/BurnBarChart.qml
+      - config/quickshell/assets/burn/**
+      - install.sh
+      - .github/workflows/agent-burn-windows.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      # Révision du CLI épinglée dans install.sh : clé du cache (registre cargo + CLI compilé).
+      - id: rev
+        run: |
+          $rev = [regex]::Match((Get-Content -Raw install.sh), '(?m)^AB_REV=(\w+)').Groups[1].Value
+          "rev=$rev" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            windows/agent-burn/build/cli
+          key: agent-burn-cli-${{ runner.os }}-${{ steps.rev.outputs.rev }}
+          restore-keys: agent-burn-cli-${{ runner.os }}-
+
+      - name: Inno Setup (si absent de l'image)
+        run: |
+          if (-not (Test-Path 'C:/Program Files (x86)/Inno Setup 6/ISCC.exe')) { choco install innosetup -y --no-progress }
+
+      - name: Build
+        run: pwsh -File windows/agent-burn/build.ps1
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: AgentBurn-windows
+          path: |
+            windows/agent-burn/dist/AgentBurn-Setup-*.exe
+            windows/agent-burn/dist/AgentBurn-portable-*.zip
+          if-no-files-found: error
+
+      # Captures et rapport du selftest, aussi (surtout) quand le build échoue.
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: selftest
+          path: windows/agent-burn/dist/selftest/

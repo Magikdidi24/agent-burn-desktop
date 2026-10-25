@@ -192,7 +192,9 @@ Item {
         Txt {
             width: parent.width
             visible: text !== ""
-            text: Burn.cliMissing ? "CLI agent-burn introuvable (~/.local/bin/agent-burn) : relance install.sh" : Burn.error
+            // Remède propre à Linux ; ailleurs (app Windows), Burn.error donne le chemin réellement cherché.
+            text: Burn.cliMissing && Qt.platform.os === "linux"
+                ? "CLI agent-burn introuvable (~/.local/bin/agent-burn) : relance install.sh" : Burn.error
             color: Colors.danger
             font.pixelSize: 11
             wrapMode: Text.Wrap

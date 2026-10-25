@@ -1,0 +1,133 @@
+{
+  "agent": "claude",
+  "apiEquivalentPerMonth": 831.8660224199998,
+  "daily": [
+    {
+      "cost": 7.333480600000001,
+      "date": "2026-10-18"
+    },
+    {
+      "cost": 13.211607600000002,
+      "date": "2026-10-19"
+    },
+    {
+      "cost": 129.13768954000022,
+      "date": "2026-10-20"
+    },
+    {
+      "cost": 65.55075690000008,
+      "date": "2026-10-21"
+    },
+    {
+      "cost": 489.2893360699994,
+      "date": "2026-10-22"
+    },
+    {
+      "cost": 102.05524421000007,
+      "date": "2026-10-23"
+    }
+  ],
+  "economics": {
+    "apiEquivalentPerMonth": 831.8660224199998,
+    "discountPercent": 87.97883345336214,
+    "pricePerMonth": 100,
+    "subsidyPerMonth": 731.8660224199998,
+    "valueMultiple": 8.318660224199999
+  },
+  "estimate": {
+    "fullQuotaValue": 1075.4374865599998,
+    "monthlyValue": 4676.232642452856,
+    "projectedUsePercent": 102.1224682627751,
+    "valueMultiple": 46.76232642452857
+  },
+  "imageGenerations": {
+    "count": 0,
+    "estimatedCost": 0,
+    "pricePerImageEstimate": 0.15
+  },
+  "limitUsageDaily": [],
+  "liveLimits": true,
+  "plan": "Max 5×",
+  "pricePerMonth": 100,
+  "resetCreditsAvailable": null,
+  "spendMix": [
+    {
+      "costPercent": 0.0011018439497963964,
+      "costUSD": 0.009165865438446706,
+      "key": "input",
+      "label": "input",
+      "tokenPercent": 0.0010671943192354899,
+      "tokens": 21404
+    },
+    {
+      "costPercent": 0.7286446557223214,
+      "costUSD": 6.061347315133179,
+      "key": "output",
+      "label": "output",
+      "tokenPercent": 0.7197577508782994,
+      "tokens": 14435698
+    },
+    {
+      "costPercent": 1.9582674918268503,
+      "costUSD": 16.290161892603923,
+      "key": "cacheCreation",
+      "label": "cache write",
+      "tokenPercent": 1.902978389816124,
+      "tokens": 38166760
+    },
+    {
+      "costPercent": 97.31198600850102,
+      "costUSD": 809.5053473468246,
+      "key": "cacheRead",
+      "label": "cached input",
+      "tokenPercent": 97.37619666498634,
+      "tokens": 1953009003
+    }
+  ],
+  "topModels": [
+    {
+      "cost": 771.3377112000001,
+      "model": "claude-opus-5-5",
+      "tokens": 1779205533
+    },
+    {
+      "cost": 58.349054600000045,
+      "model": "claude-sonnet-5-5",
+      "tokens": 223602526
+    },
+    {
+      "cost": 1.9584345000000005,
+      "model": "claude-opus-5",
+      "tokens": 1518455
+    },
+    {
+      "cost": 0.22082211999999996,
+      "model": "claude-haiku-5-5",
+      "tokens": 1306351
+    }
+  ],
+  "weeklyTrend": [
+    {
+      "cost": 10.0788569,
+      "weekStart": "2026-09-28"
+    },
+    {
+      "cost": 3.9049085999999997,
+      "weekStart": "2026-10-05"
+    },
+    {
+      "cost": 18.6376226,
+      "weekStart": "2026-10-12"
+    },
+    {
+      "cost": 799.2446343199998,
+      "weekStart": "2026-10-19"
+    }
+  ],
+  "window": {
+    "apiEquivalentSpent": 806.5781149199998,
+    "elapsedPercent": 73.44123313492064,
+    "usedPercent": 75,
+    "windowMinutes": 10080
+  }
+}

@@ -1,0 +1,1 @@
+../../../../../config/quickshell/Burn.qml
