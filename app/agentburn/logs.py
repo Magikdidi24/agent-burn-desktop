@@ -71,6 +71,8 @@ def setup(directory, stderr=None, qt_hook=None):
     except OSError as e:
         path, problem = None, e
     if stderr is not None:
+        if hasattr(stderr, "reconfigure"):   # redirigé sous Windows : code page ANSI, illisible à côté du fichier UTF-8
+            stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
         handlers.append(logging.StreamHandler(stderr))
     for h in handlers:
         h.setFormatter(_Format("%(asctime)s %(levelname)s %(name)s : %(message)s"))

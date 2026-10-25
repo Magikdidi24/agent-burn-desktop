@@ -137,6 +137,14 @@ class Setup(unittest.TestCase):
         self.assertIn("WARNING qt : avertissement de test", self.text())
         self.assertEqual(self.qt, ["avertissement de test"])
 
+    def test_stderr_in_utf8_even_when_redirected_in_the_ansi_code_page(self):
+        # Windows : stderr redirigé (selftest du build) en cp1252, à côté d'un journal UTF-8.
+        raw = io.BytesIO()
+        stream = io.TextIOWrapper(raw, encoding="cp1252")
+        logs.setup(self.dir / "logs", stream)
+        logging.getLogger("agentburn").warning("épinglé ✓")   # ✓ : hors de cp1252
+        self.assertIn("épinglé ✓".encode("utf-8"), raw.getvalue())
+
     def test_unwritable_dir_still_logs_elsewhere(self):
         blocker = self.dir / "fichier"
         blocker.write_text("x")
