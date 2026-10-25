@@ -101,6 +101,12 @@ done
 [ -f "$PREFIX/share/metainfo/$APPID.metainfo.xml" ] || die "AppStream $APPID.metainfo.xml absent"
 [ "$(/opt/agent-burn-desktop/bin/agent-burn --version)" = "$ABVER" ] || die "CLI embarqué : --version ≠ « $ABVER »"
 ok "PATH ($exe), lanceur, icônes, AppStream, CLI embarqué ($ABVER)"
+# Le selftest ne charge pas tous les plugins (Wayland, EGL…) : ldd vérifie que les dépendances du paquet
+# fournissent tout ce que le bundle demande (LD_LIBRARY_PATH = celui que pose le lanceur PyInstaller).
+missing=$(find /opt/agent-burn-desktop -type f -name '*.so*' -exec env LD_LIBRARY_PATH=/opt/agent-burn-desktop ldd {} + \
+    2>/dev/null | grep 'not found' | sort -u || true)
+[ -z "$missing" ] || die "bibliothèques introuvables avec les seules dépendances du paquet : $(echo $missing)"
+ok "toutes les bibliothèques du bundle se résolvent"
 
 step "Selftest de l'app installée (dépendances du paquet seules : rendu logiciel)"
 selftest software "$exe" "${SOFT[@]}"
