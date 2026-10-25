@@ -228,7 +228,7 @@ class Upstream(unittest.TestCase):
                   "CompactHarnessView.swift → config/quickshell/BurnPopover.qml",
                   "[adapter/claude]", "[sortie JSON → vérifier Burn.qml]", "[tarifs]",
                   "v20.0.22", "macos-v1.1.0", "Fichiers du repo à revoir", "config/quickshell/Burn.qml",
-                  "--diff", "--bump"]:
+                  "agent-burn-upstream diff QuotaChart.swift", "agent-burn-upstream update --fetch"]:
             self.assertIn(s, out)
         self.assertNotIn("Merge branch popover", out)
         self.assertNotIn("QuotaChartRangeTests", out)   # tests de l'app Mac : rien à porter, pas listés
@@ -420,6 +420,25 @@ class Upstream(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("--version", r.stdout)
         self.assert_nothing_installed(before)
+
+    # ── sous-commandes ──
+    def test_subcommands_are_aliases(self):
+        self.assertEqual(self.report("--fetch")["head"], self.head)   # forme de BurnUpstream.qml
+        self.assertEqual(json.loads(self.run_script("status", "--json").stdout)["ahead"], 9)
+        self.assertEqual(self.run_script("status").stdout, self.run_script().stdout)
+        self.assertIn("+struct QuotaChart { var range = 7 }", self.run_script("diff", "QuotaChart").stdout)
+        r = self.run_script("update", "--fetch", "v20.0.22")   # options avant ou après REV
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn(f"AB_REV={self.c9}\n", self.install.read_text())
+        r = self.run_script("update")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn(f"AB_REV={self.head}\n", self.install.read_text())   # latest
+        out = self.run_script("--help").stdout
+        for s in ("agent-burn-upstream [status] [--fetch] [--json]", "agent-burn-upstream diff QuotaChart.swift",
+                  "agent-burn-upstream update [REV|latest]"):
+            self.assertIn(s, out)
+        for bad in (["diff"], ["status", "x"], ["update", "--bump"], ["diff", "X", "--diff", "Y"], ["nope"]):
+            self.assertEqual(self.run_script(*bad).returncode, 2, bad)
 
     # ── liste des clés ──
     def test_keys_are_read_by_the_qml(self):

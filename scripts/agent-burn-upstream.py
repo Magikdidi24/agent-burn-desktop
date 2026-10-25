@@ -2,9 +2,12 @@
 """Suivi du dépôt amont github.com/Melvynx/agent-burn (app Mac + CLI) depuis la révision épinglée
 dans install.sh (AB_REV) : ce qu'il reste à porter dans ce repo, et le bump du CLI.
 
-  agent-burn-upstream [--fetch] [--json]       commits AB_REV..main amont, regroupés, et fichiers à revoir
-  agent-burn-upstream --diff QuotaChart.swift  diff amont d'un fichier (nom ou chemin) depuis AB_REV
-  agent-burn-upstream --bump [REV|latest]      compile le CLI de REV, vérifie son JSON, l'installe et l'épingle
+  agent-burn-upstream [status] [--fetch] [--json]  commits AB_REV..main amont, regroupés, et fichiers à revoir
+  agent-burn-upstream diff QuotaChart.swift        diff amont d'un fichier (nom ou chemin) depuis AB_REV
+  agent-burn-upstream update [REV|latest]          compile le CLI de REV, vérifie son JSON, l'installe et l'épingle
+
+--fetch (avec chaque commande) met d'abord à jour la copie de l'amont. Anciennes formes, toujours valides :
+--diff FICHIER, --bump [REV].
 """
 import argparse
 import difflib
@@ -224,8 +227,8 @@ def text(r, commits, sources):
     if n:
         if r["compareUrl"]:
             out.append("\nComparer : " + r["compareUrl"])
-        out.append("Diff d'un fichier : agent-burn-upstream --diff QuotaChart.swift (nom ou chemin)")
-        out.append("Bump du CLI (install.sh, compilation, contrôle du JSON) : agent-burn-upstream --fetch --bump")
+        out.append("Diff d'un fichier : agent-burn-upstream diff QuotaChart.swift (nom ou chemin)")
+        out.append("Bump du CLI (install.sh, compilation, contrôle du JSON) : agent-burn-upstream update --fetch")
     return "\n".join(out)
 
 
@@ -334,17 +337,24 @@ def bump(rev):
 def main():
     p = argparse.ArgumentParser(prog="agent-burn-upstream", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("command", nargs="?", choices=("status", "diff", "update"), help="status par défaut")
+    p.add_argument("target", nargs="?", metavar="FICHIER|REV", help="diff : fichier amont ; update : révision (latest)")
     p.add_argument("--fetch", action="store_true", help="met d'abord à jour la copie de l'amont (réseau)")
     p.add_argument("--json", action="store_true", help="rapport en JSON (module Quickshell BurnUpstream)")
     g = p.add_mutually_exclusive_group()
-    g.add_argument("--diff", metavar="FICHIER", help="diff amont depuis AB_REV (QuotaChart.swift ou chemin)")
-    g.add_argument("--bump", nargs="?", const="latest", metavar="REV",
-                   help="épingle REV (défaut : latest = origin/main)")
-    a = p.parse_args()
+    g.add_argument("--diff", metavar="FICHIER", help="= diff FICHIER")
+    g.add_argument("--bump", nargs="?", const="latest", metavar="REV", help="= update [REV]")
+    a = p.parse_intermixed_args()   # update --fetch v20.0.22 comme update v20.0.22 --fetch
+    if a.command and (a.diff or a.bump) or a.target and a.command not in ("diff", "update"):
+        p.error("une seule commande : status, diff FICHIER ou update [REV]")
+    if a.command == "diff":
+        a.diff = a.target or p.error("diff : nom ou chemin du fichier manquant")
+    elif a.command == "update":
+        a.bump = a.target or "latest"
     try:
         warning = fetch() if a.fetch else ""
         if not (REPO / ".git").is_dir():
-            raise Fail("pas encore de copie de l'amont : lance agent-burn-upstream --fetch")
+            raise Fail("pas encore de copie de l'amont : lance agent-burn-upstream status --fetch")
         if a.diff:
             return diff(a.diff)
         if a.bump:
