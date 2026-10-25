@@ -54,12 +54,14 @@ Name: "desktopicon"; Description: "Créer un raccourci sur le Bureau"; Flags: un
 ; shortcut: un fichier racine qu'une ancienne version avait et que celle-ci n'a plus reste jusqu'à la
 ; désinstallation (python312.dll après un passage à 3.13, inoffensif) ; tout couvrir demanderait un bundle rangé
 ; dans un seul sous-dossier.
+; Seulement par-dessus une installation d'Agent Burn (OwnInstall) : un dossier choisi à la main peut avoir ses
+; propres sous-dossiers bin, shared, licenses…
 #define FindHandle
 #define FindResult
 #sub DeleteBundleDir
   #define Name FindGetFileName(FindHandle)
   #if Name != "." && Name != ".." && DirExists(Bundle + Name)
-Type: filesandordirs; Name: "{app}\{#Name}"
+Type: filesandordirs; Name: "{app}\{#Name}"; Check: OwnInstall
   #endif
 #endsub
 #for {FindHandle = FindResult = FindFirst(Bundle + "*", faDirectory); FindResult; FindResult = FindNext(FindHandle)} DeleteBundleDir
@@ -98,3 +100,10 @@ Filename: "{sys}\taskkill.exe"; Parameters: "/f /im AgentBurn.exe"; Flags: runhi
 Type: filesandordirs; Name: "{localappdata}\AgentBurn\cache"
 Type: filesandordirs; Name: "{localappdata}\AgentBurn\logs"
 Type: dirifempty; Name: "{localappdata}\AgentBurn"
+
+[Code]
+// {app} vient d'une installation d'Agent Burn : son exe et le journal de désinstallation d'Inno y sont.
+function OwnInstall: Boolean;
+begin
+  Result := FileExists(ExpandConstant('{app}\AgentBurn.exe')) and FileExists(ExpandConstant('{app}\unins000.dat'));
+end;
