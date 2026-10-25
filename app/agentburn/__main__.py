@@ -30,9 +30,17 @@ def fake_cli(args):
         return 0
     if args[0] == "harness" and (len(args) < 2 or args[1] not in ("claude", "codex")):
         return 2   # comme le vrai CLI ; et jamais un chemin de fixture tiré d'argv
-    path = Path(src) / ("summary-live.json" if args[0] == "summary" else f"harness-{args[1]}.json")
+    quota = args[0] == "harness" and args[1] == "claude" and os.environ.get("AGENT_BURN_QUOTA_ONLY") == "1"
+    path = Path(src) / ("summary-live.json" if args[0] == "summary" else "quota-claude-live.json" if quota
+                        else f"harness-{args[1]}.json")
     if not path.is_file():
         return 2
+    if quota:   # relevé léger du tick de 5 min : « maintenant », comme le compte du summary
+        reading = json.loads(path.read_text(encoding="utf-8"))
+        reading["observedAt"] = int(time.time() * 1000)
+        out.write(json.dumps(reading).encode("utf-8"))
+        out.flush()
+        return 0
     shift = datetime.date.today() - datetime.date(2026, 10, 23)   # jour de capture des fixtures
 
     def shifted(o):

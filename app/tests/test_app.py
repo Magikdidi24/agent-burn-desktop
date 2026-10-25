@@ -91,8 +91,8 @@ def wait_for(cond, seconds=10):
     return cond()
 
 
-def fake(*args):
-    env = {**os.environ, "AGENT_BURN_FAKE_DIR": str(FIXTURES)}
+def fake(*args, **extra):
+    env = {**os.environ, "AGENT_BURN_FAKE_DIR": str(FIXTURES), **extra}
     return subprocess.run([sys.executable, "-m", "agentburn", *args], cwd=APP, env=env,
                           capture_output=True, timeout=30)
 
@@ -116,6 +116,14 @@ class FakeCli(unittest.TestCase):
         r = fake("harness", "claude", "--value", "--json", "--no-color")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(json.loads(r.stdout)["plan"], "Max 5×")
+
+    def test_quota_only_reading_observed_now(self):
+        # Tick de 5 min de Burn.qml : relevé léger, pas le harness complet (sinon « Rapport illisible »).
+        r = fake("harness", "claude", "--json", "--no-color", AGENT_BURN_QUOTA_ONLY="1")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        q = json.loads(r.stdout)
+        self.assertEqual((q["agent"], q["window"]["windowMinutes"]), ("claude", 10080))
+        self.assertLess(abs(q["observedAt"] - time.time() * 1000), 60000)
 
     def test_harness_without_fixture_fails(self):
         self.assertNotEqual(fake("harness", "codex", "--json").returncode, 0)

@@ -1,0 +1,16 @@
+{
+  "agent": "claude",
+  "observedAt": 1792893362960,
+  "sessionWindow": {
+    "apiEquivalentSpent": 0,
+    "elapsedPercent": 98.68243333333334,
+    "usedPercent": 22.0,
+    "windowMinutes": 300
+  },
+  "window": {
+    "apiEquivalentSpent": 0,
+    "elapsedPercent": 2.9369771825396827,
+    "usedPercent": 3.0,
+    "windowMinutes": 10080
+  }
+}
