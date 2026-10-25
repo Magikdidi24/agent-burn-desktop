@@ -23,7 +23,7 @@ from PySide6.QtGui import QColor, QGuiApplication  # noqa: E402
 from PySide6.QtQml import QQmlComponent, QQmlEngine  # noqa: E402
 from PySide6.QtQuick import QQuickItem  # noqa: E402
 
-from agentburn import runtime, shim  # noqa: E402
+from agentburn import paths, runtime, shim  # noqa: E402
 from agentburn.tray import open_popover, pixmap, place  # noqa: E402
 
 
@@ -139,13 +139,28 @@ class Runtime(unittest.TestCase):
         self.assertEqual(runtime.assemble(), d)   # même contenu → même dossier, rien de recopié
 
     def test_rename_refused_uses_assembled_copy(self):
-        # Windows : renommage refusé tant que l'antivirus tient un fichier qu'on vient d'écrire.
-        QCoreApplication.setApplicationName("AgentBurn")
-        with tempfile.TemporaryDirectory() as cache, mock.patch.dict(os.environ, {"XDG_CACHE_HOME": cache}), \
-                mock.patch.object(Path, "rename", side_effect=PermissionError(13, "accès refusé")):
+        # Windows : renommage refusé tant que l'antivirus tient un fichier qu'on vient d'écrire. Cache vide
+        # sur toute plateforme (XDG_CACHE_HOME ne joue pas sous Windows).
+        with tempfile.TemporaryDirectory() as cache, mock.patch.object(paths, "cache_dir", return_value=Path(cache)), \
+                mock.patch.object(Path, "rename", side_effect=PermissionError(13, "accès refusé")) as rename:
             d = runtime.assemble()
+            self.assertTrue(rename.called)
+            self.assertEqual([p.name for p in Path(cache).iterdir()], [d.name])   # la copie temporaire, seule
             self.assertTrue((d / "qmldir").is_file())
             self.assertTrue((d / "BurnPopover.qml").is_file())
+
+    def test_tampered_cache_rebuilt(self):
+        with tempfile.TemporaryDirectory() as cache, mock.patch.object(paths, "cache_dir", return_value=Path(cache)):
+            d = runtime.assemble()
+            good = (d / "Burn.qml").read_bytes()
+            (d / "Burn.qml").write_bytes(good + b"\n// modifie\n")
+            self.assertEqual(runtime.assemble(), d)
+            self.assertEqual((d / "Burn.qml").read_bytes(), good)
+            (d / "Extra.qml").write_text("import QtQuick\nItem {}\n")   # fichier en plus : reconstruit aussi
+            (d / "qmldir").unlink()
+            self.assertEqual(runtime.assemble(), d)
+            self.assertFalse((d / "Extra.qml").exists())
+            self.assertTrue((d / "qmldir").is_file())
 
 
 class Popover(unittest.TestCase):

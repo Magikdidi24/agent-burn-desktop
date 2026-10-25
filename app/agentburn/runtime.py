@@ -1,5 +1,5 @@
 # Dossier QML d'exécution : QML partagés du module Quickshell (jamais dupliqués dans git) + QML de
-# l'app Windows + qmldir. Nommé d'après son contenu : l'app, un selftest ou une version de dev
+# l'app de bureau + qmldir. Nommé d'après son contenu : l'app, un selftest ou une version de dev
 # lancés en même temps ne se marchent pas dessus, et rien n'est recopié d'un lancement à l'autre.
 import hashlib
 import shutil
@@ -7,7 +7,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from PySide6.QtCore import QStandardPaths
+from agentburn import paths
 
 SHARED = ("Burn.qml", "BurnPopover.qml", "BurnDashboardView.qml", "BurnQuotaChart.qml", "BurnBarChart.qml")
 SINGLETONS = ("Burn", "Colors")
@@ -24,30 +24,45 @@ def sources():
     raise SystemExit(f"config/quickshell/Burn.qml introuvable au-dessus de {here}")
 
 
+def intact(d, content):
+    """Copie en cache identique au contenu attendu, octet pour octet, sans fichier en plus."""
+    try:
+        return (sorted(p.relative_to(d).as_posix() for p in d.rglob("*") if p.is_file()) == sorted(content)
+                and all((d / rel).read_bytes() == data for rel, data in content.items()))
+    except OSError:
+        return False
+
+
 def assemble():
     shared, own = sources()
     files = [(shared / f, f) for f in SHARED]
     files += [(p, f"assets/burn/{p.name}") for p in sorted((shared / "assets" / "burn").iterdir()) if p.is_file()]
     files += [(p, p.relative_to(own).as_posix()) for p in sorted(own.rglob("*")) if p.is_file()]
     digest = hashlib.sha1()
+    content = {}
     for src, rel in files:
-        digest.update(rel.encode() + b"\0" + src.read_bytes())
-    cache = Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.CacheLocation))
+        content[rel] = src.read_bytes()
+        digest.update(rel.encode() + b"\0" + content[rel])
+    content["qmldir"] = "".join(f"{'singleton ' if rel[:-4] in SINGLETONS else ''}{rel[:-4]} 1.0 {rel}\n"
+                                for rel in sorted(content) if "/" not in rel and rel.endswith(".qml")).encode()
+    cache = paths.cache_dir()
     dst = cache / f"qml-{digest.hexdigest()[:12]}"
-    if (dst / "qmldir").is_file():
+    # Relu à chaque lancement : un fichier modifié dans le cache (ou mis en quarantaine) ne s'exécute pas.
+    if intact(dst, content):
         return dst
     cache.mkdir(parents=True, exist_ok=True)
     tmp = Path(tempfile.mkdtemp(prefix="qml-", dir=cache))
-    for src, rel in files:
+    for rel, data in content.items():
         (tmp / rel).parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(src, tmp / rel)
-    (tmp / "qmldir").write_text("".join(
-        f"{'singleton ' if p.stem in SINGLETONS else ''}{p.stem} 1.0 {p.name}\n" for p in sorted(tmp.glob("*.qml"))))
+        (tmp / rel).write_bytes(data)
+    if dst.exists():   # altéré ou incomplet : reconstruit
+        shutil.rmtree(dst, ignore_errors=True)
     try:
         tmp.rename(dst)
     except OSError:
-        # Renommage refusé (fichier juste écrit encore ouvert par l'antivirus ou l'indexeur) : même contenu.
-        if not (dst / "qmldir").is_file():
+        # Renommage refusé (fichier juste écrit encore ouvert par l'antivirus ou l'indexeur), ou copie
+        # altérée impossible à effacer : la nôtre, sauf si une autre instance vient d'en poser une saine.
+        if not intact(dst, content):
             return tmp
-        shutil.rmtree(tmp, ignore_errors=True)   # une autre instance l'a assemblé juste avant
+        shutil.rmtree(tmp, ignore_errors=True)
     return dst

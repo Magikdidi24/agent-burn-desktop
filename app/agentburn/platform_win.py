@@ -1,5 +1,5 @@
 # Appels propres à Windows (ctypes, winreg), importés seulement sous Windows : inactivité, barre de
-# titre sombre, lancement au démarrage, premier plan cédé à l'instance déjà lancée.
+# titre sombre, lancement au démarrage, premier plan cédé à l'instance déjà lancée, session courante.
 import ctypes
 import sys
 import winreg
@@ -61,3 +61,9 @@ def set_autostart(on):
 
 def allow_foreground():
     ctypes.windll.user32.AllowSetForegroundWindow(-1)   # ASFW_ANY
+
+
+def session_id():
+    sid = wintypes.DWORD()
+    ctypes.windll.kernel32.ProcessIdToSessionId(ctypes.windll.kernel32.GetCurrentProcessId(), ctypes.byref(sid))
+    return sid.value
