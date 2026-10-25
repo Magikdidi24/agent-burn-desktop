@@ -2,8 +2,12 @@
 # sous-ensemble de Quickshell 0.3.2 qu'ils utilisent (et leur suite de tests), même sémantique.
 # Ordre des signaux de Process relevé sous qs : streamFinished → exited (running déjà faux) →
 # runningChanged ; binaire absent : un seul runningChanged, sans started.
+# En plus de qs : enfants lancés dans le dossier de données avec child_environment(), chaque run
+# journalisé sur le logger « agentburn.cli » (handlers posés par l'app).
+import logging
 import os
 import sys
+import time
 from pathlib import Path
 
 import shiboken6
@@ -11,6 +15,44 @@ from PySide6.QtCore import (ClassInfo, Property, QIODevice, QObject, QProcess, Q
                             QUrl, Signal, Slot)
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtQml import ListProperty, QJSValue, qmlRegisterSingletonInstance, qmlRegisterType
+
+log = logging.getLogger("agentburn.cli")
+
+# Réglages du CLI qui changent son JSON ou son stderr : seul l'environment explicite de Burn.qml les pose.
+_CLI_VARS = ("AGENT_BURN_QUOTA_ONLY", "AGENT_BURN_FORCE_REFRESH", "LOG_LEVEL")
+# Posées par PyInstaller pour l'app gelée (avec _PYI_* et LD_LIBRARY_PATH) : kde-open, lancé par xdg-open,
+# chargerait sinon les plugins Qt du bundle.
+_BUNDLE_VARS = ("QT_PLUGIN_PATH", "QML2_IMPORT_PATH", "QML_IMPORT_PATH")
+
+
+def child_environment():
+    """Environnement des process lancés (CLI, xdg-open) : celui du système sans les fuites du bundle gelé ni
+    les réglages du CLI hérités ; sous Windows HOME = USERPROFILE (le CLI lit HOME avant USERPROFILE, Claude
+    Code et Codex écrivent sous USERPROFILE)."""
+    env = QProcessEnvironment.systemEnvironment()
+    if getattr(sys, "frozen", False):
+        for name in env.keys():
+            if name.startswith("_PYI_"):
+                env.remove(name)
+        for name in _BUNDLE_VARS:
+            env.remove(name)
+        if env.contains("LD_LIBRARY_PATH_ORIG"):   # valeur d'avant le bootloader
+            env.insert("LD_LIBRARY_PATH", env.value("LD_LIBRARY_PATH_ORIG"))
+            env.remove("LD_LIBRARY_PATH_ORIG")
+        else:
+            env.remove("LD_LIBRARY_PATH")
+    for name in _CLI_VARS:
+        env.remove(name)
+    if sys.platform == "win32" and env.contains("USERPROFILE"):
+        env.insert("HOME", env.value("USERPROFILE"))
+    return env
+
+
+def _first_error(text):
+    """Ligne utile d'un stderr (« Error: … », sinon la première non vide), tronquée comme dans Burn.qml."""
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    line = next((x for x in lines if x.startswith("Error: ")), lines[0] if lines else "")
+    return line if len(line) <= 160 else line[:159] + "…"
 
 
 @ClassInfo(DefaultProperty="children")
@@ -50,11 +92,18 @@ class QuickshellGlobal(QObject):
 
     @Slot(list)
     def execDetached(self, command):
-        # « xdg-open » des QML Linux : le système ouvre le dossier ou l'URL (Explorateur sous Windows).
-        if command[0] == "xdg-open":
+        # « xdg-open » des QML Linux : l'Explorateur sous Windows. Ailleurs xdg-open lui-même, avec
+        # child_environment() : QDesktopServices lui passerait l'environnement du bundle gelé.
+        if command[0] == "xdg-open" and sys.platform == "win32":
             QDesktopServices.openUrl(QUrl.fromUserInput(command[1]))
-        else:
-            QProcess.startDetached(command[0], command[1:])
+            return
+        p = QProcess()
+        p.setProgram(command[0])
+        p.setArguments(command[1:])
+        p.setProcessEnvironment(child_environment())
+        p.setWorkingDirectory(self._data)
+        if not p.startDetached():
+            log.warning("%s : lancement impossible", " ".join(command))
 
 
 class StdioCollector(QObject):
@@ -79,6 +128,8 @@ class Process(QObject):
         self._command = []
         self._environment = {}
         self._stdout = None
+        self._stderr = None
+        self._since = 0.0
 
     def _set_running(self, running):
         if not running:
@@ -88,13 +139,15 @@ class Process(QObject):
         if self._process or not self._command:
             return
         p = self._process = QProcess(self)
-        env = QProcessEnvironment.systemEnvironment()   # environnement courant + celui demandé (null = retiré)
+        env = child_environment()   # + environnement demandé par le QML (null = retiré)
         for name, value in self._environment.items():
             if value is None:
                 env.remove(name)
             else:
                 env.insert(name, str(value))
         p.setProcessEnvironment(env)
+        if _global is not None:   # dossier courant sans ./.agent-burn/ (config que le CLI y lirait)
+            p.setWorkingDirectory(_global.dataDir)
         # Fonctions anonymes, pas de méthodes liées : PySide ajouterait des slots à l'objet, en conflit
         # avec les propriétés que le QML lui déclare (component Cli: Process { property … }) → signaux
         # perdus. Ignorées une fois l'un des deux détruit (fermeture de l'app pendant un run).
@@ -104,12 +157,14 @@ class Process(QObject):
         p.started.connect(relay(self._started))
         p.finished.connect(relay(self._finished))
         p.errorOccurred.connect(relay(self._error))
+        self._since = time.monotonic()
         p.start(self._command[0], self._command[1:])
 
     running = Property(bool, lambda self: self._process is not None, _set_running, notify=runningChanged)
     command = Property(list, lambda self: self._command, lambda self, v: setattr(self, "_command", list(v)))
     environment = Property(dict, lambda self: self._environment, lambda self, v: setattr(self, "_environment", dict(v)))
     stdout = Property(QObject, lambda self: self._stdout, lambda self, v: setattr(self, "_stdout", v))
+    stderr = Property(QObject, lambda self: self._stderr, lambda self, v: setattr(self, "_stderr", v))
 
     # shortcut : exec() pendant un run ne relance rien à sa fin (jamais fait par les QML partagés).
     @Slot(dict)
@@ -134,15 +189,26 @@ class Process(QObject):
     def _finished(self, code, status):
         p, self._process = self._process, None
         p.deleteLater()
-        if self._stdout:
-            self._stdout._text = bytes(p.readAllStandardOutput()).decode("utf-8", "replace")
-            self._stdout.dataChanged.emit()
-            self._stdout.streamFinished.emit()
+        out = bytes(p.readAllStandardOutput())
+        err = bytes(p.readAllStandardError()).decode("utf-8", "replace")
+        for collector, text in ((self._stdout, out.decode("utf-8", "replace")), (self._stderr, err)):
+            if collector:
+                collector._text = text
+                collector.dataChanged.emit()
+                collector.streamFinished.emit()
+        # Arguments (nos options et chemins) et taille seulement : le stdout porte l'usage de l'utilisateur.
+        crashed = status != QProcess.ExitStatus.NormalExit
+        cmd = " ".join(self._command)
+        log.info("%s : code %d%s, %.2f s, %d octets", cmd, code, " (arrêt forcé)" if crashed else "",
+                 time.monotonic() - self._since, len(out))
+        if code or crashed:
+            log.warning("%s : %s", cmd, _first_error(err) or "stderr vide")
         self.exited.emit(code, status.value)
         self.runningChanged.emit()
 
     def _error(self, error):
         if error == QProcess.ProcessError.FailedToStart:
+            log.warning("%s : lancement impossible (%s)", " ".join(self._command), self._process.errorString())
             self._process.deleteLater()
             self._process = None
             self.runningChanged.emit()
@@ -212,9 +278,11 @@ class IdleMonitor(QObject):
         super().__init__(parent)
         self._timeout = 0.0
         self._idle = False
-        # Windows : dernière saisie sondée toutes les 5 s. Ailleurs (dev Linux) : jamais inactif.
-        # shortcut : inhibiteurs ignorés (vidéo sans saisie = inactif, contrairement à respectInhibitors de
-        # qs), à revoir si l'icône se fige pendant une vidéo.
+        # Windows : dernière saisie sondée toutes les 5 s.
+        # shortcut : ailleurs jamais inactif, l'app de bureau Linux continue ses relevés pendant l'inactivité ;
+        # brancher ext-idle-notify (Wayland) ou XScreenSaver (X11) si cette consommation compte.
+        # shortcut : inhibiteurs ignorés sous Windows (vidéo sans saisie = inactif, contrairement à
+        # respectInhibitors de qs), à revoir si l'icône se fige pendant une vidéo.
         if sys.platform == "win32":
             self._poll = QTimer(self, interval=5000, timeout=lambda: self._check())   # pas de méthode liée : cf. Process
             self._poll.start()
