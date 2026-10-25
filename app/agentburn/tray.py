@@ -68,7 +68,7 @@ def pixmap(n, remaining, tone):
     p = QPainter(pm)
     p.setRenderHint(QPainter.Antialiasing)
     if remaining < 0:
-        p.fillPath(_fit("", "JetBrainsMono Nerd Font", QFont.Normal, QRectF(0, 0, n, n)), tone)  # fire
+        p.fillPath(_fit("\uf06d", "JetBrainsMono Nerd Font", QFont.Normal, QRectF(0, 0, n, n)), tone)  # fire
     else:
         p.setPen(Qt.NoPen)
         p.setBrush(tone)

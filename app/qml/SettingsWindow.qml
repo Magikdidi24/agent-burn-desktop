@@ -360,7 +360,7 @@ ApplicationWindow {
                 RowLayout {
                     spacing: 10
                     Txt {
-                        text: ""  // fire
+                        text: "\uf06d"  // fire
                         color: Colors.accent
                         font.pixelSize: 26
                         Layout.fillWidth: false
