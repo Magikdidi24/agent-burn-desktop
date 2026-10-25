@@ -28,6 +28,7 @@ Singleton {
     property bool dashboardOpen: false
     property string dashboardPage: "all"   // "all" ou un agent
     property bool pendingForce: false   // refresh(true) demandé pendant un run : rejoué à sa fin
+    property bool pendingRefresh: false   // refresh() pendant la plage : summary lancé à sa fin
     property var pendingHarness: ({})   // loadHarness() pendant le summary : { agent: force }, lancé à sa fin
     property string range: "all"
     property var rangeCache: ({})   // { plage: { at, data } }
@@ -233,10 +234,12 @@ Singleton {
         return out;
     }
 
-    // Seul le summary reçoit l'env de forçage ; harness et plage le suivent (sumProc.onExited).
+    // Seul le summary reçoit l'env de forçage ; harness et plage le suivent (sumProc.onExited). Pendant la
+    // plage : lancé à sa fin (rangeProc.onExited), jamais en parallèle (429 de l'API d'usage).
     function refresh(force) {
-        if (sumProc.running) {
+        if (sumProc.running || rangeProc.running) {
             pendingForce = pendingForce || !!force;
+            pendingRefresh = pendingRefresh || rangeProc.running;
             return;
         }
         sumProc.forced = !!force;
@@ -441,7 +444,11 @@ Singleton {
         return {};
     }
 
-    onDashboardOpenChanged: if (dashboardOpen) loadRange(false)
+    // Summary d'abord (poke, avant celui de la fenêtre) : la plage suit à sa fin et relit son relevé partagé.
+    onDashboardOpenChanged: if (dashboardOpen) {
+        poke();
+        loadRange(false);
+    }
 
     FileView { id: historyFile; path: Quickshell.dataPath("burn-history.json"); blockLoading: true }
     FileView { id: quotaFile; path: Quickshell.dataPath("burn-quota.json"); blockLoading: true }
@@ -530,7 +537,13 @@ Singleton {
                 root.remember(d);
                 root.merge(d);   // jours de la plage plus frais : cartes et tableau des modèles concordent
             } else root.error = rangeProc.problem;
-            if (root.range !== key) root.loadRange(false);   // plage changée pendant le run
+            // refresh() pendant le run : summary maintenant, sa fin recharge la plage du dashboard ouvert.
+            if (root.pendingRefresh) {
+                var force = root.pendingForce;
+                root.pendingRefresh = false;
+                root.pendingForce = false;
+                root.refresh(force);
+            } else if (root.range !== key) root.loadRange(false);   // plage changée pendant le run
         }
     }
     // Relevé léger de la pill. Échec muet (recentErrors seulement) : le dernier relevé reste, signalé ancien

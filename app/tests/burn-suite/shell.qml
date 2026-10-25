@@ -597,12 +597,54 @@ Scope {
             if (Burn.loading || !l.some(c => c.indexOf("--since") >= 0)) return;
             check(l[0].startsWith("summary --value --json --no-color FORCE=0") && l[0].indexOf("--since") < 0,
                   "summary d'abord, plage ensuite : " + l);
+            // Ouvert comme le font les fenêtres (dashboardOpen puis le poke() de leur load()), données et plage périmées.
+            Burn.dashboardOpen = false;
+            Burn.rangeCache = ({});
+            Burn.updatedAt = Date.now() - 120000;   // plus d'1 min : poke() relance le summary
+            mark = calls().length;
+            Burn.dashboardOpen = true;
+            Burn.poke();
+            next();
+            break;
+        case 28:
+            if (calls().length === mark || !waited(300)) return;
+            check(Burn.loading && JSON.stringify(calls().slice(mark)) === JSON.stringify(["summary --value --json --no-color FORCE=0"]),
+                  "ouverture : summary seul, plage différée : " + calls().slice(mark));
+            next();
+            break;
+        case 29:
+            l = calls().slice(mark);
+            if (Burn.loading || l.length < 2) return;
+            eq(JSON.stringify(l), JSON.stringify(["summary --value --json --no-color FORCE=0",
+                "summary --value --json --no-color --since " + date(0, "") + " FORCE=0"]), "ouverture : summary, puis la plage à sa fin");
+            // Plage en cours puis refresh() (minuteur, Actualiser) : summary différé à la fin de la plage, forcé une fois.
+            Burn.rangeCache = ({});
+            mark = calls().length;
+            Burn.setRange("7d");
+            Burn.refresh(false);
+            Burn.refresh(true);
+            next();
+            break;
+        case 30:
+            if (calls().length === mark || !waited(300)) return;
+            l = calls().slice(mark);
+            check(Burn.loading && l.length === 1 && l[0].indexOf("--since " + date(-6, "")) > 0,
+                  "refresh pendant la plage : différé : " + l);
+            eq(Burn.pendingRefresh, true, "summary en attente de la plage");
+            next();
+            break;
+        case 31:
+            l = calls().slice(mark);
+            if (Burn.loading || l.length < 2) return;
+            eq(l[1], "summary --value --json --no-color FORCE=1", "plage d'abord, summary forcé à sa fin");
+            eq(l.filter(c => c.startsWith("summary") && c.indexOf("--since") < 0).length, 1, "un seul summary rejoué");
+            check(!Burn.pendingRefresh && !Burn.pendingForce, "attentes consommées");
             mode.setText("ok\n");
             Burn.dashboardOpen = false;
             ipc.running = true;
             next();
             break;
-        case 28:
+        case 32:
             if (!Burn.dashboardOpen) return;
             check(true, "IPC burn dashboard");
             l = rawCalls();
