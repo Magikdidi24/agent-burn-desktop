@@ -26,7 +26,7 @@ _BURN = """JSON.stringify({ data: Burn.stateText(Burn.dataState), updatedAt: Bur
 
 
 def build_info():
-    """Gelé : build-info.json posé à côté de l'exe par le build ; dev : CLI épinglé dans install.sh."""
+    """Gelé : build-info.json posé à côté de l'exe par le build ; dev : CLI épinglé dans cli.env."""
     info = {"appVersion": __version__, "target": "dev"}
     if getattr(sys, "frozen", False):
         try:
@@ -36,8 +36,8 @@ def build_info():
             found = {}
         info = {"appVersion": __version__, **(found if isinstance(found, dict) else {})}
     else:
-        sh = next((p / "install.sh" for p in Path(__file__).resolve().parents if (p / "install.sh").is_file()), None)
-        text = sh.read_text(encoding="utf-8") if sh else ""
+        pin = next((p / "cli.env" for p in Path(__file__).resolve().parents if (p / "cli.env").is_file()), None)
+        text = pin.read_text(encoding="utf-8") if pin else ""
         for key, pattern in (("cliRev", r'(?m)^AB_REV=(\w+)'), ("cliVersion", r'(?m)^AB_VER="([^"]+)"')):
             m = re.search(pattern, text)
             info[key] = m[1] if m else ""

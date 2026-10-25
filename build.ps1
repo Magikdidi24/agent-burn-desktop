@@ -12,13 +12,13 @@ $PSNativeCommandUseErrorActionPreference = $true  # un exe natif en échec arrê
 $ProgressPreference = 'SilentlyContinue'          # la barre de progression ralentit les téléchargements
 Set-Location $PSScriptRoot
 
-# Révision du CLI : install.sh reste la source unique (AB_REV et AB_VER changent ensemble).
-$sh = Get-Content -Raw ../../install.sh
-$rev = [regex]::Match($sh, '(?m)^AB_REV=(\w+)').Groups[1].Value
-$abVer = [regex]::Match($sh, '(?m)^AB_VER="([^"]+)"').Groups[1].Value
+# Révision du CLI : cli.env, source unique (AB_REV et AB_VER changent ensemble).
+$pin = Get-Content -Raw cli.env
+$rev = [regex]::Match($pin, '(?m)^AB_REV=(\w+)').Groups[1].Value
+$abVer = [regex]::Match($pin, '(?m)^AB_VER="([^"]+)"').Groups[1].Value
 # X.Y.Z : les ressources de version Windows (exe, installeur) n'acceptent que des nombres.
 $ver = [regex]::Match((Get-Content -Raw app/agentburn/__init__.py), '__version__ = "(\d+\.\d+\.\d+)"').Groups[1].Value
-if (-not ($rev -and $abVer -and $ver)) { throw 'AB_REV / AB_VER (install.sh) ou __version__ X.Y.Z (app) introuvable' }
+if (-not ($rev -and $abVer -and $ver)) { throw 'AB_REV / AB_VER (cli.env) ou __version__ X.Y.Z (app) introuvable' }
 $target = @{ x64 = 'x86_64-pc-windows-msvc'; arm64 = 'aarch64-pc-windows-msvc' }[$Arch]
 
 # Python : venv local, dépendances du verrou haché (versions et sha256 de tout l'arbre, PyInstaller compris).
@@ -30,7 +30,7 @@ if ($pyPlatform -ne @{ x64 = 'win-amd64'; arm64 = 'win-arm64' }[$Arch]) {
 }
 & $py -m pip install -q --disable-pip-version-check --require-hashes -r app/requirements.lock
 
-# Polices : JetBrainsMono Nerd Font v3.4.0 comme install.sh (glyphes du QML validés sur cette version), et sa
+# Polices : JetBrainsMono Nerd Font v3.4.0 comme linux/build.sh (glyphes du QML validés sur cette version), et sa
 # licence. Sommes relevées le 2026-10-25 : un fichier de release peut être remplacé après coup.
 $fonts = @{
     'JetBrainsMonoNerdFont-Regular.ttf' = '0ec29a68b539ece7078fc714cebff0c0accb2f4948f8f7963d9f5e86633b12d9'
@@ -88,8 +88,8 @@ if (-not $SkipCli -and -not ((Test-Path $cliFiles) -notcontains $false -and (Get
     } finally { Pop-Location; Remove-Item Env:AWS_LC_SYS_PREBUILT_NASM, Env:RUSTFLAGS }
     New-Item -ItemType Directory -Force (Split-Path $cli) | Out-Null
     Copy-Item "$src/target/$target/release/agent-burn.exe" $cli
-    # AB_VER doit décrire ce CLI : install.sh s'y fie sous Linux pour ne pas le recompiler.
-    if ((& $cli --version) -ne $abVer) { throw "Le CLI compilé ne répond pas « $abVer » : AB_REV et AB_VER divergent dans install.sh" }
+    # AB_VER doit décrire ce CLI : un écart veut dire AB_REV changé sans AB_VER.
+    if ((& $cli --version) -ne $abVer) { throw "Le CLI compilé ne répond pas « $abVer » : AB_REV et AB_VER divergent dans cli.env" }
     Copy-Item "$src/apps/agent-burn/LICENSE" $cliLicense
     & $py tools/third_party_notices.py $src $cliNotices --target $target
     Set-Content $stamp "$rev $target"

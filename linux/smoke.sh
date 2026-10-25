@@ -13,7 +13,7 @@ DIST=$(cd "${1:?usage : smoke.sh DIST [SORTIE]}" && pwd)
 . /etc/os-release
 OUT=${2:-$DIST/smoke-$ID-${VERSION_ID:-rolling}}
 VER=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' "$HERE/app/agentburn/__init__.py")
-ABVER=$(sed -n 's/^AB_VER="\(.*\)"$/\1/p' "$REPO/install.sh")
+ABVER=$(sed -n 's/^AB_VER="\(.*\)"$/\1/p' "$HERE/cli.env")
 TB=agent-burn-desktop-$VER-x86_64
 
 step() { printf '\n== [%ss] %s\n' "$SECONDS" "$*"; }

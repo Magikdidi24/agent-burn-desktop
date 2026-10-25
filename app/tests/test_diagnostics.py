@@ -101,7 +101,7 @@ class CliVersion(unittest.TestCase):
 
 
 class BuildInfo(unittest.TestCase):
-    def test_dev_reads_the_pinned_cli_from_install_sh(self):
+    def test_dev_reads_the_pinned_cli_from_cli_env(self):
         b = diagnostics.build_info()
         self.assertEqual(sorted(b), sorted(diagnostics.BUILD_KEYS))
         self.assertEqual((b["appVersion"], b["target"]), ("1.0.0", "dev"))

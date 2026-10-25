@@ -27,11 +27,11 @@ fetch() {   # URL SHA256 FICHIER : téléchargé une fois, vérifié à chaque b
 # bookworm (glibc 2.36, bundle à 2.35) : un build sur une distro plus récente ne tournerait plus sur les anciennes.
 [ "$ID $VERSION_ID" = "debian 12" ] || die "image python:3.12-slim-bookworm attendue, pas $PRETTY_NAME"
 
-# Révision du CLI : install.sh reste la source unique (AB_REV et AB_VER changent ensemble).
-REV=$(sed -n 's/^AB_REV=\([0-9a-f]\{40\}\)$/\1/p' "$REPO/install.sh")
-ABVER=$(sed -n 's/^AB_VER="\(.*\)"$/\1/p' "$REPO/install.sh")
+# Révision du CLI : cli.env, source unique (AB_REV et AB_VER changent ensemble).
+REV=$(sed -n 's/^AB_REV=\([0-9a-f]\{40\}\)$/\1/p' cli.env)
+ABVER=$(sed -n 's/^AB_VER="\(.*\)"$/\1/p' cli.env)
 VER=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' app/agentburn/__init__.py)
-[ -n "$REV" ] && [ -n "$ABVER" ] && [ -n "$VER" ] || die "AB_REV / AB_VER (install.sh) ou __version__ (app) introuvable"
+[ -n "$REV" ] && [ -n "$ABVER" ] && [ -n "$VER" ] || die "AB_REV / AB_VER (cli.env) ou __version__ (app) introuvable"
 
 step "Paquets système"
 apt-get update -qq
@@ -86,8 +86,8 @@ if [ "${SKIP_CLI:-}" = 1 ]; then
 elif [ "$(cat "$CLI/rev" 2>/dev/null)" != "$REV" ] || [ ! -x "$CLI/bin/agent-burn" ]; then
     build_cli
 fi
-# AB_VER doit décrire ce CLI : install.sh s'y fie pour ne pas le recompiler.
-[ "$("$CLI/bin/agent-burn" --version)" = "$ABVER" ] || die "le CLI ne répond pas « $ABVER » : AB_REV et AB_VER divergent"
+# AB_VER doit décrire ce CLI : smoke.sh le vérifie sur chaque paquet installé.
+[ "$("$CLI/bin/agent-burn" --version)" = "$ABVER" ] || die "le CLI ne répond pas « $ABVER » : AB_REV et AB_VER divergent (cli.env)"
 file -b "$CLI/bin/agent-burn"
 
 step "Polices JetBrainsMono Nerd Font v3.4.0 (glyphes du QML validés sur cette version)"
