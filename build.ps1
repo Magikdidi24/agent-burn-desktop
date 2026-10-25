@@ -22,20 +22,32 @@ $py = "$PSScriptRoot/.venv/Scripts/python.exe"
 if (-not (Test-Path $py)) { python -m venv .venv }
 & $py -m pip install -q --disable-pip-version-check -r app/requirements.txt pyinstaller==6.22.3
 
-# Polices : JetBrainsMono Nerd Font v3.4.0 comme install.sh (glyphes du QML validés sur cette version).
-$fonts = 'JetBrainsMonoNerdFont-Regular.ttf', 'JetBrainsMonoNerdFont-Bold.ttf'
-if ($fonts | Where-Object { -not (Test-Path "app/fonts/$_") }) {
+# Polices : JetBrainsMono Nerd Font v3.4.0 comme install.sh (glyphes du QML validés sur cette version), et sa
+# licence. Sommes relevées le 2026-10-25 : un fichier de release peut être remplacé après coup.
+$fonts = @{
+    'JetBrainsMonoNerdFont-Regular.ttf' = '0ec29a68b539ece7078fc714cebff0c0accb2f4948f8f7963d9f5e86633b12d9'
+    'JetBrainsMonoNerdFont-Bold.ttf'    = 'e82e27a7f37c9a0a13cc4e417503a149c6a0280586930772d2ebed803159c864'
+    'OFL.txt'                           = '30f0c136e3c88e422d0791acd97238870f9054a9729bc34cf2ff0d4ed8cac4ad'
+}
+function Test-Sha256($path, $sha) { (Test-Path $path) -and (Get-FileHash $path -Algorithm SHA256).Hash -eq $sha }
+if ($fonts.Keys | Where-Object { -not (Test-Sha256 "app/fonts/$_" $fonts[$_]) }) {
     New-Item -ItemType Directory -Force app/fonts, build | Out-Null
     $zipPath = "$PSScriptRoot/build/JetBrainsMono.zip"
     Invoke-WebRequest https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/JetBrainsMono.zip -OutFile $zipPath
+    if (-not (Test-Sha256 $zipPath '76f05ff3ace48a464a6ca57977998784ff7bdbb65a6d915d7e401cd3927c493c')) {
+        Remove-Item $zipPath
+        throw 'JetBrainsMono.zip ne correspond pas à la somme sha256 attendue (release v3.4.0 modifiée ?)'
+    }
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $zip = [IO.Compression.ZipFile]::OpenRead($zipPath)
     try {
-        foreach ($f in $fonts) {
+        foreach ($f in $fonts.Keys) {
             [IO.Compression.ZipFileExtensions]::ExtractToFile($zip.GetEntry($f), "$PSScriptRoot/app/fonts/$f", $true)
         }
     } finally { $zip.Dispose() }
     Remove-Item $zipPath
+    # Zip vérifié : un écart ici est une somme mal relevée, qui ferait retélécharger le zip à chaque build.
+    foreach ($f in $fonts.Keys) { if (-not (Test-Sha256 "app/fonts/$f" $fonts[$f])) { throw "app/fonts/$f : somme sha256 inattendue" } }
 }
 
 # CLI agent-burn : compilé depuis la source à la révision épinglée, seulement si elle a changé. Témoin
