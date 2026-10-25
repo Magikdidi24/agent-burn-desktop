@@ -1,9 +1,11 @@
 # Tests de la fenêtre Paramètres créée hors écran avec le vrai dossier QML d'exécution : aucun avertissement
 # QML sur ses 4 sections, contrôles atteints au clavier (Tab), réglages modifiés par les contrôles, Échap.
 #   cd desktop/agent-burn/app && python -m unittest discover -s tests -v
+import os
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -13,6 +15,8 @@ from PySide6.QtCore import QtMsgType, QRectF, Qt, QUrl, qInstallMessageHandler  
 from PySide6.QtGui import QColor  # noqa: E402
 from PySide6.QtQml import QQmlComponent  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
+
+from agentburn import diagnostics  # noqa: E402
 
 # Bruit de la plateforme hors écran, sans rapport avec le QML.
 PLATFORM = ("This plugin does not support",)
@@ -202,6 +206,16 @@ class SettingsWindow(unittest.TestCase):
         self.addCleanup(js, self.root, "Burn.error = ''")
         self.open("providers")
         self.assertTrue(self.fields()["Rapport"].endswith("\n" + error), self.fields()["Rapport"])
+
+    def test_display_field_in_plain_words(self):
+        for platform, desktop, session, shown in (("wayland", "KDE", "wayland", "Wayland (KDE)"),
+                                                  ("xcb", "GNOME", "wayland", "X11 (GNOME, session Wayland)"),
+                                                  ("windows", "", "", "Windows")):
+            with mock.patch.object(diagnostics.QGuiApplication, "platformName", return_value=platform), \
+                    mock.patch.dict(os.environ, {"XDG_CURRENT_DESKTOP": desktop, "XDG_SESSION_TYPE": session}):
+                self.open("diagnostic")
+                self.assertEqual(self.fields()["Affichage"], shown)
+                self.win.close()
 
     def test_theme_light_drives_colors(self):
         self.cfg.theme = "light"

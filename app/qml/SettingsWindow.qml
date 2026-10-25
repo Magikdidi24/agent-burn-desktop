@@ -371,7 +371,16 @@ ApplicationWindow {
                 Section {
                     title: "Système"
                     Field { label: "Système"; value: Desktop.os }
-                    Field { label: "Affichage"; value: Desktop.platformName + (Desktop.desktopEnv ? ", " + Desktop.desktopEnv : "") + (Desktop.sessionType ? " (" + Desktop.sessionType + ")" : "") }
+                    Field {
+                        label: "Affichage"
+                        // « Wayland (KDE) » ; la session seulement si elle diffère (appli X11 sous Wayland : XWayland).
+                        value: {
+                            const name = n => ({ wayland: "Wayland", xcb: "X11", x11: "X11", windows: "Windows" })[n] ?? n;
+                            const shown = name(Desktop.platformName), session = name(Desktop.sessionType);
+                            const extra = [Desktop.desktopEnv, session && session !== shown ? "session " + session : ""].filter(x => x);
+                            return shown + (extra.length ? " (" + extra.join(", ") + ")" : "");
+                        }
+                    }
                     Field { label: "Écrans"; value: Desktop.screens }
                     Field { label: "Zone de notification"; value: Desktop.trayAvailable ? "disponible" : "absente" }
                 }
