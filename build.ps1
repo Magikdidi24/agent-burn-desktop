@@ -106,6 +106,7 @@ $extra = "$PSScriptRoot/build/bundle-extra"
 Remove-Item $extra -Recurse -Force -ErrorAction Ignore
 New-Item -ItemType Directory -Force "$extra/licenses" | Out-Null
 Copy-Item $cliLicense, $cliNotices, tools/licenses/LGPL-3.0.txt, tools/licenses/GPL-3.0.txt "$extra/licenses"
+Copy-Item LICENSE "$extra/licenses/LICENSE-agent-burn-desktop.txt"
 Copy-Item app/fonts/OFL.txt "$extra/licenses/LICENSE-JetBrainsMono-NerdFont.txt"
 # Python et les bibliothèques C de sa distribution (OpenSSL, libffi…) ; sous Windows, LICENSE.txt est à sa racine.
 Copy-Item (Join-Path (& $py -c 'import sys; print(sys.base_prefix)') LICENSE.txt) "$extra/licenses/LICENSE-Python.txt"
@@ -117,7 +118,8 @@ $pyside, $qt = & $py -c 'import PySide6, PySide6.QtCore as c; print(PySide6.__ve
     appVersion = $ver
     cliRev     = (Get-Content $stamp) -replace ' .*'   # celui de build\cli, même avec -SkipCli
     cliVersion = & $cli --version
-    target     = $target
+    target     = "windows-$Arch"
+    cliTarget  = $target
     builtAt    = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
 } | ConvertTo-Json | Set-Content "$extra/build-info.json"
 

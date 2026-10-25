@@ -8,7 +8,7 @@
 set -euo pipefail
 
 APPID=io.github.magikdidi24.AgentBurn
-APP_LICENSE=LicenseRef-Unspecified   # le dépôt n'a pas de licence pour l'app : la choisir, puis la mettre ici seulement
+APP_LICENSE=MIT   # licence de l'app (LICENSE) ; celles du CLI, de Qt, de Python et de la police sont dans licenses/
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # desktop/agent-burn
 REPO=$(cd "$HERE/../.." && pwd)
 W=$HERE/build/linux CLI=$HERE/build/cli-linux OUT=$HERE/dist/linux T=$HERE/build/linux/tools
@@ -120,6 +120,7 @@ rm -rf "$W/icons" && "$V/bin/python" linux/icons.py assets/agent-burn.png "$W/ic
 X=$HERE/build/bundle-extra   # copié à la racine du bundle par agentburn.spec
 rm -rf "$X" && mkdir -p "$X/licenses"
 cp "$CLI/LICENSE-agent-burn.txt" "$CLI/THIRD-PARTY-NOTICES.txt" tools/licenses/LGPL-3.0.txt tools/licenses/GPL-3.0.txt "$X/licenses/"
+cp LICENSE "$X/licenses/LICENSE-agent-burn-desktop.txt"
 cp app/fonts/OFL.txt "$X/licenses/LICENSE-JetBrainsMono-NerdFont.txt"
 COMMIT=$(git -C "$REPO" -c safe.directory='*' rev-parse HEAD 2>/dev/null || echo "${GITHUB_SHA:-unknown}")
 "$V/bin/python" - "$X" "$VER" "$COMMIT" "$REV" "$ABVER" "$(cat "$CLI/target")" <<'EOF'
@@ -133,7 +134,7 @@ Path(out, "licenses", "NOTICE-Qt-PySide6.txt").write_text(
     notice.replace("@QT@", qVersion()).replace("@PYSIDE6@", PySide6.__version__), encoding="utf-8")
 Path(out, "licenses", "LICENSE-Python.txt").write_bytes(Path(sysconfig.get_path("stdlib"), "LICENSE.txt").read_bytes())
 Path(out, "build-info.json").write_text(json.dumps({
-    "version": version, "commit": commit, "platform": "linux-x86_64",
+    "appVersion": version, "commit": commit, "target": "linux-x86_64",
     "builtAt": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "cliRev": rev, "cliVersion": cli_version, "cliTarget": cli_target,
     "python": platform.python_version(), "pyside6": PySide6.__version__, "qt": qVersion(),
