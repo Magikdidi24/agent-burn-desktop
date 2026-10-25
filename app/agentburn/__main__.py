@@ -310,8 +310,7 @@ def run(args):
     code = app.exec()
     # CLI en plein run (il réécrit peut-être un jeton Claude renouvelé) : sa fin attendue, 5 s au plus, avant
     # que la destruction du moteur ne le tue.
-    # shortcut: getattr tant que shim.wait_for_runs n'est pas dans cette branche ; appel direct ensuite.
-    getattr(shim, "wait_for_runs", lambda _ms: None)(5000)
+    shim.wait_for_runs(5000)
     del engine
     return code
 
