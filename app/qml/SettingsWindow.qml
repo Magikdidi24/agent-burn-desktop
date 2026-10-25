@@ -251,7 +251,17 @@ ApplicationWindow {
                             }
                             ColumnLayout {
                                 spacing: 4
-                                Txt { text: "● " + agentBox.st.label; color: win.stateColor(agentBox.st.state); font.bold: true }
+                                // Pastille teintée, mot en couleur du texte : lisible quelle que soit la teinte.
+                                RowLayout {
+                                    spacing: 6
+                                    Txt {
+                                        text: "●"
+                                        color: win.stateColor(agentBox.st.state)
+                                        Layout.fillWidth: false
+                                        Accessible.ignored: true
+                                    }
+                                    Txt { text: agentBox.st.label; font.bold: true }
+                                }
                                 Txt { text: agentBox.st.detail }
                                 Hint { visible: agentBox.st.at > 0 && agentBox.st.state !== "none"; text: "Relevé " + Burn.ago(agentBox.st.at) }
                                 Txt { visible: text !== ""; text: agentBox.st.error; color: Colors.danger }

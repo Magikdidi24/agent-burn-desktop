@@ -94,6 +94,14 @@ class SettingsWindow(unittest.TestCase):
         self.cfg.theme = "dark"
         self.assertTrue(js(self.root, "Colors.dark"))
 
+    def test_secondary_text_readable_in_both_themes(self):
+        # Texte secondaire (Colors.muted) à 4,5:1 au moins sur le fond et sur les cartes (groupes des réglages).
+        for theme in ("light", "dark"):
+            self.cfg.theme = theme
+            for surface in ("Colors.background", "card"):   # card : propriété de la fenêtre
+                ratio = js(self.win, f"Colors.contrast(Colors.muted, {surface})")
+                self.assertGreaterEqual(ratio, 4.5, (theme, surface))
+
     def test_escape_closes_but_first_closes_an_open_list(self):
         self.open("general")
         combo = self.items("QQuickComboBox")[0]

@@ -13,7 +13,7 @@ QtObject {
     readonly property color background: dark ? "#1c1c1e" : "#ececf0"
     readonly property color foreground: dark ? "#f5f5f7" : "#1d1d1f"
     readonly property color surface: dark ? "#363638" : "#ffffff"   // cartes : surface à 55 % sur le fond
-    readonly property color muted: dark ? "#98989f" : "#6e6e73"
+    readonly property color muted: dark ? "#98989f" : "#5e5e63"   // texte secondaire : ≥ 4,5:1 sur fond et cartes
     readonly property color good: dark ? "#30d158" : "#248a3d"
     readonly property color warn: dark ? "#ff9f0a" : "#c93400"
     readonly property color danger: dark ? "#ff453a" : "#d70015"
