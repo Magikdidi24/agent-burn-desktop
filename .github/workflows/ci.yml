@@ -279,6 +279,7 @@ jobs:
           if (-not (Test-Path 'C:/Program Files (x86)/Inno Setup 6/ISCC.exe')) { choco install innosetup --version=6.7.1 -y --no-progress }
 
       - name: 'Build : CLI, bundle, selftest, zip, installeur'
+        id: build
         env:
           CLI_HIT: ${{ steps.cli.outputs.cache-hit }}
         run: |
@@ -315,7 +316,7 @@ jobs:
       # dist/smoke/ de smoke.ps1 : journaux d'installation et de désinstallation, selftests de l'exe installé et du
       # zip ; sans la copie extraite du zip (~170 Mo).
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.build.outcome != 'skipped' }}   # rien à déposer sans build
         with:
           name: selftest-windows-${{ matrix.arch }}
           path: |
