@@ -6,12 +6,19 @@
 #if Arch != "x64" && Arch != "arm64"
   #error /DArch : x64 ou arm64
 #endif
+; Bundle de [Files], parcouru à la compilation pour [InstallDelete].
+#define Bundle SourcePath + "dist\AgentBurn\"
 
 [Setup]
 ; AppId fixe : une nouvelle version remplace l'installation existante au lieu d'en ajouter une.
 AppId={{53355E36-C9BA-4551-BBA3-735E495EEBA2}
 AppName=Agent Burn
 AppVersion={#AppVersion}
+AppPublisher=Berthelot Samuel
+; Nom dans Paramètres → Applications, sans le « version x.y.z » qu'Inno ajoute par défaut.
+UninstallDisplayName=Agent Burn
+VersionInfoVersion={#AppVersion}
+VersionInfoProductName=Agent Burn
 DefaultDirName={localappdata}\Programs\Agent Burn
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
@@ -39,25 +46,55 @@ Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 
 [Tasks]
 Name: "autostart"; Description: "Lancer Agent Burn au démarrage de Windows"
+Name: "desktopicon"; Description: "Créer un raccourci sur le Bureau"; Flags: unchecked
+
+[InstallDelete]
+; Mise à jour : chaque sous-dossier du bundle est vidé avant la copie, sinon ce qu'une version retire y reste
+; (plugins Qt, QML, polices chargées par motif). Jamais {app}\* : le dossier choisi peut contenir autre chose.
+; shortcut: un fichier racine qu'une ancienne version avait et que celle-ci n'a plus reste jusqu'à la
+; désinstallation (python312.dll après un passage à 3.13, inoffensif) ; tout couvrir demanderait un bundle rangé
+; dans un seul sous-dossier.
+#define FindHandle
+#define FindResult
+#sub DeleteBundleDir
+  #define Name FindGetFileName(FindHandle)
+  #if Name != "." && Name != ".." && DirExists(Bundle + Name)
+Type: filesandordirs; Name: "{app}\{#Name}"
+  #endif
+#endsub
+#for {FindHandle = FindResult = FindFirst(Bundle + "*", faDirectory); FindResult; FindResult = FindNext(FindHandle)} DeleteBundleDir
+#if FindHandle
+  #expr FindClose(FindHandle)
+#endif
 
 [Files]
 Source: "dist\AgentBurn\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{userprograms}\Agent Burn"; Filename: "{app}\AgentBurn.exe"
+Name: "{userdesktop}\Agent Burn"; Filename: "{app}\AgentBurn.exe"; Tasks: desktopicon
 
 [Registry]
 ; Même valeur « AgentBurn » que celle que l'app active ou retire elle-même.
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "AgentBurn"; ValueData: """{app}\AgentBurn.exe"""; Tasks: autostart
 ; Réactive aussi une entrée désactivée depuis le Gestionnaire des tâches (sinon Windows ne la lance plus).
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run"; ValueType: none; ValueName: "AgentBurn"; Flags: deletevalue; Tasks: autostart
-; Sans condition : la désinstallation retire la valeur même quand c'est l'app qui l'a posée.
+; Sans condition : la désinstallation retire les valeurs même quand c'est l'app (ou Windows) qui les a posées.
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "AgentBurn"; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run"; ValueType: none; ValueName: "AgentBurn"; Flags: uninsdeletevalue
 
 [Run]
 Filename: "{app}\AgentBurn.exe"; Description: "{cm:LaunchProgram,Agent Burn}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
 ; L'app tourne en fond dans la zone de notification : sans l'arrêter, ses fichiers verrouillés resteraient.
-; Rien dans [UninstallDelete] : l'historique (%APPDATA%\AgentBurn) survit à la désinstallation.
+; Par nom d'image, pas par dossier : arrête aussi une copie portable ou un selftest de cet utilisateur (sans
+; droits admin, jamais ceux des autres sessions).
 Filename: "{sys}\taskkill.exe"; Parameters: "/f /im AgentBurn.exe"; Flags: runhidden; RunOnceId: "StopAgentBurn"
+
+[UninstallDelete]
+; Cache QML (recréé au lancement) et journaux. %APPDATA%\AgentBurn (historique, réglages) est gardé : une
+; réinstallation le retrouve.
+Type: filesandordirs; Name: "{localappdata}\AgentBurn\cache"
+Type: filesandordirs; Name: "{localappdata}\AgentBurn\logs"
+Type: dirifempty; Name: "{localappdata}\AgentBurn"
