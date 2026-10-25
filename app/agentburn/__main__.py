@@ -235,9 +235,10 @@ def run(args):
             from agentburn import platform_win as system
         else:
             from agentburn import platform_linux as system
-    cfg = settings.Settings(None if mode == "selftest" else paths.settings_file(), system)
+    settings_file = None if mode == "selftest" else paths.settings_file()
+    cfg = settings.Settings(settings_file, system)
     data = paths.data_dir()
-    desktop = diagnostics.Desktop(os.environ["AGENT_BURN_BIN"], data, paths.settings_file(),
+    desktop = diagnostics.Desktop(os.environ["AGENT_BURN_BIN"], data, settings_file,
                                   Path(args.selftest) if args.selftest else paths.log_dir(), paths.cache_dir())
     hints = QGuiApplication.styleHints()
 

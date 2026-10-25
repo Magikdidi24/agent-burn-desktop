@@ -69,8 +69,9 @@ class Desktop(QObject):
     def __init__(self, bin, data_dir, settings_file, log_dir, cache_dir):
         super().__init__()
         self._bin = str(bin)
-        self._dirs = {"data": str(data_dir), "config": str(Path(settings_file).parent), "log": str(log_dir),
-                      "cache": str(cache_dir)}
+        # settings_file None : réglages en mémoire (selftest), aucun dossier réel à nommer.
+        config = "en mémoire" if settings_file is None else str(Path(settings_file).parent)
+        self._dirs = {"data": str(data_dir), "config": config, "log": str(log_dir), "cache": str(cache_dir)}
         self._cli = ""        # "" : version pas encore lue
         self._probe = None
         self._tray = False    # icône posée dans une zone de notification
@@ -145,7 +146,7 @@ class Desktop(QObject):
         b = self._build
         return [("Agent Burn", f"{__version__} ({b['target'] or 'build'}{', ' + b['builtAt'] if b['builtAt'] else ''})"),
                 ("CLI épinglé", f"{b['cliVersion'] or '—'}, révision {b['cliRev'][:12] or '—'}"),
-                ("CLI", f"{self._bin} ({self._cli or 'version non lue'})"),
+                ("CLI", f"{self._bin} ({self._cli or ('lecture en cours' if self._probe else 'version non lue')})"),
                 ("Système", self.os),
                 ("Qt", f"{qVersion()}, plateforme {self.platformName}"),
                 ("Bureau", f"{self.desktopEnv or '—'}, session {self.sessionType or '—'}"),

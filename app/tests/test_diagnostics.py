@@ -60,6 +60,11 @@ class Text(unittest.TestCase):
         d.copyDiagnostics()
         self.assertEqual(QGuiApplication.clipboard().text(), d.diagnosticsText())
 
+    def test_settings_in_memory_for_the_selftest(self):
+        d = diagnostics.Desktop(os.environ["AGENT_BURN_BIN"], qml_env()["data"], None, "logs", "cache")
+        self.assertEqual(d.configDir, "en mémoire")   # pas le vrai dossier des réglages, inutilisé
+        self.assertIn("Réglages : en mémoire\n", d.diagnosticsText())
+
     def test_tray_state_notifies(self):
         d = desktop()
         seen = []
@@ -74,8 +79,10 @@ class CliVersion(unittest.TestCase):
     def test_read_in_background(self):
         d = desktop()
         self.assertEqual(d.cliVersion, "")
+        self.assertTrue(dict(d.facts())["CLI"].endswith("(version non lue)"))
         d.probeCli()
         self.assertEqual(d.cliVersion, "")   # pas d'attente : rien encore
+        self.assertTrue(dict(d.facts())["CLI"].endswith("(lecture en cours)"))   # 1re ligne du journal du selftest
         self.assertTrue(wait_for(lambda: d.cliVersion != "", 20))
         self.assertEqual(d.cliVersion, "agent-burn (fixtures)")
 
