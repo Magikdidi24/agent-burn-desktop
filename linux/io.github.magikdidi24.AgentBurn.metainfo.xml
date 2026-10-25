@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Gabarit AppStream : linux/build.sh remplace @VERSION@, @DATE@ et @APP_LICENSE@. -->
+<component type="desktop-application">
+  <id>io.github.magikdidi24.AgentBurn</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>@APP_LICENSE@</project_license>
+  <name>Agent Burn</name>
+  <summary>Spend, tokens and live limits of your coding agents</summary>
+  <summary xml:lang="fr">Dépense, jetons et limites en direct de vos agents de code</summary>
+  <description>
+    <p>Tray icon, popover and dashboard for Claude Code and Codex usage, read by the bundled agent-burn CLI:
+    API-equivalent spend, tokens, models, 5-hour session and weekly limits with a pace forecast, and daily
+    history.</p>
+    <p xml:lang="fr">Icône de la zone de notification, popover et tableau de bord de la consommation de
+    Claude Code et Codex, lue par le CLI agent-burn embarqué : dépense équivalente API, jetons, modèles,
+    limites de session (5 h) et hebdomadaire avec prévision du rythme, historique jour par jour.</p>
+  </description>
+  <developer id="io.github.magikdidi24">
+    <name>Berthelot Samuel</name>
+  </developer>
+  <launchable type="desktop-id">io.github.magikdidi24.AgentBurn.desktop</launchable>
+  <url type="homepage">https://github.com/Magikdidi24/agent-burn-desktop</url>
+  <provides>
+    <binary>agent-burn-desktop</binary>
+  </provides>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="@VERSION@" date="@DATE@"/>
+  </releases>
+</component>

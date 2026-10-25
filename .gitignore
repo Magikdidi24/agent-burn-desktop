@@ -1,4 +1,4 @@
-# Produits par build.ps1 (venv, polices Nerd Font téléchargées, CLI compilé, bundles, installeur)
+# Produits par build.ps1 et linux/build.sh (venv, polices Nerd Font, CLI compilé, bundles, paquets, selftests)
 .venv/
 app/fonts/
 build/

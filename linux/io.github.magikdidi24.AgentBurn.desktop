@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Agent Burn
+GenericName=Suivi des agents de code
+Comment=Consommation de Claude Code et limites d'abonnement en direct
+Exec=agent-burn-desktop
+Icon=io.github.magikdidi24.AgentBurn
+Terminal=false
+Categories=Development;
+Keywords=claude;codex;agent;consommation;jetons;limites;quota;
+StartupNotify=false
+StartupWMClass=AgentBurn

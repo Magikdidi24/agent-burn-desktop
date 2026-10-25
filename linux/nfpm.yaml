@@ -1,0 +1,107 @@
+# nfpm : .deb et .rpm. Gabarit : linux/build.sh remplace les @…@ puis lance nfpm depuis build/linux/pkgroot.
+# Dépendances = bibliothèques que le bundle allégé laisse au système (mesurées sur 9 distros). build.sh refuse un
+# bundle qui demande une bibliothèque ni embarquée ni listée dans les Requires du .rpm ci-dessous ; le .deb
+# déclare les paquets Debian/Ubuntu qui les fournissent.
+name: agent-burn-desktop
+arch: amd64
+platform: linux
+version: "@VERSION@"
+release: "1"
+section: utils
+priority: optional
+maintainer: Berthelot Samuel <samuel.berthelot11@gmail.com>
+vendor: Berthelot Samuel
+homepage: https://github.com/Magikdidi24/agent-burn-desktop
+license: "@APP_LICENSE@"
+description: |-
+  Consommation de Claude Code et limites d'abonnement en direct
+  Icône de la zone de notification, popover et tableau de bord sur le CLI agent-burn
+  (embarqué) : dépense équivalente API, jetons, modèles, limites de session et hebdomadaire.
+contents:
+  - src: ./opt/agent-burn-desktop
+    dst: /opt/agent-burn-desktop
+    type: tree
+  - src: /opt/agent-burn-desktop/agent-burn-desktop
+    dst: /usr/bin/agent-burn-desktop
+    type: symlink
+  - src: ./usr/share/applications/io.github.magikdidi24.AgentBurn.desktop
+    dst: /usr/share/applications/io.github.magikdidi24.AgentBurn.desktop
+  - src: ./usr/share/metainfo/io.github.magikdidi24.AgentBurn.metainfo.xml
+    dst: /usr/share/metainfo/io.github.magikdidi24.AgentBurn.metainfo.xml
+  - src: ./usr/share/icons/hicolor/*/apps/io.github.magikdidi24.AgentBurn.png
+    dst: /usr/share/icons/hicolor
+deb:
+  compression: xz
+rpm:
+  compression: zstd
+overrides:
+  deb:
+    depends:
+      - libc6 (>= @GLIBC@)
+      - libbrotli1
+      - libdbus-1-3
+      - libdrm2
+      - libegl1
+      - libexpat1
+      - libffi8
+      - libfontconfig1
+      - libfreetype6
+      - libgcc-s1
+      - libgl1
+      - libglib2.0-0
+      - libgssapi-krb5-2
+      - liblzma5
+      - libssl3
+      - libstdc++6
+      - libwayland-client0
+      - libwayland-cursor0
+      - libwayland-egl1
+      - libx11-6
+      - libx11-xcb1
+      - libxcb1
+      - libxkbcommon0
+      - libxkbcommon-x11-0
+      - libzstd1
+      - zlib1g
+    recommends:
+      - fonts-dejavu-core
+      - libgl1-mesa-dri
+  rpm:
+    depends:
+      - "libc.so.6(GLIBC_@GLIBC@)(64bit)"
+      - "libbrotlicommon.so.1()(64bit)"
+      - "libbrotlidec.so.1()(64bit)"
+      - "libcrypto.so.3()(64bit)"
+      - "libdbus-1.so.3()(64bit)"
+      - "libdrm.so.2()(64bit)"
+      - "libEGL.so.1()(64bit)"
+      - "libexpat.so.1()(64bit)"
+      - "libffi.so.8()(64bit)"
+      - "libfontconfig.so.1()(64bit)"
+      - "libfreetype.so.6()(64bit)"
+      - "libgcc_s.so.1()(64bit)"
+      - "libgio-2.0.so.0()(64bit)"
+      - "libGL.so.1()(64bit)"
+      - "libglib-2.0.so.0()(64bit)"
+      - "libgobject-2.0.so.0()(64bit)"
+      - "libgssapi_krb5.so.2()(64bit)"
+      - "libgthread-2.0.so.0()(64bit)"
+      - "liblzma.so.5()(64bit)"
+      - "libssl.so.3()(64bit)"
+      - "libstdc++.so.6()(64bit)"
+      - "libwayland-client.so.0()(64bit)"
+      - "libwayland-cursor.so.0()(64bit)"
+      - "libwayland-egl.so.1()(64bit)"
+      - "libX11.so.6()(64bit)"
+      - "libX11-xcb.so.1()(64bit)"
+      - "libxcb.so.1()(64bit)"
+      - "libxkbcommon.so.0()(64bit)"
+      - "libxkbcommon-x11.so.0()(64bit)"
+      - "libz.so.1()(64bit)"
+      - "libzstd.so.1()(64bit)"
+    # Noms Fedora puis openSUSE : un nom inconnu d'une distro y est ignoré (dépendance faible).
+    recommends:
+      - mesa-dri-drivers
+      - Mesa-dri
+      - dejavu-sans-fonts
+      - dejavu-fonts
