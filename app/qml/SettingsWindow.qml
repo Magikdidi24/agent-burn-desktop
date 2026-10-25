@@ -69,10 +69,38 @@ ApplicationWindow {
         currentIndex: win.section
         onCurrentIndexChanged: win.section = currentIndex
         Accessible.name: "Sections des paramètres"
-        TabButton { text: "Général" }
-        TabButton { text: "Fournisseurs" }
-        TabButton { text: "Diagnostic" }
-        TabButton { text: "À propos" }
+        Tab { text: "Général" }
+        Tab { text: "Fournisseurs" }
+        Tab { text: "Diagnostic" }
+        Tab { text: "À propos" }
+    }
+
+    // Anneau de focus au clavier, celui des vues partagées (BurnButton) : le style n'en dessine aucun sur
+    // les onglets, à peine un sur les cases d'option.
+    component Ring: Rectangle {
+        z: 1
+        anchors.fill: parent
+        color: "transparent"
+        border.width: 2
+        border.color: Colors.accent
+        radius: 4
+    }
+    // Onglet : section courante soulignée et en gras, pas seulement teintée.
+    component Tab: TabButton {
+        id: tab
+        font.bold: checked
+        Rectangle {
+            anchors.bottom: parent.bottom
+            width: parent.width
+            height: 3
+            visible: tab.checked
+            color: Colors.accent
+        }
+        Ring { visible: tab.visualFocus }
+    }
+    component Choice: RadioButton {
+        id: choice
+        Ring { visible: choice.visualFocus }
     }
 
     // Texte des sections ; textes du CLI (erreurs, chemins, versions) jamais interprétés.
@@ -177,7 +205,7 @@ ApplicationWindow {
                         Txt { text: "Thème"; Layout.fillWidth: false; Layout.preferredWidth: 170 }
                         Repeater {
                             model: [["system", "Système"], ["light", "Clair"], ["dark", "Sombre"]]
-                            RadioButton {
+                            Choice {
                                 required property var modelData
                                 text: modelData[1]
                                 checked: Settings.theme === modelData[0]
@@ -206,7 +234,7 @@ ApplicationWindow {
                         Txt { text: "Clic sur l'icône"; Layout.fillWidth: false; Layout.preferredWidth: 170 }
                         Repeater {
                             model: [["popover", "Aperçu"], ["dashboard", "Dashboard"]]
-                            RadioButton {
+                            Choice {
                                 required property var modelData
                                 text: modelData[1]
                                 checked: Settings.trayClick === modelData[0]

@@ -9,7 +9,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from test_app import js, main_root, qml_env, wait_for  # noqa: E402
 
-from PySide6.QtCore import QtMsgType, Qt, QUrl, qInstallMessageHandler  # noqa: E402
+from PySide6.QtCore import QtMsgType, QRectF, Qt, QUrl, qInstallMessageHandler  # noqa: E402
+from PySide6.QtGui import QColor  # noqa: E402
 from PySide6.QtQml import QQmlComponent  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
 
@@ -47,6 +48,39 @@ class SettingsWindow(unittest.TestCase):
                 out.append(item)
         return out
 
+    def region(self, item):
+        """Capture de la fenêtre réduite à item, 4 px de marge (anneau tracé sur ses bords)."""
+        r = item.mapRectToScene(QRectF(0, 0, item.width(), item.height())).toRect().adjusted(-4, -4, 4, 4)
+        return self.win.grabWindow().copy(r)
+
+    def changed_pixels(self, a, b):
+        return sum(a.pixel(x, y) != b.pixel(x, y) for x in range(a.width()) for y in range(a.height()))
+
+    def test_keyboard_focus_visible_on_tabs_and_options(self):
+        # Fusion ne dessine rien sur un onglet focalisé au clavier et recolore à peine le cercle d'une option :
+        # un vrai cadre change des centaines de pixels.
+        for theme in ("light", "dark"):
+            self.cfg.theme = theme
+            self.open("general")
+            tabs = {i.property("text"): i for i in self.items("QQuickTabButton")}
+            options = {i.property("text"): i for i in self.items("QQuickRadioButton")}
+            for item, other in ((tabs["Fournisseurs"], tabs["Général"]), (options["Clair"], options["Système"])):
+                other.forceActiveFocus(Qt.FocusReason.OtherFocusReason)   # focus ailleurs, donné à la souris
+                self.settle()
+                plain = self.region(item)
+                item.forceActiveFocus(Qt.FocusReason.TabFocusReason)
+                self.settle()
+                self.assertTrue(item.property("visualFocus"))
+                self.assertGreater(self.changed_pixels(plain, self.region(item)), 150, (theme, item.property("text")))
+
+    def test_current_tab_underlined_in_accent(self):
+        self.open("diagnostic")
+        accent = QColor(js(self.root, "Colors.accent.toString()"))
+        for tab in self.items("QQuickTabButton"):
+            img = self.region(tab)
+            row = [QColor(img.pixel(x, img.height() - 6)) for x in range(8, img.width() - 8)]   # bas de l'onglet
+            self.assertEqual(all(c == accent for c in row), tab.property("text") == "Diagnostic", tab.property("text"))
+
     def test_component_alone_loads_without_errors(self):
         env = qml_env()
         component = QQmlComponent(env["engine"], QUrl.fromLocalFile(str(env["qml"] / "SettingsWindow.qml")))
@@ -72,10 +106,11 @@ class SettingsWindow(unittest.TestCase):
         combo.forceActiveFocus()
         seen = []
         for _ in range(12):
-            seen.append(self.win.activeFocusItem().metaObject().className())
+            seen.append({kind for kind in ("ComboBox", "RadioButton", "Switch")
+                         if self.win.activeFocusItem().inherits("QQuick" + kind)})
             QTest.keyClick(self.win, Qt.Key.Key_Tab)
         for kind in ("ComboBox", "RadioButton", "Switch"):
-            self.assertTrue(any(kind in name for name in seen), (kind, seen))
+            self.assertTrue(any(kind in kinds for kinds in seen), (kind, seen))
         # Thème « Sombre » au clavier : focus puis Espace.
         dark = next(i for i in self.items("QQuickRadioButton") if i.property("text") == "Sombre")
         dark.forceActiveFocus()
