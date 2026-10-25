@@ -1,19 +1,17 @@
 # Icône de la zone de notification : % restant de la limite la plus serrée sur une pastille teintée
-# selon le rythme (le pill de la barre Linux) ; clic = popover posé contre l'icône, clic droit = menu.
-import os
-import sys
+# selon le rythme (le pill de la barre Linux) ; clic = aperçu ou dashboard (réglage), double-clic =
+# dashboard, clic du milieu = rafraîchir, clic droit = menu avec l'état en tête.
 import time
 
-from PySide6.QtCore import QMetaObject, QPoint, QProcess, QRect, QRectF, QSize, Qt
+from PySide6.QtCore import QMetaObject, QObject, QPoint, QRect, QRectF, QSize, Qt, QTimer, Q_ARG
 from PySide6.QtGui import QCursor, QFont, QGuiApplication, QIcon, QPainter, QPainterPath, QPixmap, QTransform
-from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
-
-from agentburn import __version__
+from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
 GAP = 16   # carte ↔ barre des tâches ; = marge d'ombre (pad) de PopoverWindow, rien ne déborde dessus
 # Tailles réelles de l'icône selon l'échelle d'affichage (100 % → 16 px … 200 % → 32 px) : chacune
 # dessinée à sa taille, jamais mise à l'échelle.
 SIZES = (16, 20, 24, 28, 32, 40, 48, 64)
+LINES = 3   # lignes d'état en tête du menu (Main.menuLines)
 
 
 def place(icon, screen, avail, card):
@@ -70,7 +68,7 @@ def pixmap(n, remaining, tone):
     p = QPainter(pm)
     p.setRenderHint(QPainter.Antialiasing)
     if remaining < 0:
-        p.fillPath(_fit("\uf06d", "JetBrainsMono Nerd Font", QFont.Normal, QRectF(0, 0, n, n)), tone)  # fire
+        p.fillPath(_fit("", "JetBrainsMono Nerd Font", QFont.Normal, QRectF(0, 0, n, n)), tone)  # fire
     else:
         p.setPen(Qt.NoPen)
         p.setBrush(tone)
@@ -86,68 +84,126 @@ def pixmap(n, remaining, tone):
 
 
 def open_popover(pop, icon):
-    """Pose le popover contre l'icône (ou le pointeur : icône rangée dans le menu de débordement)."""
+    """Pose le popover contre l'icône (ou le pointeur : icône rangée dans le menu de débordement). Sous
+    Wayland le compositeur ignore la position demandée (et le pointeur reste à 0,0) : affiché tel quel."""
     r = icon if icon is not None and icon.isValid() else QRect(QCursor.pos(), QSize(1, 1))
     screen = QGuiApplication.screenAt(r.center()) or QGuiApplication.primaryScreen()
     avail = screen.availableGeometry()
     pad = pop.property("pad")
     pop.setProperty("maxHeight", avail.height() - 2 * GAP)   # avant de lire la hauteur : plus haute, la carte défile
+    if QGuiApplication.platformName() == "wayland":
+        return
     pos, edge = place(r, screen.geometry(), avail, QSize(pop.width() - 2 * pad, pop.height() - 2 * pad))
     pop.setScreen(screen)
     pop.setPosition(pos - QPoint(pad, pad))
     pop.setProperty("edge", edge.value)
 
 
-class Tray(QSystemTrayIcon):
-    def __init__(self, root):
+class Tray(QObject):
+    """Icône et son menu. Créée même sans zone de notification : revérifiée toutes les 5 s pendant 2 min
+    (panneau lancé après l'app à l'ouverture de session), l'icône recréée sous xcb dès qu'un hôte apparaît."""
+
+    def __init__(self, root, settings, desktop):
         super().__init__()
-        self.root = root
+        self.root, self.settings, self.desktop = root, settings, desktop
         self.pop = root.property("popover")
         menu = self.menu = QMenu()
-        menu.addAction("Ouvrir le dashboard", lambda: QMetaObject.invokeMethod(root, "openDashboard"))
-        menu.addAction("Rafraîchir", lambda: QMetaObject.invokeMethod(root, "refresh"))
+        self.lines = [menu.addAction("") for _ in range(LINES)]   # état : lignes inactives
+        for line in self.lines:
+            line.setEnabled(False)
         menu.addSeparator()
-        boot = menu.addAction("Lancer au démarrage de Windows")
+        menu.addAction("Ouvrir l'aperçu", self.popover)
+        menu.addAction("Ouvrir le dashboard", self.dashboard)
+        menu.addAction("Rafraîchir", self.refresh)
+        menu.addSeparator()
+        boot = self.boot = menu.addAction("Lancer à l'ouverture de session")
         boot.setCheckable(True)
-        boot.setEnabled(sys.platform == "win32" and getattr(sys, "frozen", False))   # dev : pas d'exe à lancer
-        if boot.isEnabled():
-            from agentburn import platform_win
-            boot.triggered.connect(platform_win.set_autostart)
-            menu.aboutToShow.connect(lambda: boot.setChecked(platform_win.autostart()))   # l'installeur a pu l'écrire
-        menu.addAction("À propos", self.about)
+        boot.setEnabled(settings.property("autostartAvailable"))   # dev : pas d'exe installé à lancer
+        boot.triggered.connect(lambda on: settings.setProperty("autostart", on))
+        menu.addAction("Paramètres…", lambda: self.open_settings("general"))
+        menu.addAction("Journaux", lambda: desktop.openLogs())
+        menu.addAction("À propos", lambda: self.open_settings("about"))
         menu.addSeparator()
         menu.addAction("Quitter", QApplication.quit)
-        self.setContextMenu(menu)
+        # Coche relue à l'ouverture (l'installeur ou le bureau a pu la changer) ; lignes tenues à jour.
+        menu.aboutToShow.connect(lambda: boot.setChecked(settings.property("autostart")))
+        root.menuLinesChanged.connect(self.show_lines)
+        self.show_lines()
 
-        self.activated.connect(self.clicked)
         for name in ("remainingChanged", "toneChanged"):
             getattr(root, name).connect(self.paint)
-        root.tooltipChanged.connect(lambda: self.setToolTip(root.property("tooltip")))
-        self.pop.heightChanged.connect(lambda: self.pop.isVisible() and open_popover(self.pop, self.geometry()))
+        root.tooltipChanged.connect(self.tip)
+        self.pop.heightChanged.connect(lambda: self.pop.isVisible() and open_popover(self.pop, self.icon.geometry()))
+        self.icon = None
+        self.dock()
+        self.docked = QSystemTrayIcon.isSystemTrayAvailable()
+        desktop.setTrayAvailable(self.docked)
+        self.waited = 0
+        self.timer = QTimer(self, interval=5000, timeout=self.recheck)
+        if not self.docked:
+            self.timer.start()
+
+    def dock(self):
+        """(Re)crée l'icône : sous xcb, une icône créée sans zone de notification reste sur XEmbed et ne
+        s'enregistre jamais auprès de l'hôte SNI apparu ensuite."""
+        if self.icon:
+            self.icon.hide()
+            self.icon.deleteLater()
+        self.icon = QSystemTrayIcon(self)
+        self.icon.setContextMenu(self.menu)
+        self.icon.activated.connect(self.clicked)
         self.paint()
-        self.setToolTip(root.property("tooltip"))
-        self.show()
+        self.tip()
+        self.icon.show()
+
+    def recheck(self):
+        self.waited += 5
+        if QSystemTrayIcon.isSystemTrayAvailable():
+            self.timer.stop()
+            if QGuiApplication.platformName() == "xcb":   # Wayland : déjà enregistrée seule, rien à refaire
+                self.dock()
+            self.docked = True
+            self.desktop.setTrayAvailable(True)
+        elif self.waited >= 120:
+            self.timer.stop()
 
     def paint(self):
         icon = QIcon()
         for n in SIZES:
             icon.addPixmap(pixmap(n, self.root.property("remaining"), self.root.property("tone")))
-        self.setIcon(icon)
+        self.icon.setIcon(icon)
+
+    def tip(self):
+        self.icon.setToolTip(self.root.property("tooltip"))
+
+    def show_lines(self):
+        lines = self.root.property("menuLines")
+        for i, action in enumerate(self.lines):
+            action.setText(lines[i] if i < len(lines) else "")
+            action.setVisible(i < len(lines))
 
     def clicked(self, reason):
-        if reason != QSystemTrayIcon.ActivationReason.Trigger:
-            return
+        R = QSystemTrayIcon.ActivationReason
+        if reason == R.Trigger:
+            self.dashboard() if self.settings.property("trayClick") == "dashboard" else self.popover()
+        elif reason == R.DoubleClick:   # Windows : le 1er clic a déjà fait son effet
+            self.dashboard()
+        elif reason == R.MiddleClick:
+            self.refresh()
+
+    def popover(self):
         if self.pop.isVisible():
             QMetaObject.invokeMethod(self.pop, "dismiss")
         # Ce clic vient de fermer le popover (perte du focus) : il ne le rouvre pas.
         elif time.time() * 1000 - self.pop.property("closedAt") > 400:
-            open_popover(self.pop, self.geometry())
+            open_popover(self.pop, self.icon.geometry())
             QMetaObject.invokeMethod(self.pop, "open")
 
-    def about(self):
-        p = QProcess()
-        p.start(os.environ["AGENT_BURN_BIN"], ["--version"])
-        cli = bytes(p.readAllStandardOutput()).decode().strip() if p.waitForFinished(5000) else ""
-        QMessageBox.about(None, "À propos d'Agent Burn",
-                          f"Agent Burn {__version__} pour Windows\nCLI : {cli or 'introuvable'}\n\n"
-                          "Consommation Claude Code et limites en direct, d'après l'app macOS agent-burn de Melvynx.")
+    def dashboard(self):
+        QMetaObject.invokeMethod(self.root, "openDashboard")
+
+    def refresh(self):
+        QMetaObject.invokeMethod(self.root, "refresh")
+
+    def open_settings(self, section):
+        QMetaObject.invokeMethod(self.root, "openSettings", Q_ARG(str, section))

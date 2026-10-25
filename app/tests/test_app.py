@@ -1,6 +1,7 @@
-# Tests de l'app Windows : faux CLI, position et hauteur du popover, icône, dossier QML d'exécution,
-# démarrage avec Windows (registre factice).
+# Tests de l'app de bureau : faux CLI, position et hauteur du popover, icône, dossier QML d'exécution
+# (cache vérifié), démarrage avec Windows (registre factice). qml_env() sert aussi aux autres modules.
 #   cd desktop/agent-burn/app && python -m unittest discover -s tests -v
+import atexit
 import datetime
 import json
 import os
@@ -18,19 +19,76 @@ APP = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(APP))
 FIXTURES = APP.parent / "tests" / "fixtures"
 
-from PySide6.QtCore import QCoreApplication, QPoint, QRect, QSize, Qt, QUrl  # noqa: E402
+from PySide6.QtCore import QCoreApplication, QEventLoop, QPoint, QRect, QSize, Qt, QUrl  # noqa: E402
 from PySide6.QtGui import QColor, QGuiApplication  # noqa: E402
-from PySide6.QtQml import QQmlComponent, QQmlEngine  # noqa: E402
-from PySide6.QtQuick import QQuickItem  # noqa: E402
+from PySide6.QtQml import QQmlComponent, QQmlEngine, QQmlExpression, qmlRegisterSingletonInstance  # noqa: E402
+from PySide6.QtQuick import QQuickItem, QQuickWindow  # noqa: E402,F401 (QQuickWindow : type des fenêtres QML côté Python)
+from PySide6.QtWidgets import QApplication  # noqa: E402
 
-from agentburn import paths, runtime, shim  # noqa: E402
+from agentburn import diagnostics, paths, runtime, settings, shim  # noqa: E402
 from agentburn.tray import open_popover, pixmap, place  # noqa: E402
 
 
 def gui():
+    # QApplication (menus de l'icône) ; moteur logiciel : fenêtres affichables hors écran, sans OpenGL.
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    os.environ.setdefault("QT_QUICK_BACKEND", "software")
     QCoreApplication.setApplicationName("AgentBurn")
-    return QGuiApplication.instance() or QGuiApplication([])
+    return QApplication.instance() or QApplication([])
+
+
+_env = {}
+
+
+def qml_env():
+    """Dossier QML d'exécution, types du shim et singletons Settings/Desktop enregistrés une seule fois par
+    process (un 2e enregistrement rend les types incompatibles), et le seul moteur qui puisse lire ces
+    singletons (instances enregistrées : un 2e moteur reçoit null). Faux CLI : jamais le vrai CLI ni le vrai HOME."""
+    if not _env:
+        gui()
+        data = Path(tempfile.mkdtemp(prefix="agent-burn-test-"))
+        atexit.register(shutil.rmtree, data, True)
+        cli = APP / "tests" / "fake-agent-burn"
+        if sys.platform == "win32":   # script sh inutilisable : le même faux CLI par un .cmd
+            cli = data / "fake-agent-burn.cmd"
+            cli.write_text(f'@echo off\ncd /d "{APP}"\n"{sys.executable}" -m agentburn %*\n', encoding="utf-8")
+        os.environ["AGENT_BURN_BIN"] = str(cli)
+        os.environ["AGENT_BURN_FAKE_DIR"] = str(FIXTURES)
+        qml = runtime.assemble()
+        if shim._global is None:
+            shim.register(qml, data)
+        own = shim._global if Path(shim._global.dataDir) == data else shim.QuickshellGlobal(data, qml)
+        cfg = settings.Settings(None)
+        desk = diagnostics.Desktop(os.environ["AGENT_BURN_BIN"], data, data / "settings.json", data / "logs", data / "cache")
+        qmlRegisterSingletonInstance(settings.Settings, "AgentBurn", 1, 0, "Settings", cfg)
+        qmlRegisterSingletonInstance(diagnostics.Desktop, "AgentBurn", 1, 0, "Desktop", desk)
+        _env.update(qml=qml, data=data, settings=cfg, desktop=desk, engine=QQmlEngine(), quickshell=own)
+        atexit.register(lambda: [_env.pop(k, None) for k in ("root", "component", "engine")])   # avant QApplication
+    return _env
+
+
+def main_root():
+    """Main.qml de l'app, créé une fois par process dans le moteur partagé (fenêtres cachées)."""
+    env = qml_env()
+    # test_shim remplace le global Python du shim (dossier courant des runs) puis efface son dossier : le nôtre.
+    shim._global = env["quickshell"]
+    if "root" not in env:
+        component = QQmlComponent(env["engine"], QUrl.fromLocalFile(str(env["qml"] / "Main.qml")))
+        root = component.create()
+        assert root is not None, [e.toString() for e in component.errors()]
+        env.update(component=component, root=root)
+    return env["root"]
+
+
+def js(root, code):
+    return QQmlExpression(QQmlEngine.contextForObject(root), root, code).evaluate()[0]
+
+
+def wait_for(cond, seconds=10):
+    end = time.monotonic() + seconds
+    while not cond() and time.monotonic() < end:
+        QCoreApplication.processEvents(QEventLoop.ProcessEventsFlag.AllEvents, 50)
+    return cond()
 
 
 def fake(*args):
@@ -165,13 +223,8 @@ class Runtime(unittest.TestCase):
 
 class Popover(unittest.TestCase):
     def test_taller_than_screen_scrolls(self):
-        app = gui()  # noqa: F841
-        data = tempfile.mkdtemp(prefix="agent-burn-test-")
-        self.addCleanup(shutil.rmtree, data, True)
-        qml = runtime.assemble()
-        shim.register(qml, data)
-        engine = QQmlEngine()
-        component = QQmlComponent(engine, QUrl.fromLocalFile(str(qml / "PopoverWindow.qml")))
+        env = qml_env()
+        component = QQmlComponent(env["engine"], QUrl.fromLocalFile(str(env["qml"] / "PopoverWindow.qml")))
         pop = component.create()
         self.assertIsNotNone(pop, [e.toString() for e in component.errors()])
         pad = pop.property("pad")
@@ -186,7 +239,7 @@ class Popover(unittest.TestCase):
         self.assertEqual(pop.property("maxHeight"), a.height() - 2 * 16)
         self.assertGreaterEqual(pop.y() + pad, a.y() + 16)
         self.assertLessEqual(pop.y() + pop.height() - pad, a.y() + a.height() - 16)
-        del pop, component, engine
+        del pop, component
 
 
 class Autostart(unittest.TestCase):
