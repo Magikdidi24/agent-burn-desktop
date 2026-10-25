@@ -22,6 +22,10 @@ class Autostart(unittest.TestCase):
         patch.start()
         self.addCleanup(patch.stop)
         os.environ.pop("APPIMAGE", None)
+        # Chemin Linux même quand la suite tourne sous Windows (CI) : les \ de python.exe y sont refusés.
+        exe = mock.patch.object(sys, "executable", "/opt/agent-burn-desktop/agent-burn-desktop")
+        exe.start()
+        self.addCleanup(exe.stop)
         self.file = Path(self.dir.name) / "autostart" / "io.github.magikdidi24.AgentBurn.desktop"
 
     def entry(self):
