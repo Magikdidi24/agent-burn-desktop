@@ -1,0 +1,18 @@
+Qt @QT@, PySide6 et Shiboken6 @PYSIDE6@ (The Qt Company Ltd. et contributeurs)
+
+Licence : GNU Lesser General Public License v3.0 (LGPL-3.0-only), texte complet dans LGPL-3.0.txt.
+La LGPL-3.0 incorpore la GNU General Public License v3.0 : texte complet dans GPL-3.0.txt.
+
+Agent Burn utilise ces bibliothèques sans modification, telles que publiées sur PyPI (paquets
+PySide6-Essentials et shiboken6 @PYSIDE6@). Elles restent des bibliothèques partagées séparées, chargées à
+l'exécution depuis le dossier PySide6/ de l'application (et les liens lib*.so.6 à sa racine sous Linux) :
+elles peuvent être remplacées par une version modifiée compatible sans recompiler l'application
+(LGPL-3.0, section 4 d) 1)).
+
+Sources correspondantes :
+  Qt @QT@ : https://download.qt.io/official_releases/qt/
+  PySide6 et Shiboken6 @PYSIDE6@ : https://download.qt.io/official_releases/QtForPython/
+    (dépôt : https://code.qt.io/cgit/pyside/pyside-setup.git, étiquette v@PYSIDE6@)
+
+Composants tiers inclus dans Qt (ICU, HarfBuzz, PCRE2, libpng, libjpeg…) et leurs licences :
+https://doc.qt.io/qt-6/licenses-used-in-qt.html
