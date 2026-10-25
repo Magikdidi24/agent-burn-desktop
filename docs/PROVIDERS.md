@@ -1,7 +1,7 @@
 # Fournisseurs : ce qui est lu, et d'où
 
 Le CLI `agent-burn` fait toute la lecture ; `Burn.qml` en déduit l'état de chaque agent
-([`providerState()`](../../../config/quickshell/Burn.qml)). Les faits sur le CLI ci-dessous viennent de son
+([`providerState()`](../shared/Burn.qml)). Les faits sur le CLI ci-dessous viennent de son
 code à la révision épinglée (20.0.21, `9ce6d8e`) et de 73 runs réels faits pendant l'audit.
 
 Deux principes :

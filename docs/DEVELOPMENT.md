@@ -1,6 +1,6 @@
 # Développement, tests, build et release
 
-Architecture : [ARCHITECTURE.md](ARCHITECTURE.md). Utilisation : [README](../README.md).
+Architecture : [ARCHITECTURE.md](ARCHITECTURE.md). Utilisation : [README](../README.md) et [USAGE.md](USAGE.md).
 
 ## Mise en place
 
@@ -9,21 +9,20 @@ Architecture : [ARCHITECTURE.md](ARCHITECTURE.md). Utilisation : [README](../REA
 
   ```sh
   python3.12 -m venv ~/.venvs/agent-burn
-  ~/.venvs/agent-burn/bin/pip install -r desktop/agent-burn/app/requirements.txt
+  ~/.venvs/agent-burn/bin/pip install -r app/requirements.txt
   ```
 
-  Windows : `py -3.12 -m venv .venv`, puis `.venv\Scripts\pip install -r desktop\agent-burn\app\requirements.txt`.
+  Windows : `py -3.12 -m venv .venv`, puis `.venv\Scripts\pip install -r app\requirements.txt`.
 
   Builds et CI installent à la place [`app/requirements.lock`](../app/requirements.lock) avec
   `pip install --require-hashes` : le verrou de [`app/requirements-build.txt`](../app/requirements-build.txt)
   (`requirements.txt` plus `pyinstaller==6.22.3`), versions et sha256 de tout l'arbre pour Linux x86_64 et
-  Windows x64 et ARM64. Après un changement de l'un de ces deux fichiers, le régénérer depuis
-  `desktop/agent-burn/app` :
+  Windows x64 et ARM64. Après un changement de l'un de ces deux fichiers, le régénérer depuis `app/` :
   `uv pip compile --universal --python-version 3.12 --generate-hashes requirements-build.txt -o requirements.lock`.
-- **CLI `agent-burn`**, à la révision `AB_REV` d'[`install.sh`](../../../install.sh) :
-  - Linux : `install.sh` le compile dans `~/.local/bin/agent-burn` ; ou seul :
-    `cargo install --locked --git https://github.com/Melvynx/agent-burn --rev <AB_REV> agent-burn --bin agent-burn --root ~/.local` ;
-  - Windows : un premier `build.ps1` le compile dans `desktop\agent-burn\build\cli\bin\agent-burn.exe` ;
+- **CLI `agent-burn`**, à la révision `AB_REV` de [`cli.env`](../cli.env) :
+  - Linux : `cargo install --locked --git https://github.com/Melvynx/agent-burn --rev <AB_REV> agent-burn --bin agent-burn --root ~/.local`
+    (dans `~/.local/bin/agent-burn`) ;
+  - Windows : un premier `build.ps1` le compile dans `build\cli\bin\agent-burn.exe` ;
   - ou pas de CLI du tout, avec les fixtures (voir plus bas).
 - **Police** : les scripts de build déposent JetBrainsMono Nerd Font dans `app/fonts/`, que les lancements depuis
   les sources chargent aussi. Sans elle, il faut la police installée sur le système, sinon les icônes
@@ -33,7 +32,7 @@ Architecture : [ARCHITECTURE.md](ARCHITECTURE.md). Utilisation : [README](../REA
 
 ## Lancer depuis les sources
 
-Linux, depuis `desktop/agent-burn/app` :
+Linux, depuis `app/` :
 
 ```sh
 python -m agentburn                    # icône de notification, comme l'app installée
@@ -47,7 +46,7 @@ AGENT_BURN_FAKE_DIR=$PWD/../tests/fixtures AGENT_BURN_BIN=$PWD/tests/fake-agent-
 `tests/fake-agent-burn` relance `python3 -m agentburn`, qui sert les fixtures sans charger Qt : le Python du
 système suffit. `tests/fixtures/codex` ajoute Codex.
 
-Windows (PowerShell), depuis `desktop\agent-burn\app` :
+Windows (PowerShell), depuis `app\` :
 
 ```powershell
 $env:AGENT_BURN_BIN = "$PWD\..\build\cli\bin\agent-burn.exe"
@@ -60,8 +59,8 @@ Différences avec l'app installée :
   dossier de dev `~/.local/share/agent-burn-win-dev` n'est pas repris ;
 - pas de lancement à l'ouverture de session (aucun exe installé à lancer) ;
 - journal aussi sur la sortie d'erreur ; Diagnostic affiche « version de développement » et le CLI prévu par
-  `install.sh` ;
-- les QML partagés sont relus dans `config/quickshell/` à chaque lancement (copie préparée dans le cache) : une
+  `cli.env` ;
+- les QML partagés sont relus dans `shared/` à chaque lancement (copie préparée dans le cache) : une
   modification est prise au lancement suivant ;
 - `AGENT_BURN_FAKE_DIR` hors selftest est signalé dans le journal.
 
@@ -79,7 +78,7 @@ t() { env -u DISPLAY -u WAYLAND_DISPLAY QT_QPA_PLATFORM=offscreen PYTHONDONTWRIT
 | Tests unitaires | `t python -m unittest discover -s tests -v` (depuis `app/`) | Linux et Windows |
 | Suite du cœur sous le shim | `t python tests/run_burn_suite.py`, puis avec `BURN_TEST=corrupt` et `BURN_TEST=timeout` | Linux |
 | Suite du cœur sous Quickshell | voir plus bas | non |
-| Suivi de l'amont | `python3 -I config/quickshell/scripts/test_agent_burn_upstream.py` (depuis la racine) | Linux |
+| Suivi de l'amont | `python3 -I scripts/test_agent_burn_upstream.py` (depuis la racine) | Linux |
 | Outils de licence (notices des crates, licence du `.rpm`) | `python3 -m unittest discover -s .` (depuis `tools/`) | Linux |
 | Selftest | voir plus bas | Linux (Xvfb), et sur chaque build gelé |
 | Paquets Linux | `linux/smoke-local.sh IMAGE` | 7 distros |
@@ -104,7 +103,7 @@ léger). Elle doit donner le même résultat sous le shim et sous Quickshell : c
 Résultat attendu : `RESULT: N ok, 0 échec(s)`, avec aujourd'hui N = 274 (normal), 27 (`corrupt`) et 6
 (`timeout`) : un N plus petit veut dire que des étapes n'ont pas tourné.
 
-Sous le shim, depuis `desktop/agent-burn/app` (code 1 si un test échoue) :
+Sous le shim, depuis `app/` (code 1 si un test échoue) :
 
 ```sh
 t python tests/run_burn_suite.py
@@ -113,7 +112,7 @@ t env BURN_TEST=timeout python tests/run_burn_suite.py   # CLI bloqué : environ
 t python tests/run_burn_suite.py <dossier>   # autre shell.qml ; son Burn.qml remplace celui du dépôt (mutants)
 ```
 
-Sous Quickshell 0.3.2, depuis `desktop/agent-burn/app`, sur une copie (qs travaille hors du dépôt, et ses
+Sous Quickshell 0.3.2, depuis `app/`, sur une copie (qs travaille hors du dépôt, et ses
 dossiers XDG jetables laissent les données de la vraie barre intactes) :
 
 ```sh
@@ -146,7 +145,7 @@ Il lui faut OpenGL (le rendu logiciel ignore masques et ombres) : sous Xvfb comm
 bureau (rendu hors écran) ou dans une session imbriquée.
 
 ```sh
-cd desktop/agent-burn/app
+cd app
 AGENT_BURN_FAKE_DIR=$PWD/../tests/fixtures AGENT_BURN_BIN=$PWD/tests/fake-agent-burn AGENT_BURN_DATA=/tmp/ab-selftest-data \
     xvfb-run -a -s '-screen 0 1920x1080x24' dbus-run-session -- python -m agentburn --selftest /tmp/ab-shots
 ```
@@ -164,7 +163,7 @@ xcb (`QT_QPA_PLATFORM=xcb`, le selftest OpenGL des builds) ou Wayland, elle pren
 Après un build (voir plus bas), pour chaque image :
 
 ```sh
-desktop/agent-burn/linux/smoke-local.sh docker.io/library/debian:13   # DIST = desktop/agent-burn/dist/linux par défaut
+linux/smoke-local.sh docker.io/library/debian:13   # DIST = dist/linux par défaut
 ```
 
 Images de la CI : `ubuntu:22.04`, `ubuntu:24.04`, `debian:12`, `debian:13`, `fedora:44`,
@@ -181,7 +180,7 @@ artefact `smoke-<n>` en cas d'échec).
 ### Installeur Windows : `smoke.ps1`
 
 ```powershell
-pwsh -File desktop\agent-burn\windows\smoke.ps1 -Setup <...\AgentBurn-Setup-<ver>-x64.exe> -Portable <...\AgentBurn-portable-<ver>-x64.zip>
+pwsh -File windows\smoke.ps1 -Setup <...\AgentBurn-Setup-<ver>-x64.exe> -Portable <...\AgentBurn-portable-<ver>-x64.zip>
 ```
 
 Il exige une machine **sans** Agent Burn (installation, process, démarrage automatique ou `%APPDATA%\AgentBurn`)
@@ -189,10 +188,11 @@ et refuse sinon : il installe puis désinstalle pour de bon. Fait pour les runne
 virtuelle jetable. Contrôles : installation silencieuse (fichiers, raccourcis, valeur `Run`, clé de
 désinstallation), selftest de l'exe installé, mode icône pendant 10 s, 2e lancement qui rend la main en 0,
 désinstallation app lancée (dossier, raccourcis, valeurs `Run` et `StartupApproved`, cache et journaux partis,
-`%APPDATA%\AgentBurn` gardé), puis selftest du zip portable. Sorties dans `desktop/agent-burn/dist/smoke/` (dans
-la CI, artefact `selftest-windows-<arch>`, sans la copie extraite du zip). Il n'a jamais tourné : sa logique a
-seulement été rejouée en Python sous Wine (43 contrôles sur 43 au commit `8603950`, avec en plus une mise à jour
-par-dessus une ancienne installation et le refus de l'installeur arm64 sur x64).
+`%APPDATA%\AgentBurn` gardé), puis selftest du zip portable. Sorties dans `dist/smoke/` (dans la CI, artefact
+`selftest-windows-<arch>`, sans la copie extraite du zip). Il tourne dans la CI, sur le runner `windows-latest`
+(Windows Server), jamais sur un Windows de bureau ; avant la CI, sa logique avait été rejouée en Python sous Wine
+(43 contrôles sur 43, avec en plus une mise à jour par-dessus une ancienne installation et le refus de
+l'installeur arm64 sur x64).
 
 ### Sous Wine
 
@@ -211,9 +211,9 @@ Utile pour dégrossir, pas une vérification Windows (le labo Wine du développe
 ### Linux : `linux/build-local.sh`
 
 ```sh
-desktop/agent-burn/linux/build-local.sh                       # podman, image python:3.12-slim-bookworm, réseau
-SKIP_CLI=1 desktop/agent-burn/linux/build-local.sh            # réutilise le CLI de build/cli-linux tel quel
-AB_CACHE=/chemin/absolu desktop/agent-burn/linux/build-local.sh   # caches cargo, rustup, pip dans ce dossier
+linux/build-local.sh                       # podman, image python:3.12-slim-bookworm, réseau
+SKIP_CLI=1 linux/build-local.sh            # réutilise le CLI de build/cli-linux tel quel
+AB_CACHE=/chemin/absolu linux/build-local.sh   # caches cargo, rustup, pip dans ce dossier
 ```
 
 Le wrapper lance [`linux/build.sh`](../linux/build.sh) dans le conteneur, en root, dépôt monté. L'image est
@@ -227,7 +227,7 @@ et tourne donc sur les distros plus récentes. Sans `CARGO_HOME` ni `RUSTUP_HOME
 
 Étapes :
 
-1. lit `AB_REV`, `AB_VER` (`install.sh`) et `__version__` (`app/agentburn/__init__.py`) ;
+1. lit `AB_REV`, `AB_VER` (`cli.env`) et `__version__` (`app/agentburn/__init__.py`) ;
 2. CLI : copie superficielle de l'amont à `AB_REV`, Rust de son `rust-toolchain.toml` (rustup-init épinglé),
    binaire statique `x86_64-unknown-linux-musl` (repli `gnu` si l'amont casse ce build), `--version` == `AB_VER`,
    licence et notices des crates ; en cache dans `build/cli-linux/` (clé : `AB_REV`) ;
@@ -245,7 +245,7 @@ et tourne donc sur les distros plus récentes. Sans `CARGO_HOME` ni `RUSTUP_HOME
    archive, AppImage (appimagetool et runtime épinglés ; `NOTICE-AppImage-runtime.txt` dans l'AppImage
    seulement), `SHA256SUMS`.
 
-Sorties dans `desktop/agent-burn/dist/linux/` : `agent-burn-desktop-<ver>-x86_64.tar.gz`, `…-x86_64.AppImage`,
+Sorties dans `dist/linux/` : `agent-burn-desktop-<ver>-x86_64.tar.gz`, `…-x86_64.AppImage`,
 `agent-burn-desktop_<ver>_amd64.deb`, `agent-burn-desktop-<ver>-1.x86_64.rpm`, `SHA256SUMS`,
 `selftest/{software,opengl}/`. Temps relevés sur le poste de développement : environ 3 min à froid, dont 80 s de
 CLI, 1 min 30 avec le CLI en cache. `build/`, `dist/` et `app/fonts/` sont ignorés par git.
@@ -258,9 +258,9 @@ C++ de Visual Studio) et [Inno Setup](https://jrsoftware.org/isdl.php) 6.3+ (`is
 dossier par défaut). Réseau : GitHub, crates.io, PyPI.
 
 ```powershell
-pwsh -File desktop\agent-burn\build.ps1               # x64 : CLI, polices, licences, bundle, selftest, zip, installeur
-pwsh -File desktop\agent-burn\build.ps1 -Arch arm64   # sur une machine ARM64, avec un Python ARM64
-pwsh -File desktop\agent-burn\build.ps1 -SkipCli      # réutilise build\cli tel quel (itérations sans Rust)
+pwsh -File build.ps1               # x64 : CLI, polices, licences, bundle, selftest, zip, installeur
+pwsh -File build.ps1 -Arch arm64   # sur une machine ARM64, avec un Python ARM64
+pwsh -File build.ps1 -SkipCli      # réutilise build\cli tel quel (itérations sans Rust)
 ```
 
 - `-Arch` (`x64` par défaut, en minuscules) choisit la cible Rust ; le Python du venv doit être de la même
@@ -277,13 +277,13 @@ pwsh -File desktop\agent-burn\build.ps1 -SkipCli      # réutilise build\cli tel
   UTF-8 comme le journal).
 - Relançable : venv, polices et CLI déjà faits sont réutilisés ; bundle, zip et installeur sont écrasés.
 
-Sorties dans `desktop\agent-burn\dist\` : `AgentBurn\` (bundle), `AgentBurn-portable-<ver>-<arch>.zip`,
+Sorties dans `dist\` : `AgentBurn\` (bundle), `AgentBurn-portable-<ver>-<arch>.zip`,
 `AgentBurn-Setup-<ver>-<arch>.exe`, `selftest\`. [`installer.iss`](../installer.iss) ne se compile que par
 `build.ps1` (`/DAppVersion` et `/DArch` obligatoires). Ses lignes `[InstallDelete]` vident les sous-dossiers du
 bundle (fichiers d'une version précédente) seulement par-dessus une installation d'Agent Burn (`OwnInstall` :
 `AgentBurn.exe` et `unins000.dat` présents dans `{app}`), et le choix du dossier est désactivé
-(`DisableDirPage`) : un dossier existant pris à la main serait vidé à la mise à jour suivante. `build.ps1` n'a jamais tourné de bout en bout (pas de
-PowerShell sous Wine) : son premier run sera celui de la CI.
+(`DisableDirPage`) : un dossier existant pris à la main serait vidé à la mise à jour suivante. `build.ps1` ne
+tourne pas sous Wine (pas de PowerShell 7) : il n'a tourné que dans la CI, sur le runner `windows-latest`.
 
 ### Monter Qt, PySide6, Python ou le runtime AppImage
 
@@ -322,18 +322,15 @@ La date de release des métadonnées AppStream est le jour du build.
 
 ## CI
 
-[`.github/workflows/agent-burn-desktop.yml`](../../../.github/workflows/agent-burn-desktop.yml), « Agent Burn
-(bureau) ». **Elle n'a encore jamais tourné** : rien de ce qui suit n'a été observé sur GitHub. Le fichier passe
-actionlint (avec shellcheck) sans erreur, et des parties ont été rejouées en local (étape de release avec de faux
-artefacts) ; le premier run viendra avec le push.
+[`.github/workflows/ci.yml`](../.github/workflows/ci.yml), « Agent Burn (bureau) ». Premier run complet le
+2026-10-25, juste avant que l'app ait son propre dépôt : tous les jobs verts (la release, sans tag, sautée), ARM64
+jamais lancé. Le fichier passe actionlint (avec shellcheck) sans erreur.
 
-Déclencheurs : push sur toute branche qui touche `desktop/agent-burn/**`, `config/quickshell/Burn*.qml`,
-`config/quickshell/assets/burn/**`, les deux scripts `agent-burn-upstream`, `install.sh` ou le workflow ;
-pull request sur les mêmes chemins ; tag `desktop-v*` (GitHub n'applique pas les filtres de chemins aux tags) ;
-lancement manuel avec une case `arm64`. Le bouton « Run workflow » n'apparaît qu'une fois le fichier sur
-`main` ; avant, après un premier run déclenché par un push (non vérifié) :
-`gh workflow run agent-burn-desktop.yml --ref <branche> -f arm64=true`. Un nouveau push (ou la PR de la même
-branche) annule le run en cours.
+Déclencheurs : push sur toute branche, sauf quand il ne touche que des `*.md` ou `docs/` ; pull request, même
+règle ; tag `desktop-v*` (GitHub n'applique pas les filtres de chemins aux tags : tout tourne, release comprise) ;
+lancement manuel avec une case `arm64` (bouton « Run workflow » de l'onglet Actions, ou
+`gh workflow run ci.yml --ref <branche> -f arm64=true`). Un nouveau push annule le run en cours de la même
+branche, du même tag ou de la même pull request ; un push et la pull request de sa branche tournent chacun.
 
 | Job | Machine | Contenu | Artefacts |
 |---|---|---|---|
@@ -349,21 +346,21 @@ branche) annule le run en cours.
   recompiler ; cargo et rustup sont sous `$HOME` dans le conteneur Linux) ; pip, indexé par le verrou. Un cache
   n'est vu que de sa branche et de `main` : fusionner le workflow dans `main` les amorce pour toutes les branches.
 - Hygiène : actions épinglées par SHA (version en commentaire), `persist-credentials: false`, permissions
-  `contents: read` (sauf la release), délai maximal sur chaque job.
+  `contents: read` (sauf la release), délai maximal sur chaque job, `pull_request` et jamais
+  `pull_request_target` (une pull request de fork n'a ni secret ni droit d'écriture), runs groupés par numéro de
+  pull request ou par ref complet (celle d'un fork ne peut pas annuler un run du dépôt).
 - Pas dans la CI : la suite du cœur sous Quickshell, la suite du cœur sous Windows, un lint QML.
-- Coût, dépôt privé : estimations de l'auteur du workflow, seul le job de tests ayant été chronométré (en local).
-  Par push, environ 25 à 50 min Linux (tests 4 à 5, paquets 6 à 10, 7 smoke de 2 à 5 chacun) et 10 à 15 min
-  Windows, plus 5 à 12 min quand le CLI est recompilé ; soit 0,25 à 0,45 $ au prix public (0,006 $/min Linux,
-  0,010 $/min Windows). Les artefacts (environ 300 Mo Linux et 110 Mo Windows par run) comptent dans le quota de
-  stockage du compte, d'où leur durée de 1 jour. Si les minutes manquent, limiter les 7 smoke à `main`, aux
-  tags et au lancement manuel.
+- Durées du premier run complet : tests 3 min 40, paquets Linux 2 min 30, Windows x64 10 min, chaque distro
+  1 min environ, soit 15 min de bout en bout ; plus 5 à 12 min quand le CLI est recompilé (estimation). Dépôt
+  public : GitHub ne facture pas les minutes de ses runners standard. Les artefacts de paquets (environ 300 Mo
+  Linux et 110 Mo Windows par run) ne sont gardés qu'un jour : les releases gardent les paquets.
 
 ## Conventions
 
 - **Langue** : commentaires du code, textes de l'interface et docs en français ; messages de commit en anglais,
   au format Conventional Commits (`feat(desktop): …`, `fix(burn): …`, `build: …`, `ci: …`, `test: …`, `docs: …`).
-- **QML partagé** (`config/quickshell/Burn*.qml`) : doit tourner tel quel sous Quickshell 0.3.2 et sous
-  PySide6 6.12 par le shim. Seulement les symboles du [contrat plateforme](ARCHITECTURE.md#contrat-plateforme),
+- **QML partagé** (`shared/`) : doit tourner tel quel sous Quickshell 0.3.2 (la barre Quickshell de l'auteur en
+  garde une copie synchronisée depuis ce dépôt) et sous PySide6 6.12 par le shim. Seulement les symboles du [contrat plateforme](ARCHITECTURE.md#contrat-plateforme),
   pas de `QtQuick.Controls`. Un fichier partagé de plus va dans `runtime.SHARED` (lu aussi par
   `agentburn.spec`), sinon « X is not a type ». Vérifier sous les deux hôtes : suite du cœur, selftest, et un
   rendu sous qs.
@@ -373,7 +370,7 @@ branche) annule le run en cours.
 - **Glyphes Nerd Font** (zone à usage privé Unicode) : dans les QML et le Python, toujours en échappement
   `\uXXXX`, jamais le caractère brut, que des outils d'édition perdent ou transforment. Contrôle (aucune
   exception) :
-  `grep -nP '[\x{E000}-\x{F8FF}]' config/quickshell/Burn*.qml desktop/agent-burn/app/qml/*.qml desktop/agent-burn/app/agentburn/*.py`.
+  `grep -nP '[\x{E000}-\x{F8FF}]' shared/*.qml app/qml/*.qml app/agentburn/*.py`.
 - Textes venus du CLI affichés en `Text.PlainText` ; process lancés en argv ; écritures atomiques.
 - Un raccourci volontaire porte un commentaire `shortcut: <limite>, <quand y revenir>`.
 - Code propre à une plateforme dans `platform_win.py` ou `platform_linux.py`, dossiers dans `paths.py` seulement.
@@ -381,14 +378,14 @@ branche) annule le run en cours.
   `setDesktopFileName`, autostart), le nom d'application `AgentBurn` (`WM_CLASS` sous X11 ↔
   `StartupWMClass`), les exécutables `AgentBurn.exe` et `agent-burn-desktop`, le CLI dans `<dossier de l'exe>/bin/`,
   les clés de `build-info.json` (`appVersion`, `cliRev`, `cliVersion`, `target`, `builtAt`) écrites par les
-  deux scripts de build, l'empreinte de l'image de build (workflow et `linux/build-local.sh`), la somme de
-  l'archive JetBrainsMono Nerd Font (`NF_SHA256` d'`install.sh`, la même écrite dans `linux/build.sh`).
+  deux scripts de build, l'empreinte de l'image de build (workflow et `linux/build-local.sh`), les sommes des
+  polices JetBrainsMono Nerd Font extraites (`linux/build.sh` et `build.ps1`).
 
 ## ARM64
 
 - **Windows ARM64** : `build.ps1 -Arch arm64` sur une machine ARM64 avec un Python ARM64 (pas de compilation
   croisée). La CI le construit sur `windows-11-arm`, au lancement manuel seulement, en expérimental et hors des
-  releases ; la disponibilité de ce runner pour un dépôt privé n'est pas vérifiée. L'installeur arm64 n'a été
+  releases ; jamais lancé à ce jour. L'installeur arm64 n'a été
   que compilé sous Wine ; PyPI publie bien les wheels `win_arm64` de PySide6 6.12 et PyInstaller (vu pendant
   l'audit). Rien n'a tourné sur du matériel ARM.
 - L'installeur x64 accepte Windows 11 ARM, qui l'émule : jamais essayé.

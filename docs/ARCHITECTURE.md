@@ -1,12 +1,12 @@
 # Architecture d'Agent Burn
 
-Pour qui modifie le code. Utilisation : [README](../README.md). Signaux et états des fournisseurs :
+Pour qui modifie le code. Utilisation : [README](../README.md) et [USAGE.md](USAGE.md). Signaux et états des fournisseurs :
 [PROVIDERS.md](PROVIDERS.md). Tests, build, release : [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Vue d'ensemble
 
 ```
-        CLI agent-burn (Rust, projet amont, révision AB_REV d'install.sh)
+        CLI agent-burn (Rust, projet amont, révision AB_REV de cli.env)
         journaux des agents, tarifs, limites en direct
                      │  JSON sur stdout : summary, harness <agent>, relevé léger
         Burn.qml : cœur partagé (singleton QML, aucune vue)
@@ -15,7 +15,7 @@ Pour qui modifie le code. Utilisation : [README](../README.md). Signaux et état
         vues partagées : BurnPopover, BurnDashboardView, BurnQuotaChart, BurnBarChart, BurnButton
                      │
         ┌────────────┴──────────────────────────┐
-  Quickshell 0.3.2 (barre Hyprland)         app de bureau (PySide6 6.12) + shim.py
+  Quickshell 0.3.2 (barre, autre dépôt)     app de bureau (PySide6 6.12) + shim.py
   BurnPill, BurnDashboard, BurnUpstream,    Main, PopoverWindow, DashboardWindow, SettingsWindow,
   Colors (palette wallust)                  Colors, tray.py, settings, journaux, diagnostic
 ```
@@ -31,12 +31,12 @@ Trois règles tiennent l'ensemble :
 
 | Couche | Fichiers | Rôle |
 |---|---|---|
-| CLI | binaire `agent-burn` de [Melvynx/agent-burn](https://github.com/Melvynx/agent-burn) | Découvre les agents, lit leurs journaux, calcule les prix (LiteLLM, models.dev, sinon prix intégrés), relève les limites (API d'usage Claude, Codex). Compilé par `install.sh` pour la barre, par `build.ps1` et `linux/build.sh` pour l'app, toujours à `AB_REV`. |
-| Cœur | [`config/quickshell/Burn.qml`](../../../config/quickshell/Burn.qml) | Lance le CLI, valide ses sorties, garde cache, archive et relevés, calcule fenêtres, rythme et état des fournisseurs. |
-| Vues partagées | `config/quickshell/BurnPopover.qml`, `BurnDashboardView.qml`, `BurnQuotaChart.qml`, `BurnBarChart.qml`, `BurnButton.qml`, `assets/burn/` | Aperçu, dashboard, graphes, bouton accessible au clavier, icônes des agents. Lisent `Burn` et n'agissent que par ses fonctions (`refresh()`, `setRange()`, `openDashboard()`…) et par `Quickshell.execDetached` (ouvrir le dossier des données). |
-| Hôte Quickshell | `config/quickshell/BurnPill.qml`, `BurnDashboard.qml`, `BurnUpstream.qml`, `Colors.qml` | Pill de la barre, fenêtre du dashboard, suivi de l'amont, palette wallust. Propres à Quickshell et Hyprland. |
-| Hôte app de bureau | [`desktop/agent-burn/app/`](../app/) | Couche de compatibilité (`shim.py`), fenêtres, icône de notification, réglages, journaux, diagnostic, démarrage automatique, selftest. |
-| Suivi de l'amont | [`config/quickshell/scripts/agent-burn-upstream.py`](../../../config/quickshell/scripts/agent-burn-upstream.py) | Voir [UPSTREAM.md](UPSTREAM.md). |
+| CLI | binaire `agent-burn` de [Melvynx/agent-burn](https://github.com/Melvynx/agent-burn) | Découvre les agents, lit leurs journaux, calcule les prix (LiteLLM, models.dev, sinon prix intégrés), relève les limites (API d'usage Claude, Codex). Compilé par `build.ps1` et `linux/build.sh`, toujours à `AB_REV` ([`cli.env`](../cli.env)). |
+| Cœur | [`shared/Burn.qml`](../shared/Burn.qml) | Lance le CLI, valide ses sorties, garde cache, archive et relevés, calcule fenêtres, rythme et état des fournisseurs. |
+| Vues partagées | `shared/BurnPopover.qml`, `BurnDashboardView.qml`, `BurnQuotaChart.qml`, `BurnBarChart.qml`, `BurnButton.qml`, `assets/burn/` | Aperçu, dashboard, graphes, bouton accessible au clavier, icônes des agents. Lisent `Burn` et n'agissent que par ses fonctions (`refresh()`, `setRange()`, `openDashboard()`…) et par `Quickshell.execDetached` (ouvrir le dossier des données). |
+| Hôte Quickshell (hors de ce dépôt) | `BurnPill.qml`, `BurnDashboard.qml`, `BurnUpstream.qml`, `Colors.qml` de la barre Quickshell de l'auteur, qui garde une copie de `shared/` synchronisée depuis ce dépôt à une révision épinglée | Pill de la barre, fenêtre du dashboard, suivi de l'amont, palette wallust. Propres à Quickshell et Hyprland. |
+| Hôte app de bureau | [`app/`](../app/) | Couche de compatibilité (`shim.py`), fenêtres, icône de notification, réglages, journaux, diagnostic, démarrage automatique, selftest. |
+| Suivi de l'amont | [`scripts/agent-burn-upstream.py`](../scripts/agent-burn-upstream.py) | Voir [UPSTREAM.md](UPSTREAM.md). |
 
 ## Flux de données
 
@@ -176,7 +176,7 @@ masquée comme le reste du journal.
 ## Fichiers persistés
 
 Dans le dossier de données (`Quickshell.dataDir` ; pour l'app, voir
-[le README](../README.md#où-sont-les-fichiers)) :
+[le guide d'utilisation](USAGE.md#où-sont-les-fichiers)) :
 
 | Fichier | Contenu | Règles |
 |---|---|---|
@@ -286,7 +286,7 @@ Le JSON doit dépendre des seules données des agents, pas de la configuration d
 | `paths.py` | Seul endroit qui connaît les dossiers par OS et le nom d'instance unique. |
 | `settings.py` | Singleton `Settings` : JSON validé (BOM UTF-8 accepté), écrit de façon atomique, `.bak` d'un fichier illisible (JSON invalide, imbrication extrême), `reset()`. Le démarrage automatique est délégué au module de la plateforme (absent en dev). |
 | `logs.py` | Fichier tournant (1 Mo × 3, UTF-8), stderr hors app gelée (remis en UTF-8, même redirigé sous Windows), masquage des secrets sur chaque handler, messages Qt sur le logger `qt`, exceptions non rattrapées journalisées (fil principal, threads), niveau DEBUG à chaud. Les lignes DEBUG : fin du stderr du CLI (`shim.py`), réglages en vigueur et chaque écriture, thème du système, clics sur l'icône, 2es lancements. |
-| `diagnostics.py` | Singleton `Desktop` : versions (app, `build-info.json` ou `install.sh` en dev, `agent-burn --version` lu en tâche de fond : « illisible » si vide, « sans réponse (10 s) » s'il bloque), plateforme, écrans, dossiers, ouverture des dossiers, texte de diagnostic masqué. |
+| `diagnostics.py` | Singleton `Desktop` : versions (app, `build-info.json` ou `cli.env` en dev, `agent-burn --version` lu en tâche de fond : « illisible » si vide, « sans réponse (10 s) » s'il bloque), plateforme, écrans, dossiers, ouverture des dossiers, texte de diagnostic masqué. |
 | `tray.py` | `QSystemTrayIcon` et son menu, icône dessinée par taille, placement de l'aperçu (`place()`, X11 et Windows ; sous Wayland, hauteur bornée par l'écran où le compositeur l'a mis), revérification de la zone de notification toutes les 5 s pendant toute la session : hôte apparu (icône recréée sous xcb), disparu ou revenu, `Desktop.trayAvailable` suivi dans les deux sens et journalisé. |
 | `platform_win.py` | `ctypes` et `winreg` : inactivité, barre de titre sombre (DWM), clé `Run` et `StartupApproved\Run`, `AllowSetForegroundWindow`, numéro de session. |
 | `platform_linux.py` | Fichier autostart XDG de l'utilisateur, clé `Exec` échappée selon la spec Desktop Entry ; `$APPIMAGE` pour une AppImage ; `Hidden=true` ou `X-GNOME-Autostart-enabled=false` valent désactivé ; `OSError` (rien d'écrit) pour un chemin d'exe avec un caractère de contrôle, `%` ou `\`. |
@@ -344,11 +344,11 @@ Le JSON doit dépendre des seules données des agents, pas de la configuration d
   ajouterait un `Exec` choisi par le nom d'un dossier), `%` ou `\` (entrée refusée par GLib ou systemd).
 - Copie des QML relue octet pour octet à chaque lancement : un fichier modifié dans le cache n'est pas exécuté.
 - Journal et diagnostic masquent les secrets (motifs : voir le
-  [README](../README.md#vie-privée--ce-que-lapp-lit-et-écrit)) ; le diagnostic ne contient ni variable
+  [guide d'utilisation](USAGE.md#vie-privée--ce-que-lapp-lit-et-écrit)) ; le diagnostic ne contient ni variable
   d'environnement ni contenu de fichier.
 - `AGENT_BURN_FAKE_DIR` reste actif dans l'app livrée (le selftest gelé en a besoin) : signalé dans le journal
   hors selftest ; seuls `harness claude|codex` sont servis, jamais un chemin tiré d'argv.
-- Builds : police Nerd Font (aussi dans `install.sh`) et outils téléchargés (nfpm, appimagetool, runtime
+- Builds : police Nerd Font et outils téléchargés (nfpm, appimagetool, runtime
   AppImage, rustup-init) vérifiés par sha256 ; dépendances Python installées depuis un verrou haché
   (`app/requirements.lock`, `--require-hashes`) ; image de build Linux épinglée par empreinte. CI : actions
   épinglées par SHA, `persist-credentials: false`, `contents: read` partout sauf le job de release.
@@ -366,7 +366,7 @@ Le CLI fait la découverte : un agent qu'il connaît apparaît déjà, avec son 
 grise. Pour l'intégrer proprement :
 
 1. **Registre** : ajouter `<id>: { name, color, harness: false }` à `providers` dans `Burn.qml`, et l'icône
-   `config/quickshell/assets/burn/<id>.png` (copiée par `runtime.assemble()` et par `agentburn.spec`).
+   `shared/assets/burn/<id>.png` (copiée par `runtime.assemble()` et par `agentburn.spec`).
    `harness` n'est qu'indicatif : aucun code ne le lit.
 2. **Toujours listé** (réglages, diagnostic, menu de l'icône, carte Fournisseurs) même absent : l'ajouter à
    `knownProviders`. Sinon il n'est listé que vu dans un rapport.
@@ -378,7 +378,7 @@ grise. Pour l'intégrer proprement :
    (`["claude", "codex"]`), le libellé de la source dans `SettingsWindow.qml`, les clés lues dans `KEYS` de
    `agent-burn-upstream.py`, et le faux CLI (`fake_cli` de `__main__.py`, qui n'accepte que `claude` et `codex`).
 5. **État** : `providerState()` s'applique tel quel ; ses branches propres à Claude ne concernent que `claude`.
-6. **Tests** : une fixture réelle nettoyée dans `desktop/agent-burn/tests/fixtures/` (dates calées sur le jour de
+6. **Tests** : une fixture réelle nettoyée dans `tests/fixtures/` (dates calées sur le jour de
    capture, voir [UPSTREAM.md](UPSTREAM.md#recapturer-les-fixtures)), son cas dans `burn-suite/fake/gen.py` et
    `shell.qml`, la suite sous qs **et** sous le shim, le selftest pour le rendu.
 7. **Suivi de l'amont** : faire correspondre les nouveaux fichiers de l'app Mac dans la table `PORT`.
