@@ -1,9 +1,12 @@
 """Tests d'agent-burn-upstream.py contre un faux dépôt amont local (git file://) et un faux cargo : stdlib et
-git seulement, rien d'écrit hors du dossier temporaire (HOME, cache et install.sh y sont redirigés).
+git seulement, rien d'écrit hors du dossier temporaire (HOME, cache et install.sh y sont redirigés). Seule
+exception, si ~/.local/bin/agent-burn existe : le vrai CLI lit le HOME synthétique du contrôle, hors ligne.
 
   python3 -I config/quickshell/scripts/test_agent_burn_upstream.py
 """
+import contextlib
 import importlib.util
+import io
 import json
 import os
 import re
@@ -36,23 +39,33 @@ echo fin
 """
 
 FAKE_CARGO = """#!/usr/bin/env python3
-import os, shutil, sys
+import os, sys
 open(os.environ["FAKE_LOG"], "w").write("\\n".join(sys.argv[1:]))
 if os.environ.get("FAKE_CARGO_FAIL"):
     sys.exit(101)
 root = sys.argv[sys.argv.index("--root") + 1]
 os.makedirs(root + "/bin", exist_ok=True)
-shutil.copy(os.environ["FAKE_AB"], root + "/bin/agent-burn")
+# Le contrôle lance le CLI avec un environnement vide : ses réglages de test sont écrits dans le binaire.
+env = {k: v for k, v in os.environ.items() if k.startswith("FAKE_AB")}
+open(root + "/bin/agent-burn", "w").write(open(os.environ["FAKE_AB"]).read().replace("ENV = {}", f"ENV = {env!r}"))
+os.chmod(root + "/bin/agent-burn", 0o755)
 """
 
 FAKE_AB = """#!/usr/bin/env python3
-import os, sys
+import json, os, sys
+from pathlib import Path
+ENV = {}
 if sys.argv[1:] == ["--version"]:
-    print(os.environ.get("FAKE_AB_VERSION", "agent-burn 20.0.22"))
+    print(ENV.get("FAKE_AB_VERSION", "agent-burn 20.0.22"))
     sys.exit(0)
-with open(os.environ["FAKE_AB_LOG"], "a") as f:
+with open(ENV["FAKE_AB_LOG"], "a") as f:
     f.write(" ".join(sys.argv[1:]) + "\\n")
-sys.stdout.write(open(os.environ["FAKE_AB_" + ("SUMMARY" if sys.argv[1] == "summary" else "HARNESS")]).read())
+home = Path(os.environ["HOME"])
+with open(ENV["FAKE_AB_LOG"] + ".env", "a") as f:   # ce que voit le CLI
+    f.write(json.dumps({"home": str(home), "cwd": os.getcwd(), "env": sorted(os.environ),
+                        "files": sorted(str(p.relative_to(home)) for p in home.rglob("*") if p.is_file())}) + "\\n")
+name = {"summary": "SUMMARY", "claude": "HARNESS", "codex": "CODEX"}[sys.argv[1 if sys.argv[1] == "summary" else 2]]
+sys.stdout.write(open(ENV["FAKE_AB_" + name]).read())
 """
 CTRL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")   # contrôles qu'un terminal interpréterait
 
@@ -137,6 +150,7 @@ class Upstream(unittest.TestCase):
             a["cost"] = a.pop("totalCost")   # clé d'un élément de liste renommée
         (cls.tmp / "summary-renamed.json").write_text(json.dumps(bad))
         h = json.loads((FIX / "harness-claude.json").read_text())
+        (cls.tmp / "harness-codex.json").write_text(json.dumps({**h, "agent": "codex"}))   # même structure
         h["window"] = None   # comme un vrai --offline : pas de relevé live
         (cls.tmp / "harness-offline.json").write_text(json.dumps(h))
 
@@ -175,7 +189,8 @@ class Upstream(unittest.TestCase):
              "AGENT_BURN_INSTALL_SH": str(self.install), "HOME": str(self.home),
              "PATH": f"{self.fakebin}:{os.environ['PATH']}", "FAKE_LOG": str(self.dir / "cargo.log"),
              "FAKE_AB": str(self.tmp / "fake-agent-burn"), "FAKE_AB_LOG": str(self.dir / "ab.log"),
-             "FAKE_AB_SUMMARY": str(FIX / "summary-live.json"), "FAKE_AB_HARNESS": str(FIX / "harness-claude.json"), **env}
+             "FAKE_AB_SUMMARY": str(FIX / "summary-live.json"), "FAKE_AB_HARNESS": str(FIX / "harness-claude.json"),
+             "FAKE_AB_CODEX": str(self.tmp / "harness-codex.json"), **env}
         return subprocess.run([sys.executable, str(SCRIPT), *args], capture_output=True, text=True, env=e, timeout=120)
 
     def report(self, *args, **env):
@@ -347,16 +362,47 @@ class Upstream(unittest.TestCase):
                          ["install", "-q", "--locked", "--force", "--git", self.url, "--rev", self.head, "agent-burn",
                           "--bin", "agent-burn", "--root", str(self.dir / "cache/cli")])
         installed = self.home / ".local/bin/agent-burn"
-        self.assertEqual(installed.read_bytes(), (self.tmp / "fake-agent-burn").read_bytes())
+        self.assertEqual(installed.read_bytes(), (self.dir / "cache/cli/bin/agent-burn").read_bytes())
         self.assertTrue(os.access(installed, os.X_OK))
         self.assertFalse((self.home / ".local/bin/agent-burn.tmp").exists())
         calls = (self.dir / "ab.log").read_text().splitlines()
         self.assertEqual(sorted(calls), ["harness claude --value --json --no-color --offline",
+                                         "harness codex --value --json --no-color --offline",
                                          "summary --value --json --no-color --offline"])
         for s in ["+AB_REV=" + self.head, '+AB_VER="agent-burn 20.0.22"', "Compatible", "Étapes suivantes",
                   "recapture desktop/agent-burn/tests/fixtures", "push", "Non vérifiable hors ligne : claudeAccount",
-                  "summary : ok (19 clés)", "harness claude : ok (9 clés)"]:
+                  "claudeAccountStatus", "summary : ok (22 clés)\n", "harness claude : ok (13 clés)\n",
+                  "harness codex : ok (10 clés)\n"]:
             self.assertIn(s, r.stdout)
+
+    def test_bump_checks_against_a_synthetic_home(self):
+        # Ni les données, ni l'environnement, ni les réglages de l'utilisateur ne changent le contrôle.
+        r = self.run_script("--fetch", "--bump", CLAUDE_CONFIG_DIR=str(self.home), AGENT_BURN_QUOTA_ONLY="1")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        seen = [json.loads(line) for line in (self.dir / "ab.log.env").read_text().splitlines()]
+        self.assertEqual(len(seen), 3)
+        for s in seen:
+            self.assertNotEqual(s["home"], str(self.home))
+            self.assertEqual(s["cwd"], s["home"])   # pas de .agent-burn/agent-burn.json du dossier courant
+            self.assertTrue({"HOME", "PATH"} <= set(s["env"]) <= {"HOME", "PATH", "LC_CTYPE"}, s["env"])
+            self.assertIn(".claude/projects/-tmp-demo/s1.jsonl", s["files"])
+            self.assertTrue(any(f.startswith(".codex/sessions/") for f in s["files"]), s["files"])
+            self.assertFalse(os.path.exists(s["home"]))   # supprimé après le contrôle
+
+    def test_synthetic_home_fills_the_keys_with_the_real_cli(self):
+        # Le HOME synthétique doit rester lisible par le vrai CLI (hors ligne, sans réseau ni identifiants).
+        cli = Path.home() / ".local/bin/agent-burn"
+        if not os.access(cli, os.X_OK):
+            self.skipTest(f"pas de CLI agent-burn à {cli}")
+        ver = subprocess.run([str(cli), "--version"], capture_output=True, text=True, timeout=30, cwd=self.home,
+                             env={"HOME": str(self.home), "PATH": os.environ["PATH"]}).stdout.strip()
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertTrue(load().check(cli, ver), out.getvalue())
+        self.assertIn("summary : ok (22 clés)\n", out.getvalue())
+        self.assertIn("harness claude : ok (10 clés), non vérifiable (null ou vide) : window.usedPercent, "
+                      "window.elapsedPercent, window.windowMinutes\n", out.getvalue())   # relevé live seulement
+        self.assertIn("harness codex : ok (10 clés)\n", out.getvalue())
 
     def test_bump_main_is_upstream_main_not_the_clone_branch(self):
         # Le clone crée une branche main locale que fetch ne déplace jamais : main = origin/main.
@@ -419,10 +465,20 @@ class Upstream(unittest.TestCase):
                             FAKE_AB_HARNESS=str(self.tmp / "harness-offline.json"))
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertIn("Compatible", r.stdout)
-        self.assertIn("summary : ok (16 clés), non vérifiable (null) : subscription.agents[].shortWindow.usedPercent, "
-                      "subscription.agents[].window.usedPercent, subscription.agents[].window.elapsedMinutes\n", r.stdout)
-        self.assertIn("harness claude : ok (6 clés), non vérifiable (null) : window.usedPercent, window.elapsedPercent, "
-                      "window.windowMinutes\n", r.stdout)
+        self.assertIn("summary : ok (19 clés), non vérifiable (null ou vide) : subscription.agents[].shortWindow.usedPercent"
+                      ", subscription.agents[].window.usedPercent, subscription.agents[].window.elapsedMinutes\n", r.stdout)
+        self.assertIn("harness claude : ok (10 clés), non vérifiable (null ou vide) : window.usedPercent, "
+                      "window.elapsedPercent, window.windowMinutes\n", r.stdout)
+
+    def test_lacks_states(self):
+        lacks = load().lacks
+        path = "agents[].window.used".split(".")
+        self.assertIs(lacks({"agents": [{"window": None}, {"window": {"used": 1}}]}, path), False)   # Claude null, Codex
+        self.assertIs(lacks({"agents": [{"window": None}]}, path), None)
+        self.assertIs(lacks({"agents": []}, path), None)   # liste vide : rien de vérifié
+        self.assertIs(lacks({"agents": [{"window": {}}, {"window": {"used": 1}}]}, path), True)
+        self.assertIs(lacks({"agents": [{"window": {"used": None}}]}, path), False)   # feuille null : clé présente
+        self.assertIs(lacks({"agents": {}}, path), True)   # plus une liste
 
     def test_bump_refuses_a_non_semver_version(self):
         # Recopiée dans AB_VER="…" d'install.sh, que bash évalue : $(…) y serait exécuté.

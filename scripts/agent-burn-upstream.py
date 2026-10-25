@@ -17,7 +17,9 @@ import re
 import shutil
 import subprocess
 import sys
-from datetime import datetime
+import tempfile
+import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 URL = os.environ.get("AGENT_BURN_UPSTREAM_URL") or "https://github.com/Melvynx/agent-burn"
@@ -49,19 +51,23 @@ PORT = {
 }
 GROUPS = {"mac": "App Mac", "cli": "CLI", "docs": "Docs", "ci": "CI/infra", "other": "Autres"}
 # Clés lues dans les rapports par Burn.qml (setSummary, merge, windows, quotaProc) et par les vues (popover,
-# dashboard), « [] » = chaque élément. En --offline, claudeAccount(Status) et le relevé AGENT_BURN_QUOTA_ONLY
-# (observedAt, sessionWindow) sont absents, les fenêtres et economics valent null : une valeur null arrête la
-# descente, la clé est signalée non vérifiable.
+# dashboard), « [] » = chaque élément. Contrôle hors ligne sur le HOME de fake_home : les fenêtres de Claude
+# (relevé live) valent null ; une valeur null ou une liste vide arrête la descente, la clé est signalée non
+# vérifiable. claudeAccount, claudeAccountStatus et le relevé AGENT_BURN_QUOTA_ONLY n'existent qu'en ligne.
+HARNESS = ["economics.apiEquivalentPerMonth", "economics.pricePerMonth", "economics.valueMultiple",
+           "economics.subsidyPerMonth", "economics.discountPercent", "spendMix[].key", "spendMix[].label",
+           "spendMix[].costPercent", "spendMix[].tokens", "spendMix[].costUSD"]   # dashboard, page de l'agent
 KEYS = {
     "summary": ["agents[].agent", "agents[].totalCost", "agents[].daily[].date", "agents[].daily[].cost",
-                "agents[].daily[].tokens", "agents[].models[].model", "daily[].date", "daily[].cost", "daily[].tokens",
-                "models[].model", "models[].totalTokens", "models[].totalCost", "models[].percentage",
+                "agents[].daily[].tokens", "agents[].models[].model", "agents[].models[].totalTokens",
+                "agents[].models[].totalCost", "agents[].models[].percentage", "daily[].date", "daily[].cost",
+                "daily[].tokens", "models[].model", "models[].totalTokens", "models[].totalCost", "models[].percentage",
                 "subscription.agents[].agent", "subscription.agents[].plan", "subscription.agents[].pricePerMonth",
                 "subscription.agents[].shortWindow.usedPercent", "subscription.agents[].window.usedPercent",
                 "subscription.agents[].window.elapsedMinutes"],
-    "harness claude": ["window.usedPercent", "window.elapsedPercent", "window.windowMinutes", "economics",
-                       "spendMix[].key", "spendMix[].label", "spendMix[].costPercent", "spendMix[].tokens",
-                       "spendMix[].costUSD"],
+    # window : même structure que le relevé AGENT_BURN_QUOTA_ONLY de quotaProc.
+    "harness claude": ["window.usedPercent", "window.elapsedPercent", "window.windowMinutes"] + HARNESS,
+    "harness codex": HARNESS,
 }
 # Texte venu de l'amont (sujets, noms de fichiers, erreurs de git, diff), affiché par kitty (bouton Rapport) ou
 # mis dans le JSON : plus aucun contrôle C0 (sauf \t \n), DEL ni C1, ESC compris.
@@ -254,8 +260,8 @@ def diff(name):
 
 
 def lacks(node, path):
-    """True : une clé de path manque ; None : une valeur null arrête la descente (non vérifiable) ;
-    False : présente (liste vide : rien à vérifier plus bas)."""
+    """True : une clé de path manque ; None : non vérifiable (null ou liste vide partout sur le chemin) ;
+    False : présente (dans au moins un élément de chaque liste)."""
     if not path:
         return False
     if node is None:
@@ -268,31 +274,64 @@ def lacks(node, path):
     if not isinstance(node[key], list):
         return True
     found = [lacks(e, path[1:]) for e in node[key]]
-    return True if True in found else None if None in found else False
+    return True if True in found else False if False in found else None   # fenêtre Claude null, Codex : vérifiée
+
+
+def fake_home(home):
+    """HOME synthétique d'une session Claude (forfait Max lu dans ~/.claude.json) et d'une Codex (Plus, limites
+    dans ses logs), d'il y a une minute : fenêtres, economics et spendMix renseignés hors ligne, sauf les
+    fenêtres de Claude (relevé live)."""
+    now = time.time()
+    iso = lambda t: datetime.fromtimestamp(t, timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    tokens = {"input_tokens": 2500, "cached_input_tokens": 500, "output_tokens": 300, "total_tokens": 2800}
+    limit = lambda used, minutes: {"used_percent": used, "window_minutes": minutes, "resets_at": int(now) + minutes * 30}
+    files = {
+        ".claude.json": [{"oauthAccount": {"organizationRateLimitTier": "default_claude_max_5x"}}],
+        ".claude/projects/-tmp-demo/s1.jsonl": [{
+            "type": "assistant", "timestamp": iso(now - 60), "sessionId": "s1", "requestId": "r1",
+            "message": {"id": "m1", "role": "assistant", "model": "claude-sonnet-4-5-20250929", "usage": {
+                "input_tokens": 1000, "output_tokens": 500, "cache_creation_input_tokens": 2000,
+                "cache_read_input_tokens": 3000}}}],
+        time.strftime(".codex/sessions/%Y/%m/%d/rollout-synthetic.jsonl"): [
+            {"timestamp": iso(now - 120), "type": "turn_context", "payload": {"model": "gpt-5.3-codex"}},
+            {"timestamp": iso(now - 60), "type": "event_msg", "payload": {
+                "type": "token_count", "info": {"last_token_usage": tokens, "total_token_usage": tokens},
+                "rate_limits": {"plan_type": "plus", "primary": limit(12, 300), "secondary": limit(40, 10080)}}}],
+    }
+    for name, lines in files.items():
+        (home / name).parent.mkdir(parents=True, exist_ok=True)
+        # JSON compact : le parseur Claude cherche les octets "usage":{
+        (home / name).write_text("".join(json.dumps(x, separators=(",", ":")) + "\n" for x in lines))
 
 
 def check(binary, ver):
     """Ce CLI donne-t-il la version attendue et les clés que lisent Burn.qml et les vues ?"""
-    call = lambda *a: subprocess.run([str(binary), *a], capture_output=True, text=True, timeout=300)
-    got = clean(call("--version").stdout.strip())
-    ok = got == ver
-    print(f"  --version : {got or '?'}" + ("" if ok else f" ≠ « {ver} » (install.sh recompilerait à chaque lancement)"))
-    for cmd, keys in KEYS.items():
-        r = call(*cmd.split(), "--value", "--json", "--no-color", "--offline")
-        try:
-            data = json.loads(r.stdout) if r.returncode == 0 else None
-        except ValueError:
-            data = None
-        found = {k: lacks(data, k.split(".")) for k in keys} if isinstance(data, dict) else None
-        missing = None if found is None else [k for k, v in found.items() if v]
-        null = [] if found is None else [k for k, v in found.items() if v is None]
-        ok = ok and missing == []
-        print(f"  {cmd} : " + (f"code {r.returncode}, JSON illisible" if missing is None
-                               else "clés manquantes : " + ", ".join(missing) if missing
-                               else f"ok ({len(keys) - len(null)} clés)"
-                               + (", non vérifiable (null) : " + ", ".join(null) if null else "")))
-    print("  Non vérifiable hors ligne : claudeAccount(Status), relevé AGENT_BURN_QUOTA_ONLY"
-          " → regarde la pill après le redémarrage de qs.")
+    with tempfile.TemporaryDirectory(prefix="agent-burn-check-") as home:
+        fake_home(Path(home))
+        # Environnement vide hors PATH, dossier courant = HOME : ni données ni agent-burn.json de l'utilisateur
+        # (noCost, jq, offline changent le JSON), ni CLAUDE_CONFIG_DIR, CODEX_HOME ou AGENT_BURN_QUOTA_ONLY.
+        call = lambda *a: subprocess.run([str(binary), *a], capture_output=True, encoding="utf-8", errors="replace",
+                                         timeout=300, cwd=home, env={"HOME": home, "PATH": os.environ.get("PATH", "")})
+        got = clean(call("--version").stdout.strip())
+        ok = got == ver
+        print(f"  --version : {got or '?'}" + ("" if ok else f" ≠ « {ver} » (install.sh recompilerait à chaque lancement)"))
+        for cmd, keys in KEYS.items():
+            r = call(*cmd.split(), "--value", "--json", "--no-color", "--offline")
+            try:
+                data = json.loads(r.stdout) if r.returncode == 0 else None
+            except ValueError:
+                data = None
+            found = {k: lacks(data, k.split(".")) for k in keys} if isinstance(data, dict) else None
+            missing = None if found is None else [k for k, v in found.items() if v]
+            null = [] if found is None else [k for k, v in found.items() if v is None]
+            ok = ok and missing == []
+            print(f"  {cmd} : " + (f"code {r.returncode}, JSON illisible" if missing is None
+                                   else "clés manquantes : " + ", ".join(missing) if missing
+                                   else f"ok ({len(keys) - len(null)} clés)"
+                                   + (", non vérifiable (null ou vide) : " + ", ".join(null) if null else "")))
+    print("  Non vérifiable hors ligne : claudeAccount, claudeAccountStatus (présent seulement quand la connexion a"
+          " expiré), relevé AGENT_BURN_QUOTA_ONLY (observedAt, sessionWindow) → regarde la pill après le"
+          " redémarrage de qs.")
     return ok
 
 
@@ -318,7 +357,7 @@ def bump(rev):
     if subprocess.run(["cargo", "install", "-q", "--locked", "--force", "--git", URL, "--rev", sha,
                        "agent-burn", "--bin", "agent-burn", "--root", str(CACHE / "cli")]).returncode:
         raise Fail("cargo install a échoué : install.sh et le CLI installé sont inchangés.")
-    print("\nContrôle du JSON lu par Burn.qml et les vues (CLI compilé, hors ligne) :")
+    print("\nContrôle du JSON lu par Burn.qml et les vues (CLI compilé, hors ligne, HOME synthétique) :")
     if not check(staged, ver):
         print(f"\nIncompatible : rien n'a été changé (install.sh, CLI installé). Adapte d'abord le QML ; CLI compilé"
               f" gardé pour l'examiner : AGENT_BURN_BIN={staged}")
