@@ -17,22 +17,26 @@ Pour les développeurs : [architecture](docs/ARCHITECTURE.md), [fournisseurs](do
 
 | Plateforme | Formats | Ce qui a réellement été vérifié |
 |---|---|---|
-| Windows 10 (1809 ou plus) et 11, x64 | installeur, zip portable | **Sous Wine 11 seulement** : tests unitaires (Python Windows), bundle, installeur installé, mis à jour puis désinstallé, selftest de l'app installée et du zip. Jamais sur un vrai Windows : le job Windows de la CI le fera, mais elle n'a encore jamais tourné. |
+| Windows 10 (1809 ou plus) et 11, x64 | installeur, zip portable | **Sous Wine 11 seulement, jamais sur un vrai Windows.** Au commit `8603950` : bundle et installeur construits (CLI compilé avec mingw ; les builds le compilent avec MSVC), selftest de l'app gelée, 43 contrôles sur 43 réussis pour l'installation, la mise à jour, la désinstallation et le zip portable. Après les correctifs : bundle refait et selftest réussi, installeur rejoué dans un dossier déjà occupé (rien d'effacé) et en mise à jour. Tests unitaires sous Python Windows : pendant le développement. Le job Windows de la CI fera le vrai essai. |
 | Windows 11 ARM64 | installeur `arm64` expérimental, ou l'installeur x64 en émulation | Installeur arm64 compilé, jamais lancé sur une machine ARM. Émulation x64 non essayée. |
-| Ubuntu 22.04 et 24.04, Debian 12 et 13 | `.deb` | Paquet installé, selftest de l'app installée (rendu logiciel, puis OpenGL Mesa sous Xvfb), désinstallation complète : dans un conteneur de chaque distro, sans session de bureau. |
-| Fedora 44 | `.rpm` (dnf) | Comme ci-dessus. |
-| openSUSE Tumbleweed | `.rpm` (zypper) | Comme ci-dessus. |
-| Arch Linux | archive `.tar.gz`, AppImage | Comme ci-dessus (archive installée dans `/opt`, AppImage lancée sans FUSE). |
+| Ubuntu 22.04 et 24.04, Debian 12 et 13 | `.deb` | Paquets construits au commit `8603950`, puis installés, selftest de l'app installée (rendu logiciel, puis OpenGL Mesa sous Xvfb) et désinstallation complète : dans un conteneur de chaque distro, sans session de bureau. Après les correctifs des paquets (licences, fichier `copyright`), refait sur Ubuntu 24.04 et Debian 12. |
+| Fedora 44 | `.rpm` (dnf) | Comme ci-dessus, refait aussi après les correctifs. |
+| openSUSE Tumbleweed | `.rpm` (zypper) | Comme ci-dessus, au commit `8603950` seulement. |
+| Arch Linux | archive `.tar.gz`, AppImage | Comme ci-dessus, au commit `8603950` seulement (archive installée dans `/opt`, AppImage lancée sans FUSE). |
 | Autre distro x86_64 avec glibc 2.35 ou plus | AppImage, archive | Non essayé. |
-| KDE Plasma (Wayland, et X11 par Xwayland) | — | App lancée dans une session KWin imbriquée sans écran, avec un hôte de zone de notification de test : icône, clics, menu, panneau apparu après l'app. Jamais avec la vraie zone de notification de Plasma. |
+| KDE Plasma (Wayland, et X11 par Xwayland) | — | App gelée (archive du commit `8603950`) dans une session KWin imbriquée sans écran, sous Wayland et sous Xwayland, avec un hôte de zone de notification de test : icône, clic, menu (Paramètres…, Journaux, Quitter), aperçu placé sous X11 ; sans hôte, dashboard puis sortie à sa fermeture. Pendant les correctifs, depuis les sources : hôte apparu 130 s après l'app, hôte disparu, Quitter pendant un run du CLI. Jamais avec la vraie zone de notification de Plasma. |
 | GNOME | — | GNOME 50 sans écran (conteneur), pendant l'audit, avec l'ancienne version de l'app : pas de zone de notification sans l'extension AppIndicator, une avec. L'app actuelle n'y a pas tourné. |
 | XFCE, Cinnamon, Hyprland, autres | — | Non essayé. |
 | EL9 (AlmaLinux, Rocky…) et toute glibc antérieure à 2.35 | — | Non pris en charge. |
 
-Ces essais ont été faits pendant le développement, partie par partie. Sur la version intégrée, seuls les tests
-Linux ont été relancés (tests unitaires, suite du cœur sous Quickshell et sous l'app, selftest en session
-imbriquée). La CI rejoue tout à chaque run (tests, paquets sur 7 distros, installeur sur un vrai Windows) : ce
-tableau sera à mettre à jour après son premier run.
+Le commit `8603950` est la version intégrée avant la revue du code ; les correctifs de la revue sont arrivés
+ensuite. Sur la version corrigée, ont été relancés sous Linux, depuis les sources : tests unitaires (115), suite
+du cœur sous Quickshell 0.3.2 et sous l'app (274 contrôles, 27 avec des fichiers corrompus, 6 avec un CLI
+bloqué), selftests, et en session imbriquée l'icône (Wayland et Xwayland) et Quitter pendant un run du CLI. Les
+paquets et le bundle Windows refaits « après les correctifs » ne portaient que ceux des paquets : aucun n'a encore
+été construit depuis la version corrigée complète. La CI est écrite et passe actionlint, mais n'a encore jamais
+tourné : son premier run, au prochain push, rejouera tout (tests, paquets sur 7 distros, installeur sur un vrai
+Windows), et ce tableau sera à mettre à jour.
 
 ## Installer
 
@@ -66,6 +70,9 @@ Le dépôt est privé : il faut y avoir accès.
    **Informations complémentaires** → **Exécuter quand même**.
 3. Mise à jour : lancer l'installeur d'une version plus récente. Il ferme l'app si elle tourne, remplace
    l'installation et garde données et réglages. Pas de mise à jour automatique.
+4. Dossier choisi à la main : l'installeur ne vide ses sous-dossiers (`bin`, `licenses`, `PySide6`…) que
+   par-dessus une installation d'Agent Burn (`AgentBurn.exe` et `unins000.dat` présents). Un dossier qui
+   contient autre chose garde ses fichiers.
 
 Sans installation : dézipper `AgentBurn-portable-<version>-x64.zip` où l'on veut et lancer
 `AgentBurn\AgentBurn.exe`. Données et réglages vont quand même dans `%APPDATA%\AgentBurn`, cache et journaux
@@ -138,15 +145,18 @@ Python 3.12 et PySide6 6.12 : voir [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 - Linux : entrée « Agent Burn » du menu, ou `agent-burn-desktop`.
 - Le premier rapport arrive quelques secondes après le lancement (plus longtemps hors ligne). Aux lancements
   suivants, le dernier rapport est affiché tout de suite, marqué « En cache », jusqu'au nouveau.
-- Sans zone de notification, le dashboard s'ouvre. L'app réessaie de poser son icône toutes les 5 s pendant
-  2 min (cas du panneau lancé après elle à l'ouverture de session).
+- Sans zone de notification, le dashboard s'ouvre. L'app revérifie toutes les 5 s, tant qu'elle tourne : un
+  panneau lancé après elle, ou l'extension AppIndicator activée plus tard, reçoit l'icône sans relancer l'app.
 - Relancer l'app alors qu'elle tourne ouvre son dashboard : une seule instance par utilisateur et par session.
+  Deux lancements simultanés ne font pas deux instances : un verrou les départage, et le second essaie pendant
+  3 s environ de joindre le premier (qui ouvre alors son dashboard), puis s'arrête.
 
 ## Icône de la zone de notification
 
 L'icône montre le % restant de la limite la plus serrée sur une pastille teintée selon le rythme (grise :
-relevé ancien), ou une flamme grise tant qu'il n'y a pas de données. Au survol : la limite et son
-réinitialisation, ou l'état des données.
+relevé ancien), ou une flamme grise tant qu'il n'y a pas de données. Au survol : la limite et sa
+réinitialisation ; sans limite, l'état des données et sa cause (CLI introuvable, lecture en cours, « échec du CLI
+(voir Paramètres › Diagnostic) »).
 
 | | Windows | Linux X11 | Linux Wayland |
 |---|---|---|---|
@@ -161,8 +171,9 @@ Menu de l'icône :
 
 - 1 à 3 lignes d'état, non cliquables : les limites les plus serrées (« Claude Code · Semaine : 25 % restant ·
   réinit. dans 1 j 20 h », suivi de « · ancien » si le relevé est vieux) ; sans limite, l'état de Claude Code et
-  de Codex (« Codex : Non détecté ») ; sans données, « Données indisponibles ». Sous Wayland, ce sont les seules
-  informations affichées contre l'icône.
+  de Codex (« Codex : Non détecté ») ; sans données, « Données indisponibles », suivi de la cause s'il y en a une
+  (« : échec du CLI (voir Paramètres › Diagnostic) » par exemple). Sous Wayland, ce sont les seules informations
+  affichées contre l'icône.
 - Ouvrir l'aperçu, Ouvrir le dashboard, Rafraîchir, Lancer à l'ouverture de session (case à cocher, absente
   du lancement depuis les sources), Paramètres…, Journaux (ouvre le dossier des journaux), À propos, Quitter.
 
@@ -177,7 +188,10 @@ Selon le bureau :
 
 Fermer les fenêtres : avec une icône, fermer le dashboard laisse l'app dans la zone de notification (option
 « Garder dans la zone de notification à la fermeture », activée par défaut). Option désactivée, fermer le
-dashboard quitte l'app. Sans icône, fermer la dernière fenêtre la quitte. Sinon : menu → Quitter.
+dashboard quitte l'app, une fois Paramètres fermé aussi s'il était ouvert (rouvrir le dashboard entre-temps
+annule). Sans icône, fermer la dernière fenêtre la quitte, y compris quand la zone de notification disparaît en
+cours de route (panneau arrêté) : l'app le voit dans les 5 s. Sinon : menu → Quitter. En sortant, l'app attend
+jusqu'à 5 s la fin d'un run du CLI en cours.
 
 ## Aperçu
 
@@ -193,11 +207,13 @@ par un clic ailleurs.
   avec leur prévision.
 - En bas : état des données (« En direct · mis à jour il y a 2 min »), l'erreur du CLI s'il y en a une, bouton
   « Ouvrir le dashboard ». Le bouton de rafraîchissement est en haut à droite.
+- Écran trop bas pour la carte : elle défile, et Tab l'amène au contrôle atteint ; Page précédente, Page
+  suivante, Début et Fin la font défiler.
 
 ## Dashboard
 
 - Barre latérale : **Tous les agents**, une page par agent, **Paramètres** en bas. Période en haut : Tout,
-  30 jours, 7 jours, Aujourd'hui.
+  30 jours, 7 jours, Aujourd'hui (la période choisie en gras et en couleur).
 - **Tous les agents** : dépense totale, jetons, jours enregistrés, modèles ; carte **Fournisseurs** (Claude Code
   et Codex, puis les agents détectés, avec leur état) ; dépense journalière ; dépense par agent ; tableau des
   modèles (filtre, tri par colonne).
@@ -207,28 +223,41 @@ par un clic ailleurs.
   journalière, modèles.
 - **Historique journalier** : Claude Code efface ses journaux de plus de 30 jours ; l'app garde chaque jour vu,
   même après une mise à jour ou une désinstallation. « Afficher la sauvegarde » ouvre le dossier des données.
-- Échap ferme la fenêtre.
+- Clavier : Tab parcourt les contrôles et la page (ou la liste « Par agent ») défile jusqu'au contrôle atteint ;
+  Page précédente, Page suivante, Début et Fin font défiler la page. Échap dans « Filtrer les modèles » vide le
+  filtre ; un 2e Échap, ou Échap ailleurs, ferme la fenêtre.
+- Taille : 1200 × 800, réduite sur un petit écran sans passer sous 900 × 600 ; sur un écran plus petit encore,
+  la fenêtre prend la place disponible et son contenu défile. À 900 × 600, un titre de carte perd sa précision
+  grise (« 30 derniers jours ») quand les deux ne tiennent pas sur la ligne.
 
 ## Paramètres
 
 Menu de l'icône → Paramètres…, ou bouton Paramètres du dashboard. Chaque changement est enregistré tout de
 suite. Échap ferme la fenêtre (une liste ouverte d'abord).
 
+Clavier : Tab passe d'un contrôle à l'autre (la page défile jusqu'à lui), Espace ou Entrée l'active (bouton,
+interrupteur, option, onglet), flèche gauche ou droite passe à l'option voisine d'une rangée et la coche. Le
+contrôle atteint au clavier porte un anneau de la couleur d'accent ; l'onglet de la section courante est en gras
+et souligné. Ouverte sur une section depuis le menu de l'icône (Paramètres…, À propos), la fenêtre met le focus
+sur son onglet.
+
 | Section | Réglage | Valeurs (défaut) | Effet |
 |---|---|---|---|
 | Général | Rafraîchissement automatique | 1, 5, 15 ou 30 min (5) | Limites relevées à ce rythme, rapport complet au moins une fois par heure (à chaque tour si la limite la plus serrée n'est pas une fenêtre Claude). Le dashboard ouvert se recharge au même rythme. |
 | | Thème | Système, Clair, Sombre (Système) | Système suit le clair/sombre du bureau (sous Linux, par xdg-desktop-portal). |
-| | Lancer à l'ouverture de session | oui / non (non, sauf case de l'installeur Windows cochée) | Pas depuis les sources. Windows : valeur `AgentBurn` de `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` (une désactivation faite dans le Gestionnaire des tâches est respectée ; réactiver l'option l'annule). Linux : `~/.config/autostart/io.github.magikdidi24.AgentBurn.desktop`, `Hidden=true` vaut désactivé ; seul ce fichier est créé ou retiré. |
+| | Lancer à l'ouverture de session | oui / non (non, sauf case de l'installeur Windows cochée) | Pas depuis les sources (interrupteur estompé). Windows : valeur `AgentBurn` de `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` (une désactivation faite dans le Gestionnaire des tâches est respectée ; réactiver l'option l'annule). Linux : `~/.config/autostart/io.github.magikdidi24.AgentBurn.desktop`, qui lance l'exe de l'app, liens résolus (`/opt/agent-burn-desktop/agent-burn-desktop` pour les paquets), ou le fichier de l'AppImage ; `Hidden=true` ou `X-GNOME-Autostart-enabled=false` (posés par l'outil du bureau) valent désactivé ; seul ce fichier est créé ou retiré. Un chemin d'app qui contient un caractère de contrôle (saut de ligne…), `%` ou `\` est refusé et l'option reste désactivée (noté dans le journal) : l'entrée serait détournée ou ignorée. |
 | | Garder dans la zone de notification à la fermeture | oui / non (oui) | Non : fermer le dashboard quitte l'app. |
 | | Clic sur l'icône | Aperçu, Dashboard (Dashboard sous Wayland, Aperçu ailleurs) | Action du clic gauche. |
-| Fournisseurs | — | — | Claude Code, Codex, puis chaque autre agent vu : état, explication, âge du relevé, dernière erreur propre à l'agent. CLI agent-burn : emplacement, version, état du rapport, bouton « Rafraîchir maintenant ». |
-| Diagnostic | — | — | Versions (app, CLI, CLI prévu par le build), système, affichage, écrans, zone de notification, dossiers. Boutons « Ouvrir les journaux », « Ouvrir le dossier des données », « Copier le diagnostic ». Interrupteur « Journal détaillé (débogage) », sans redémarrer. Dernières erreurs (heure, origine, message). Bouton « Réinitialiser les paramètres ». |
+| Fournisseurs | — | — | Claude Code, Codex, puis chaque autre agent vu : état, explication, âge du relevé, dernière erreur propre à l'agent. CLI agent-burn : emplacement, version (« illisible » si `--version` ne répond rien, « sans réponse (10 s) » s'il bloque), état du rapport suivi de l'erreur du CLI en cas d'échec, bouton « Rafraîchir maintenant ». |
+| Diagnostic | — | — | Versions (app, CLI, CLI prévu par le build), système, affichage (« Wayland (KDE) », « X11 (GNOME, session Wayland) » pour une app X11 sous Wayland…), écrans, zone de notification, dossiers. Boutons « Ouvrir les journaux », « Ouvrir le dossier des données », « Copier le diagnostic ». Interrupteur « Journal détaillé (débogage) », sans redémarrer (contenu : voir [Vie privée](#vie-privée--ce-que-lapp-lit-et-écrit)). Dernières erreurs (heure, origine, message). Bouton « Réinitialiser les paramètres », en deux temps : il devient « Confirmer la réinitialisation » pendant 5 s, et seul un 2e appui réinitialise. |
 | À propos | — | — | Versions, crédit, bouton « Licences » (app installée). |
 
 Les réglages sont dans `settings.json` (voir [Où sont les fichiers](#où-sont-les-fichiers)) : `refreshMinutes`,
 `theme`, `closeToTray`, `trayClick`, `debugLogging`. Une valeur invalide reprend son défaut (noté dans le
-journal). Un fichier illisible est copié en `settings.json.bak`, les défauts s'appliquent et Diagnostic
-l'annonce. Le lancement à l'ouverture de session n'y est pas : il est lu dans le système.
+journal). Un fichier enregistré avec une marque d'ordre des octets UTF-8 (Bloc-notes, PowerShell 5) est lu
+normalement. Un fichier illisible (JSON invalide, même imbriqué à l'extrême) est copié en `settings.json.bak`, les
+défauts s'appliquent et Diagnostic l'annonce. Le lancement à l'ouverture de session n'y est pas : il est lu dans
+le système.
 
 ## État des données
 
@@ -237,7 +266,7 @@ aucune limite n'est relevée.
 
 | État | Quand | Que faire |
 |---|---|---|
-| **En direct** | Le dernier rapport du CLI a réussi il y a moins d'une heure (plus un tour de rafraîchissement). | Rien. |
+| **En direct** | Le dernier rapport du CLI a réussi il y a moins d'une heure, plus un tour de rafraîchissement et 2 min (la durée maximale d'un run : le rapport horaire en cours ne fait pas passer « En cache »). | Rien. |
 | **En cache** | Rapport relu sur le disque au lancement, en attendant le premier run ; ou dernier run en échec (erreur du CLI, pas de réponse en 120 s, rapport illisible, CLI absent) ; ou rapport trop vieux. Les derniers chiffres restent affichés. | Rafraîchir. Si ça dure, lire l'erreur (bas de l'aperçu, Paramètres → Diagnostic → Dernières erreurs). |
 | **Indisponible** | Aucun rapport réussi, même ancien. | Attendre le premier rapport, sinon voir [Dépannage](#dépannage). |
 
@@ -249,12 +278,13 @@ Fournisseurs et dans le menu de l'icône quand il n'y a pas de limite. Détail d
 
 | Libellé | Signifie | Que faire |
 |---|---|---|
-| **En direct** | Limites relevées récemment : sur le compte Claude depuis moins de 10 min ; pour les autres agents, dans le dernier rapport, lui-même en direct. | Rien. |
-| **Relevé ancien** | Dernières limites connues, gardées à l'écran : Claude n'a pas été relevé depuis plus de 10 min (réseau, API d'usage qui refuse les appels trop fréquents) ; pour les autres, rapport en cache. | Rafraîchir, vérifier le réseau. |
+| **En direct** | Limites relevées récemment : sur le compte Claude depuis moins de 10 min, ou de deux tours de rafraîchissement quand le rythme dépasse 5 min (30 min au rythme de 15 min, 60 min à 30 min) ; pour les autres agents, dans le dernier rapport, lui-même en direct. | Rien. |
+| **Relevé ancien** | Dernières limites connues, gardées à l'écran : Claude n'a pas été relevé depuis plus longtemps que ce seuil (le détail le donne : « aucun relevé depuis plus de 10 min »), à cause du réseau ou de l'API d'usage qui refuse les appels trop fréquents ; pour les autres, rapport en cache. | Rafraîchir, vérifier le réseau. |
 | **Connexion à vérifier** | Claude seulement : le renouvellement de la connexion a été refusé. Soit la connexion a expiré, **soit** le réseau était coupé alors que le jeton avait expiré (sortie de veille avant le Wi-Fi) : le CLI ne fait pas la différence. | Vérifier le réseau, puis Rafraîchir. Si ça persiste avec le réseau : `claude` dans un terminal, puis `/login`. |
 | **Usage local** | Dépense lue dans les journaux, pas de limites. Claude : non connecté ou hors ligne (le CLI ne dit pas lequel). Autres : pas de limite dans le rapport, ou limites de plus de 7 jours (vieux journaux Codex), écartées. | Claude : se connecter, vérifier le réseau. Codex : une session Codex récente remet ses limites à jour. |
 | **Non détecté** | Le CLI ne trouve ni usage ni abonnement pour cet agent. | Normal si l'agent ne sert pas sur cette machine avec ce compte. |
-| **Inconnu** | Pas encore de rapport. | Attendre quelques secondes. |
+| **Rapport en échec** | Aucun rapport réussi, même ancien, et le dernier run du CLI a échoué : le détail est l'erreur du CLI. | Lire l'erreur, puis Rafraîchir ; voir les [erreurs du CLI](#cli-introuvable). |
+| **Inconnu** | Pas encore de rapport, et pas d'échec. | Attendre quelques secondes. |
 | **CLI introuvable** | Le CLI embarqué ne se lance pas. | Voir [CLI introuvable](#cli-introuvable). |
 
 ## Où sont les fichiers
@@ -268,7 +298,7 @@ Fournisseurs et dans le menu de l'icône quand il n'y a pas de limite. Détail d
 | Journaux | `%LOCALAPPDATA%\AgentBurn\logs` | `~/.local/state/agent-burn-desktop/logs` (`$XDG_STATE_HOME`) |
 | Cache | `%LOCALAPPDATA%\AgentBurn\cache` | `~/.cache/agent-burn-desktop` et `~/.cache/AgentBurn/qmlcache` (`$XDG_CACHE_HOME`) |
 | Lancement à l'ouverture de session | valeur `AgentBurn` de `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` | `~/.config/autostart/io.github.magikdidi24.AgentBurn.desktop` |
-| Instance unique | tube nommé `\\.\pipe\AgentBurn-<utilisateur>-<session>` | `$XDG_RUNTIME_DIR/AgentBurn.sock` |
+| Instance unique | tube nommé `\\.\pipe\AgentBurn-<utilisateur>-<session>`, verrou `%LOCALAPPDATA%\AgentBurn\cache\AgentBurn-<utilisateur>-<session>.lock` | `$XDG_RUNTIME_DIR/AgentBurn.sock` et son verrou `AgentBurn.sock.lock` |
 | Cache du CLI lui-même | `%USERPROFILE%\.cache\agent-burn` | `~/.cache/agent-burn` |
 
 Dossier des données :
@@ -305,12 +335,19 @@ chaque lancement) et cache compilé de Qt. La variable `AGENT_BURN_DATA` remplac
   tourne dans le dossier des données. Les chiffres sont ainsi ceux du CLI par défaut, quelle que soit la
   configuration de la machine.
 - **L'app écrit** seulement ses dossiers (tableau ci-dessus), l'entrée de lancement à l'ouverture de session
-  quand l'option est active, et son point d'instance unique. L'usage (coûts, jetons, modèles, forfait) y est
-  stocké en clair.
+  quand l'option est active, et son point d'instance unique avec son verrou. L'usage (coûts, jetons, modèles,
+  forfait) y est stocké en clair.
 - **Journaux** : ligne de commande de chaque run du CLI (avec les chemins), code de sortie, durée, taille de la
-  sortie, la ligne `Error:` du CLI en cas d'échec ; jamais le rapport lui-même. Aussi les messages Qt et QML et
-  les erreurs Python avec leur trace. Masqués en `[masqué]` : jetons `sk-ant-…`, valeurs `Bearer`, JWT, valeurs
-  de jetons access/refresh/id, adresses e-mail, longues chaînes hexadécimales ou base64 (UUID de chemins compris).
+  sortie, la ligne `Error:` du CLI en cas d'échec ; jamais le rapport lui-même. Aussi les messages Qt et QML, les
+  erreurs Python avec leur trace, et l'apparition ou la disparition de la zone de notification.
+- **Journal détaillé (débogage)**, en plus : la fin du stderr de chaque run du CLI (4 000 caractères au plus), les
+  réglages en vigueur au démarrage et à chaque changement, chaque écriture des réglages, le thème du système et
+  ses changements, les clics sur l'icône, les 2es lancements passés à l'instance en cours.
+- **Masqués** en `[masqué]`, dans le journal comme sur la sortie d'erreur : jetons `sk-ant-…`, valeurs `Bearer`,
+  JWT, valeurs de jetons access/refresh/id (aussi dans un JSON échappé, tel que le CLI l'affiche dans une
+  erreur), adresses e-mail, chaînes hexadécimales ou base64 de 32 caractères ou plus qui mêlent chiffres et
+  lettres, y compris juste après un `=` (`CLE=valeur`, paramètre d'URL) ; les UUID de chemins le sont aussi. Ce
+  sont des motifs : un secret d'une autre forme passerait.
 - **Diagnostic copié** : mêmes masques, aucune variable d'environnement ni contenu de fichier. Il contient les
   chemins des dossiers, donc le nom d'utilisateur.
 
@@ -322,7 +359,7 @@ chaque lancement) et cache compilé de Qt. La variable `AGENT_BURN_DATA` remplac
   glisser-déposer.
 - GNOME : installer et activer l'extension AppIndicator (déjà active sous Ubuntu). Paramètres → Général le
   signale quand aucune zone de notification n'est détectée.
-- Panneau lancé après l'app : elle réessaie pendant 2 min ; au-delà, la relancer.
+- Panneau lancé, ou extension activée, après l'app : l'icône apparaît dans les 5 s, sans relancer.
 - Paramètres → Diagnostic → « Zone de notification » dit ce que l'app a trouvé. Sans icône, tout reste
   accessible par le dashboard.
 
@@ -355,7 +392,10 @@ Message de l'app : « Agent Burn ne trouve pas son CLI (<chemin>) : réinstalle 
 - Windows : un antivirus a pu le mettre en quarantaine. Le restaurer, ou réinstaller.
 - Une variable `AGENT_BURN_BIN` définie dans l'environnement remplace ce chemin : la retirer.
 
-Autres erreurs du CLI, affichées telles quelles :
+Autres erreurs du CLI, affichées telles quelles en bas de l'aperçu et du dashboard, dans Paramètres →
+Fournisseurs (« Rapport ») et dans Diagnostic → Dernières erreurs. Sans aucun rapport, même ancien, chaque
+fournisseur affiche « Rapport en échec » avec le message ; sans limite connue, l'infobulle de l'icône (et sans
+données, son menu) dit « échec du CLI (voir Paramètres › Diagnostic) » :
 
 - « agent-burn a échoué (code 1) : … » suit le message du CLI. Par exemple « No valid Claude data directories
   found in CLAUDE_CONFIG_DIR » : la variable `CLAUDE_CONFIG_DIR` pointe vers un dossier sans `projects/`, ce qui
@@ -366,6 +406,8 @@ Autres erreurs du CLI, affichées telles quelles :
   prix sans tarifs téléchargés).
 - « Rapport illisible renvoyé par agent-burn. » : sortie qui n'est pas un rapport. Joindre le diagnostic à un
   signalement.
+- Version du CLI « illisible » ou « sans réponse (10 s) » (Paramètres → Fournisseurs) : `agent-burn --version`
+  n'a rien écrit, ou n'a pas répondu en 10 s. Même remède que pour un CLI introuvable.
 
 ### SmartScreen, antivirus
 
@@ -387,13 +429,14 @@ introuvable ».
 - Paramètres → Diagnostic → **Copier le diagnostic** : versions, système, dossiers, état de chaque fournisseur,
   dernières erreurs. À coller dans un signalement.
 - Journaux : menu de l'icône → Journaux, ou Paramètres → Diagnostic → Ouvrir les journaux. Pour plus de
-  détails, activer « Journal détaillé (débogage) », reproduire, puis joindre `agent-burn.log`.
+  détails, activer « Journal détaillé (débogage) » (fin du stderr de chaque run du CLI, réglages, clics sur
+  l'icône), reproduire, puis joindre `agent-burn.log`.
 
 ### Réinitialiser les réglages
 
-Paramètres → Diagnostic → **Réinitialiser les paramètres** (le lancement à l'ouverture de session ne change
-pas). Ou supprimer `settings.json`, app fermée. Pour tout effacer, supprimer aussi le dossier des données :
-l'historique est alors perdu.
+Paramètres → Diagnostic → **Réinitialiser les paramètres**, puis **Confirmer la réinitialisation** dans les 5 s
+(le lancement à l'ouverture de session ne change pas). Ou supprimer `settings.json`, app fermée. Pour tout
+effacer, supprimer aussi le dossier des données : l'historique est alors perdu.
 
 ## Désinstaller
 
@@ -420,14 +463,22 @@ Sous Linux, un lancement à l'ouverture de session resté actif laisse
   suspend après 5 min sans saisie).
 - Codex n'a été vu que sur des données de test (synthétiques ou nettoyées), jamais avec un vrai compte Codex.
 - Hors Claude, les fenêtres de limite sont supposées de 5 h et de 7 jours.
-- Lecteurs d'écran : noms accessibles et navigation au clavier en place, jamais essayés avec Orca ou Narrateur.
+- Lecteurs d'écran : l'app expose les textes de l'aperçu et du dashboard, un résumé en une phrase de chaque
+  graphe (période, total et jour le plus cher ; quota restant et prévu au reset) et les noms des contrôles ; la
+  navigation au clavier est en place. Vérifié seulement sur l'arbre d'accessibilité de Qt, jamais avec Orca ni
+  Narrateur.
+- Linux : rendu Qt sans fil dédié (`QSG_RENDER_LOOP=basic`), car la boucle à fil de Qt 6.12 plante parfois sous
+  Wayland à l'ouverture d'une fenêtre, bien plus souvent avec les textes exposés aux lecteurs d'écran (vu en
+  session KWin imbriquée, rendu logiciel). L'app anime peu, la boucle basique lui suffit. Une valeur de
+  `QSG_RENDER_LOOP` déjà définie l'emporte. Pas revérifié sur un vrai GPU ni un vrai compositeur ; bug Qt non
+  signalé.
 - Windows : barre de titre sombre non vérifiée (Wine ne l'applique pas), sans effet attendu avant Windows 10
   20H1.
-- Taille : environ 200 Mo installés sous Linux ; installeur Windows d'environ 45 Mo.
+- Taille : environ 195 Mo installés sous Linux ; installeur Windows d'environ 40 Mo.
 - Linux x86_64 seulement, glibc 2.35 ou plus. Windows ARM64 expérimental.
-- Le CLI est arrêté s'il dépasse 120 s, à la fermeture de l'app et par l'installeur. S'il réécrivait à cet
-  instant le jeton de Claude, Claude Code pourrait redemander `/login` (risque lu dans le code du CLI, jamais
-  observé).
+- Le CLI est arrêté s'il dépasse 120 s, et par l'installeur ; à la fermeture, l'app attend 5 s au plus la fin
+  d'un run en cours avant de l'arrêter. S'il réécrivait à cet instant le jeton de Claude, Claude Code pourrait
+  redemander `/login` (risque lu dans le code du CLI, jamais observé).
 
 ## Licences
 
@@ -438,12 +489,20 @@ Sous Linux, un lancement à l'ouverture de session resté actif laisse
   séparées (dossier `PySide6/` de l'app ; sous Linux, aussi les liens `lib*.so.6` à sa racine) : on peut les
   remplacer par une version modifiée compatible sans recompiler l'app (LGPL-3.0, section 4 d) 1)). Notice et
   liens vers les sources : `NOTICE-Qt-PySide6.txt` ; textes : `LGPL-3.0.txt`, `GPL-3.0.txt`.
+- **Composants tiers compilés dans Qt et PySide6** (ICU sous Linux, PCRE2, HarfBuzz, libpng, FreeType et zlib
+  sous Windows, données Unicode, protocoles Wayland…) : plateforme, licence SPDX, copyright et texte de chacun
+  dans `QT-THIRD-PARTY.txt`. Les plugins d'images que l'app n'ouvre jamais (JPEG, TIFF, WebP, GIF, TGA, WBMP,
+  ICNS) et l'OpenGL logiciel de Windows (`opengl32sw.dll`) ne sont pas livrés.
 - **JetBrainsMono Nerd Font** : SIL Open Font License 1.1.
-- **Python** : licence PSF, avec les bibliothèques C de sa distribution.
+- **Python** : licence PSF, avec les bibliothèques C de sa distribution et les logiciels incorporés à CPython
+  (libmpdec, HACL*, Mersenne Twister…), dans `LICENSE-Python.txt`.
 - Linux : notices Debian des bibliothèques système embarquées (`licenses/debian/`).
+- **AppImage** seulement : son runtime (type2-runtime) contient libfuse (LGPL-2.1, avec ses sources et la façon
+  de le relier), squashfuse, zstd, zlib, mimalloc et musl : `NOTICE-AppImage-runtime.txt`.
 
 Tous ces textes sont dans le dossier `licenses/` à côté de l'exécutable, qu'ouvre Paramètres → À propos →
-Licences.
+Licences. Le `.deb` a en plus `/usr/share/doc/agent-burn-desktop/copyright` (licence MIT de l'app, renvoi à
+`licenses/`) ; le champ License du `.rpm` est l'expression SPDX de tout le contenu.
 
 Merci à Melvynx pour [agent-burn](https://github.com/Melvynx/agent-burn) : l'app Mac a servi de modèle, et son
 CLI fait toute la lecture des journaux, le calcul des prix et le relevé des limites.
