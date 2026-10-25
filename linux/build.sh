@@ -55,7 +55,8 @@ build_cli() {
     # Toolchain épinglée par l'amont à cette révision (rust-toolchain.toml), sans ses composants de dev.
     rust=$(sed -n 's/^channel = "\(.*\)"$/\1/p' "$src/rust-toolchain.toml")
     [ -n "$rust" ] || die "rust-toolchain.toml de l'amont sans channel"
-    export CARGO_HOME=${CARGO_HOME:-/root/.cargo} RUSTUP_HOME=${RUSTUP_HOME:-/root/.rustup}
+    # $HOME : /github/home dans un job « container » de la CI, celui que ses caches sauvegardent.
+    export CARGO_HOME=${CARGO_HOME:-$HOME/.cargo} RUSTUP_HOME=${RUSTUP_HOME:-$HOME/.rustup}
     export PATH=$CARGO_HOME/bin:$PATH RUSTUP_TOOLCHAIN=$rust CARGO_TARGET_DIR=$W/cli-target
     if ! command -v rustup >/dev/null; then
         fetch https://static.rust-lang.org/rustup/archive/1.29.2/x86_64-unknown-linux-gnu/rustup-init \

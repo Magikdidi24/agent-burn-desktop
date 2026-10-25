@@ -147,6 +147,15 @@ jobs:
           key: agent-burn-cli-linux-x64-${{ steps.rev.outputs.rev }}
           restore-keys: agent-burn-cli-linux-x64-
 
+      # Chaîne Rust épinglée par l'amont (rust-toolchain.toml, 1.x) : seulement quand le CLI est à recompiler.
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        if: steps.cli.outputs.cache-hit != 'true'
+        with:
+          path: |
+            ~/.rustup/toolchains/1.*
+            ~/.rustup/update-hashes/1.*
+          key: rust-linux-x64-${{ steps.rev.outputs.rev }}
+
       - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: ~/.cache/pip
@@ -259,6 +268,15 @@ jobs:
           path: ${{ env.CLI_CACHE }}
           key: agent-burn-cli-windows-${{ matrix.arch }}-${{ steps.rev.outputs.rev }}
           restore-keys: agent-burn-cli-windows-${{ matrix.arch }}-
+
+      # Comme sous Linux ; le motif 1.* laisse de côté la chaîne stable préinstallée sur le runner.
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        if: steps.cli.outputs.cache-hit != 'true'
+        with:
+          path: |
+            ~/.rustup/toolchains/1.*
+            ~/.rustup/update-hashes/1.*
+          key: rust-windows-${{ matrix.arch }}-${{ steps.rev.outputs.rev }}
 
       - name: Inno Setup (si absent de l'image)
         run: |
