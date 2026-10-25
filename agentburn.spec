@@ -7,7 +7,7 @@ import sys
 win = sys.platform == 'win32'
 here = SPECPATH
 app = os.path.join(here, 'app')
-qs = os.path.join(here, '..', '..', 'config', 'quickshell')
+shared = os.path.join(here, 'shared')
 fonts = os.path.join(app, 'fonts')
 name = 'AgentBurn' if win else 'agent-burn-desktop'
 cli = os.path.join(here, 'build', *(('cli', 'bin', 'agent-burn.exe') if win else ('cli-linux', 'bin', 'agent-burn')))
@@ -22,9 +22,9 @@ entry = os.path.join(workpath, 'agentburn-main.py')
 with open(entry, 'w') as f:
     f.write('import runpy\nrunpy.run_module("agentburn", run_name="__main__")\n')
 
-# QML partagés avec le module Quickshell : lus dans le dépôt, jamais dupliqués dans git.
-datas = [(os.path.join(qs, f), 'shared') for f in SHARED]
-datas += [(os.path.join(qs, 'assets', 'burn'), 'shared/assets/burn'), (os.path.join(app, 'qml'), 'qml'),
+# QML partagés (shared/), au même endroit que runtime.sources() les cherche une fois gelé.
+datas = [(os.path.join(shared, f), 'shared') for f in SHARED]
+datas += [(os.path.join(shared, 'assets', 'burn'), 'shared/assets/burn'), (os.path.join(app, 'qml'), 'qml'),
           (os.path.join(here, 'assets', 'agent-burn.png'), 'assets')]  # icône de fenêtre hors thème (Linux)
 if os.path.isdir(fonts):  # rempli par le script de build ; absent en dev (police système)
     datas.append((fonts, 'fonts'))

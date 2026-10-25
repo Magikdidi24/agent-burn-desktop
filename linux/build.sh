@@ -2,15 +2,14 @@
 # Construit Agent Burn pour Linux dans python:3.12-slim-bookworm, en root avec réseau (CI : job « container » ;
 # poste de dev : linux/build-local.sh). CLI Rust statique, polices, licences, bundle PyInstaller allégé (glibc de
 # bookworm : tourne sur toutes les distros plus récentes), selftests du bundle gelé, puis les paquets.
-#   bash desktop/agent-burn/linux/build.sh      (SKIP_CLI=1 : réutilise build/cli-linux tel quel)
+#   bash linux/build.sh      (SKIP_CLI=1 : réutilise build/cli-linux tel quel)
 # Sorties dans dist/linux/ : tarball, AppImage, .deb, .rpm, SHA256SUMS, selftest/. CLI en cache dans
 # build/cli-linux/ (clé : AB_REV), le reste dans build/linux/.
 set -euo pipefail
 
 APPID=io.github.magikdidi24.AgentBurn
 APP_LICENSE=MIT   # licence de l'app (LICENSE) ; celles du CLI, de Qt, de Python et de la police sont dans licenses/
-HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # desktop/agent-burn
-REPO=$(cd "$HERE/../.." && pwd)
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # racine du dépôt
 W=$HERE/build/linux CLI=$HERE/build/cli-linux OUT=$HERE/dist/linux T=$HERE/build/linux/tools
 cd "$HERE"
 export DEBIAN_FRONTEND=noninteractive PYTHONDONTWRITEBYTECODE=1
@@ -124,7 +123,7 @@ rm -rf "$X" && mkdir -p "$X/licenses"
 cp "$CLI/LICENSE-agent-burn.txt" "$CLI/THIRD-PARTY-NOTICES.txt" tools/licenses/LGPL-3.0.txt tools/licenses/GPL-3.0.txt "$X/licenses/"
 cp LICENSE "$X/licenses/LICENSE-agent-burn-desktop.txt"
 cp app/fonts/OFL.txt "$X/licenses/LICENSE-JetBrainsMono-NerdFont.txt"
-COMMIT=$(git -C "$REPO" -c safe.directory='*' rev-parse HEAD 2>/dev/null || echo "${GITHUB_SHA:-unknown}")
+COMMIT=$(git -C "$HERE" -c safe.directory='*' rev-parse HEAD 2>/dev/null || echo "${GITHUB_SHA:-unknown}")
 "$V/bin/python" - "$X" "$VER" "$COMMIT" "$REV" "$ABVER" "$(cat "$CLI/target")" <<'EOF'
 import datetime, json, platform, sys, sysconfig
 from pathlib import Path

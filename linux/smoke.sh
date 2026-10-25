@@ -3,12 +3,11 @@
 # dev : linux/smoke-local.sh IMAGE). Installe l'artefact natif (deb : apt ; rpm : dnf ou zypper ; Arch : tarball
 # puis AppImage), vérifie PATH, lanceur, icônes et CLI embarqué, lance le selftest de l'app installée (rendu
 # logiciel, puis OpenGL Mesa sous Xvfb) sur les fixtures du dépôt, désinstalle et vérifie qu'il ne reste rien.
-#   bash desktop/agent-burn/linux/smoke.sh DIST [SORTIE]
+#   bash linux/smoke.sh DIST [SORTIE]
 # DIST : dist/linux d'un build. SORTIE (journaux, captures) : DIST/smoke-<distro> par défaut. Code ≠ 0 au 1er échec.
 set -euo pipefail
 APPID=io.github.magikdidi24.AgentBurn
-HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # desktop/agent-burn
-REPO=$(cd "$HERE/../.." && pwd)
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # racine du dépôt
 DIST=$(cd "${1:?usage : smoke.sh DIST [SORTIE]}" && pwd)
 . /etc/os-release
 OUT=${2:-$DIST/smoke-$ID-${VERSION_ID:-rolling}}

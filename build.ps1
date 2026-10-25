@@ -1,6 +1,6 @@
 #Requires -Version 7.4
 # Construit Agent Burn pour Windows : CLI Rust, polices, licences, bundle PyInstaller, selftest, zip portable, installeur.
-#   pwsh -File desktop\agent-burn\build.ps1 [-Arch x64|arm64] [-SkipCli]
+#   pwsh -File build.ps1 [-Arch x64|arm64] [-SkipCli]
 # Idempotent : une étape déjà faite est sautée (venv, polices, CLI à jour) ou écrasée (bundle, zip, setup).
 param(
     # Sans compilation croisée : la machine et son Python doivent être de cette architecture (PyInstaller gèle la sienne).

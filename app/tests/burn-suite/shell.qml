@@ -3,7 +3,7 @@ import Quickshell.Io
 import QtQuick
 
 // Test headless de Burn.qml (aucune fenêtre), sous qs et sous le shim de l'app de bureau : mêmes résultats
-// attendus. Fixtures de desktop/agent-burn/tests/fixtures servies par un faux CLI (fake/). Depuis ce dossier :
+// attendus. Fixtures de tests/fixtures (racine du dépôt) servies par un faux CLI (fake/). Depuis ce dossier :
 //   qs   : d=$(mktemp -d) && python3 -I fake/gen.py "$d" && AGENT_BURN_BIN="$d/agent-burn" timeout 25 qs -p "$PWD"
 //          (XDG_* vers un dossier jetable, XDG_RUNTIME_DIR court pour l'IPC ; qs sort en 0 même en échec :
 //          lire la ligne RESULT)

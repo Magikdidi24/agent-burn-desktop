@@ -1,6 +1,6 @@
 # Tests de la fenêtre Paramètres créée hors écran avec le vrai dossier QML d'exécution : aucun avertissement
 # QML sur ses 4 sections, contrôles atteints au clavier (Tab), réglages modifiés par les contrôles, Échap.
-#   cd desktop/agent-burn/app && python -m unittest discover -s tests -v
+#   cd app && python -m unittest discover -s tests -v
 import os
 import sys
 import unittest

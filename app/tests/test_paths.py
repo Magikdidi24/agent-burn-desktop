@@ -1,5 +1,5 @@
 # Tests des dossiers par plateforme (plateforme et environnement simulés) et du nom du serveur d'instance unique.
-#   cd desktop/agent-burn/app && python -m unittest discover -s tests -v
+#   cd app && python -m unittest discover -s tests -v
 import os
 import stat
 import sys

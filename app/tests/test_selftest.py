@@ -1,6 +1,6 @@
 # Tests du contrôle des captures du selftest : vide, d'une seule couleur (fenêtre non rendue, transparente),
 # mauvaise taille (fenêtre × devicePixelRatio), coin transparent d'une fenêtre opaque, capture correcte.
-#   cd desktop/agent-burn/app && python -m unittest discover -s tests -v
+#   cd app && python -m unittest discover -s tests -v
 import sys
 import unittest
 from pathlib import Path

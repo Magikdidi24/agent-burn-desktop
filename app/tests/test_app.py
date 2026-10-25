@@ -1,6 +1,6 @@
 # Tests de l'app de bureau : faux CLI, position et hauteur du popover, icône, dossier QML d'exécution
 # (cache vérifié), démarrage avec Windows (registre factice). qml_env() sert aussi aux autres modules.
-#   cd desktop/agent-burn/app && python -m unittest discover -s tests -v
+#   cd app && python -m unittest discover -s tests -v
 import atexit
 import datetime
 import json
@@ -304,7 +304,7 @@ class Runtime(unittest.TestCase):
     def test_shared_and_own_qml_with_singletons(self):
         QCoreApplication.setApplicationName("AgentBurn")
         d = runtime.assemble()
-        shared = APP.parents[2] / "config" / "quickshell"
+        shared = APP.parent / "shared"
         for f in runtime.SHARED:
             self.assertEqual((d / f).read_bytes(), (shared / f).read_bytes(), f)
         self.assertTrue((d / "assets" / "burn" / "claude.png").is_file())

@@ -1,5 +1,5 @@
 # Graphe de dépendances et rendu des notices sur un faux « cargo metadata » (sans cargo ni réseau).
-#   python -m unittest discover -s desktop/agent-burn/tools
+#   python -m unittest discover -s tools
 import tempfile
 import unittest
 from pathlib import Path

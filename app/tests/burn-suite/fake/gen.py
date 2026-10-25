@@ -1,4 +1,4 @@
-# Prépare dans DOSSIER le faux CLI et ses fixtures (desktop/agent-burn/tests/fixtures) : dates décalées
+# Prépare dans DOSSIER le faux CLI et ses fixtures (tests/fixtures du dépôt) : dates décalées
 # pour que le dernier jour = aujourd'hui, comptes Claude datés de maintenant, état du faux CLI remis à zéro.
 # Les summary-<mode>.json sont servis quand le fichier « mode » vaut <mode> (sorties réelles du CLI, nettoyées).
 # Usage : python3 -I gen.py <dossier>

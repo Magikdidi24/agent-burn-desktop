@@ -1,6 +1,6 @@
 # Tests du journal : masquage de chaque type de secret, fichier tournant dans le dossier des journaux,
 # exceptions non rattrapées journalisées sans arrêter l'app, messages Qt sur le logger « qt ».
-#   cd desktop/agent-burn/app && python -m unittest discover -s tests -v
+#   cd app && python -m unittest discover -s tests -v
 import io
 import logging
 import logging.handlers

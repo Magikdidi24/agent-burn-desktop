@@ -1,5 +1,5 @@
 # Expression SPDX de la licence du .rpm (package_license.py), sur des notices factices.
-#   python -m unittest discover -s desktop/agent-burn/tools
+#   python -m unittest discover -s tools
 import tempfile
 import unittest
 from pathlib import Path

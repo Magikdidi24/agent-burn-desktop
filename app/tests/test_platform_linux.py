@@ -1,7 +1,7 @@
 # Tests du lancement à l'ouverture de session sous Linux (autostart XDG, XDG_CONFIG_HOME temporaire) :
 # écriture, lecture, Hidden=true et X-GNOME-Autostart-enabled=false, retrait de notre seul fichier,
 # guillemets de la clé Exec, chemin inutilisable (saut de ligne, %, \) refusé.
-#   cd desktop/agent-burn/app && python -m unittest discover -s tests -v
+#   cd app && python -m unittest discover -s tests -v
 import os
 import sys
 import tempfile

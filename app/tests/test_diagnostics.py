@@ -1,7 +1,7 @@
 # Tests du diagnostic (singleton Desktop) : champs du texte, secrets masqués (erreur de Burn, environnement),
 # aucune variable d'environnement recopiée, version du CLI lue en tâche de fond, infos de build,
 # ouverture des dossiers (xdg-open avec l'environnement nettoyé, Explorateur sous Windows).
-#   cd desktop/agent-burn/app && python -m unittest discover -s tests -v
+#   cd app && python -m unittest discover -s tests -v
 import json
 import os
 import re

@@ -1,7 +1,7 @@
 # Tests du shim Quickshell de l'app de bureau : environnement des process lancés (fuites du bundle gelé,
 # réglages du CLI hérités, HOME sous Windows), stderr lu avant exited, dossier courant, journal des runs,
 # running déclaré avant command, attente des runs à la fermeture, xdg-open détaché.
-#   cd desktop/agent-burn/app && python -m unittest discover -s tests -v
+#   cd app && python -m unittest discover -s tests -v
 import json
 import os
 import shutil

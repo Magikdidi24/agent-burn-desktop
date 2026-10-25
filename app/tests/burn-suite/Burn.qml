@@ -1,1 +1,1 @@
-../../../../../config/quickshell/Burn.qml
+../../../shared/Burn.qml

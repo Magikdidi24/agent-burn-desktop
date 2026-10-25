@@ -1,7 +1,7 @@
 #Requires -Version 7.4
 # Test de fumée sur un vrai Windows (job CI) : installation silencieuse (fichiers, raccourcis, démarrage auto, clé de
 # désinstallation), selftest de l'exe installé, mode tray et 2e lancement, désinstallation, puis le zip portable.
-#   pwsh -File desktop\agent-burn\windows\smoke.ps1 -Setup <AgentBurn-Setup-<ver>-<arch>.exe> [-Portable <zip>]
+#   pwsh -File windows\smoke.ps1 -Setup <AgentBurn-Setup-<ver>-<arch>.exe> [-Portable <zip>]
 # Code 1 au premier contrôle en échec. Machine sans Agent Burn exigée : le test installe puis désinstalle.
 param(
     [Parameter(Mandatory)][string]$Setup,

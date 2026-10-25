@@ -1,7 +1,7 @@
 # Tests de l'icône de notification sur le vrai Main.qml (fenêtres hors écran, faux CLI) : libellés et ordre du
 # menu, effet de chaque action, coche du démarrage auto, lignes d'état, clics, icône recréée quand une zone
 # de notification apparaît, popover laissé au compositeur sous Wayland.
-#   cd desktop/agent-burn/app && python -m unittest discover -s tests -v
+#   cd app && python -m unittest discover -s tests -v
 import sys
 import types
 import unittest

@@ -1,6 +1,6 @@
 # Tests des réglages : défauts (clic de l'icône selon la plateforme), valeurs invalides, fichier illisible
 # (copie .bak), aller-retour sur disque, réinitialisation, démarrage auto par le module de la plateforme.
-#   cd desktop/agent-burn/app && python -m unittest discover -s tests -v
+#   cd app && python -m unittest discover -s tests -v
 import json
 import sys
 import tempfile

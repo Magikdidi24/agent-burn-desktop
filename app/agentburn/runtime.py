@@ -1,4 +1,4 @@
-# Dossier QML d'exécution : QML partagés du module Quickshell (jamais dupliqués dans git) + QML de
+# Dossier QML d'exécution : QML partagés (shared/, ceux de la barre Quickshell aussi) + QML de
 # l'app de bureau + qmldir. Nommé d'après son contenu : l'app, un selftest ou une version de dev
 # lancés en même temps ne se marchent pas dessus, et rien n'est recopié d'un lancement à l'autre.
 import hashlib
@@ -19,10 +19,10 @@ def sources():
     if getattr(sys, "frozen", False):
         return Path(sys._MEIPASS) / "shared", Path(sys._MEIPASS) / "qml"
     here = Path(__file__).resolve()
-    for p in here.parents:
-        if (p / "config" / "quickshell" / "Burn.qml").is_file():
-            return p / "config" / "quickshell", here.parents[1] / "qml"
-    raise SystemExit(f"config/quickshell/Burn.qml introuvable au-dessus de {here}")
+    shared = here.parents[2] / "shared"   # <dépôt>/app/agentburn/runtime.py
+    if not (shared / "Burn.qml").is_file():
+        raise SystemExit(f"{shared / 'Burn.qml'} introuvable")
+    return shared, here.parents[1] / "qml"
 
 
 def intact(d, content):
