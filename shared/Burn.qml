@@ -11,23 +11,39 @@ Singleton {
     id: root
 
     property var summary: null
+    property bool summaryCached: false   // relu du disque au démarrage, pas encore remplacé par un run
     property var harnesses: ({})
+    property var harnessErrors: ({})   // { agent: message } du dernier harness en échec, effacé à son succès
     property var account: null   // claudeAccount le plus récent, persisté : reste affiché si le CLI échoue
-    property bool signInExpired: false   // Anthropic refuse de renouveler la connexion : /login dans claude
+    property bool signInExpired: false   // renouvellement refusé : connexion expirée, ou réseau coupé (jeton expiré)
     // Relevé Claude de plus de 10 min, ou connexion expirée : toujours affiché, mais signalé ancien.
     readonly property bool limitsStale: !!account && (signInExpired || now - (account.observedAtMs ?? 0) > 600000)
     property bool loading: sumProc.running || rangeProc.running || claudeProc.running || codexProc.running
-    property string error: ""
+    property string error: ""   // summary et CLI ; les harness ont harnessErrors
+    property var recentErrors: []   // 20 derniers échecs { t, source, msg }, le plus récent en dernier, sans stdout
     property real updatedAt: 0
     property bool cliMissing: false
+    // Remède affiché quand le CLI manque (BurnPopover) ; l'app de bureau donne le sien.
+    property string cliHint: "CLI agent-burn introuvable (~/.local/bin/agent-burn) : relance install.sh"
     property bool dashboardOpen: false
     property string dashboardPage: "all"   // "all" ou un agent
     property bool pendingForce: false   // refresh(true) demandé pendant un run : rejoué à sa fin
+    property var pendingHarness: ({})   // loadHarness() pendant le summary : { agent: force }, lancé à sa fin
     property string range: "all"
     property var rangeCache: ({})   // { plage: { at, data } }
     readonly property var rangeSummary: range === "all" ? summary : rangeCache[range]?.data ?? null
+    property int refreshInterval: 300000   // tour de fond en ms, réglé par l'app de bureau
+    readonly property int cadence: Math.max(60000, refreshInterval)
+    // En cache : relu du disque, dernier summary en échec, ou plus vieux que le rythme horaire de la pill.
+    readonly property string dataState: !summary ? "unavailable"
+        : summaryCached || sumProc.failed || now - updatedAt > 3600000 + cadence ? "cached" : "live"
+    // Tokens sans aucun coût : tarifs indisponibles (hors ligne, LiteLLM injoignable), le CLI compte 0 $.
+    readonly property bool pricingMissing: (summary?.totals?.totalTokens ?? 0) > 0 && summary.totals.totalCost === 0
 
     property string bin: Quickshell.env("AGENT_BURN_BIN") || Quickshell.env("HOME") + "/.local/bin/agent-burn"
+    // Passée à chaque run, jamais créée : fichier absent = aucune config ; celles de l'utilisateur
+    // (./.agent-burn/, ~/.config/agent-burn/, ~/.claude/agent-burn.json : noCost, jq, offline) n'agissent plus.
+    readonly property string cliConfig: Quickshell.dataPath("agent-burn-cli.json")
     // Horloge des valeurs dérivées (resets passés, « il y a ») : 10 s, arrêtée pendant l'inactivité.
     property real now: Date.now()
 
@@ -60,8 +76,26 @@ Singleton {
 
     readonly property var spans: ({ today: 0, "7d": 6, "30d": 29 })   // jours avant aujourd'hui
     readonly property var flags: ["--value", "--json", "--no-color"]
-    readonly property var names: ({ claude: "Claude Code", codex: "Codex", cursor: "Cursor", opencode: "OpenCode",
-        gemini: "Gemini", pi: "Pi", droid: "Droid", openclaw: "OpenClaw", kimi: "Kimi", amp: "Amp", qwen: "Qwen" })
+    // Agents connus : nom, couleur de marque, harness = page détaillée du CLI (harness claude|codex).
+    readonly property var providers: ({
+        claude: { name: "Claude Code", color: "#d97757", harness: true },
+        codex: { name: "Codex", color: "#10a37f", harness: true },
+        cursor: { name: "Cursor", color: "#a855f7", harness: false },
+        opencode: { name: "OpenCode", color: "#e5e5e5", harness: false },
+        gemini: { name: "Gemini", color: "#4285f4", harness: false },
+        pi: { name: "Pi", color: "#6b7280", harness: false },
+        droid: { name: "Droid", color: "#6b7280", harness: false },
+        openclaw: { name: "OpenClaw", color: "#6b7280", harness: false },
+        kimi: { name: "Kimi", color: "#6b7280", harness: false },
+        amp: { name: "Amp", color: "#6b7280", harness: false },
+        qwen: { name: "Qwen", color: "#6b7280", harness: false }
+    })
+    readonly property var knownProviders: ["claude", "codex"]   // toujours listés (réglages, diagnostic), même absents
+    readonly property var names: {
+        var n = {};
+        for (var a in providers) n[a] = providers[a].name;
+        return n;
+    }
 
     function agentEntry(agent) { return (summary?.agents ?? []).find(a => a.agent === agent) ?? null; }
     function subEntry(agent) { return (summary?.subscription?.agents ?? []).find(a => a.agent === agent) ?? null; }
@@ -88,6 +122,9 @@ Singleton {
             for (var s of a.scoped ?? [])
                 add("scoped:" + s.name, s.name + " · semaine", s.name, s.usedPercent, s.resetsAtMs, 10080);
         }
+        // Semaine déjà écoulée (logs Codex de plus de 7 j, liveLimits quand même vrai) : relevé expiré, session
+        // comprise (sans heure, même âge) → aucune fenêtre plutôt que le vieux % ou un faux 0 %.
+        if (e?.window?.elapsedMinutes >= 10080) return out;
         // shortcut: hors Claude, fenêtres supposées de 5 h et 7 j (labels "5h"/"weekly" du CLI) ; lire le label si un agent diffère.
         if (e?.shortWindow) add("session", "Session 5 h", "5 h", e.shortWindow.usedPercent, 0, 300);
         if (e?.window)
@@ -134,6 +171,38 @@ Singleton {
         return (samples[agent + ":" + key] ?? []).filter(s => s.t >= from);
     }
 
+    // État d'un agent tiré des seuls signaux du CLI, jamais de la présence de fichiers : le CLI ne dit
+    // ni « non connecté » ni « hors ligne », et met des 0 pour « inconnu ». at : instant du relevé utilisé.
+    // Évaluée dans des bindings à chaque tour d'horloge : lectures seulement.
+    function providerState(agent) {
+        var claude = agent === "claude", a = claude ? account : null;
+        var r = { state: "", label: "", detail: "", error: harnessErrors[agent] ?? "", at: 0 };
+        function set(state, label, detail) {
+            r.state = state;
+            r.label = label;
+            r.detail = detail;
+            return r;
+        }
+        if (cliMissing) return set("unavailable", "CLI introuvable", cliHint);
+        if (!summary) return set("unknown", "Inconnu", "Pas encore de rapport du CLI agent-burn.");
+        r.at = a?.observedAtMs || updatedAt;
+        // Aussi pour un jeton expiré sans réseau (sortie de veille) : la cause n'est pas forcément la connexion.
+        if (claude && signInExpired)
+            return set("expired", "Connexion à vérifier", "Limites refusées : réseau indisponible, ou connexion expirée (claude puis /login).");
+        if (!a && !agentEntry(agent) && !subEntry(agent))
+            return set("none", "Non détecté", "agent-burn ne trouve ni usage ni abonnement pour cet agent.");
+        if (a || windows(agent).length) {
+            if (a ? !limitsStale : dataState === "live")
+                return set("live", "En direct", claude ? "Limites lues sur le compte Claude, relevé récent."
+                    : "Limites du dernier rapport agent-burn (API ou logs de session).");
+            return set("stale", "Relevé ancien", claude ? "Dernières limites connues : aucun relevé depuis plus de 10 min."
+                : "Dernières limites connues, rapport agent-burn en cache.");
+        }
+        return set("local", "Usage local", claude ? "Dépense lue dans les logs ; limites indisponibles (non connecté ou hors ligne)."
+            : "Dépense lue dans les logs ; limites absentes ou expirées.");
+    }
+    function stateText(s) { return s === "live" ? "En direct" : s === "cached" ? "En cache" : "Indisponible"; }
+
     // L'archive l'emporte sur le summary : elle garde le coût d'un jour repassé à 0 hors ligne.
     function dailySeries(agent) {
         var m = {};
@@ -171,20 +240,21 @@ Singleton {
             return;
         }
         sumProc.forced = !!force;
-        launch(sumProc, ["summary"].concat(flags), force);
+        launch(sumProc, ["summary"].concat(flags), force ? { AGENT_BURN_FORCE_REFRESH: "1" } : {});
     }
     function poke() { if (Date.now() - updatedAt > 60000) refresh(false); }
     // force : sans attendre 5 min, mais jamais l'env de forçage (relevé partagé du summary relu).
+    // Pendant le summary : noté, lancé à sa fin (sumProc.onExited).
     function loadHarness(agent, force) {
         var p = agent === "claude" ? claudeProc : agent === "codex" ? codexProc : null;   // CLI : claude|codex
-        if (p && !p.running && (force || !harnesses[agent] || Date.now() - p.at > 300000))
-            launch(p, ["harness", agent].concat(flags), false);
+        if (p && sumProc.running) pendingHarness[agent] = pendingHarness[agent] || !!force;
+        else if (p && !p.running && (force || !harnesses[agent] || Date.now() - p.at > 300000))
+            launch(p, ["harness", agent].concat(flags));
     }
     // Limites Claude seules (chemin de la barre de menus de l'app Mac) : aucune lecture des logs.
     function loadQuota() {
         if (!quotaProc.running && !sumProc.running)
-            quotaProc.exec({ command: [bin, "harness", "claude", "--json", "--no-color"],
-                             environment: { AGENT_BURN_QUOTA_ONLY: "1" } });
+            launch(quotaProc, ["harness", "claude", "--json", "--no-color"], { AGENT_BURN_QUOTA_ONLY: "1" });
     }
     // Déjà ouvert (autre espace de travail, sous un plein écran) : refermé puis rouvert, Hyprland le
     // remappe au premier plan sur l'espace courant.
@@ -207,10 +277,12 @@ Singleton {
         var t = new Date();
         rangeProc.key = range;
         launch(rangeProc, ["summary"].concat(flags, ["--since",
-            iso(new Date(t.getFullYear(), t.getMonth(), t.getDate() - spans[range])).replace(/-/g, "")]), false);
+            iso(new Date(t.getFullYear(), t.getMonth(), t.getDate() - spans[range])).replace(/-/g, "")]));
     }
 
     function money(v) { return v == null ? "—" : "$" + Number(v).toLocaleString(Qt.locale("en_US"), "f", 2); }
+    // Tokens sans prix (tarifs manquants) : coût inconnu, jamais 0,00 $.
+    function priced(cost, tokens) { return tokens > 0 && cost === 0 ? null : cost; }
     function tokens(v) {
         if (v == null) return "—";
         return v >= 1e9 ? (v / 1e9).toFixed(2) + "B" : v >= 1e6 ? (v / 1e6).toFixed(2) + "M"
@@ -236,51 +308,72 @@ Singleton {
         return h > 0 ? h + " h " + String(m % 60).padStart(2, "0") : Math.max(1, m) + " min";
     }
     function iso(d) { return d.toLocaleString(Qt.locale("C"), "yyyy-MM-dd"); }
-    function agentName(a) { return names.hasOwnProperty(a) ? names[a] : a; }
-    function agentIcon(a) { return names.hasOwnProperty(a) ? Qt.resolvedUrl("assets/burn/" + a + ".png") : ""; }
-    function agentColor(a) {
-        return ({ claude: "#d97757", codex: "#10a37f", cursor: "#a855f7", gemini: "#4285f4", opencode: "#e5e5e5" })[a] ?? "#6b7280";
-    }
+    function agentName(a) { return providers.hasOwnProperty(a) ? providers[a].name : a; }
+    function agentIcon(a) { return providers.hasOwnProperty(a) ? Qt.resolvedUrl("assets/burn/" + a + ".png") : ""; }
+    function agentColor(a) { return providers.hasOwnProperty(a) ? providers[a].color : "#6b7280"; }
 
-    function launch(p, args, force) {
+    // Variables qui changent la sortie du CLI : retirées (null) sauf si ce run les demande.
+    function launch(p, args, env) {
         p.launched = false;
         p.timedOut = false;
-        p.exec({ command: [bin].concat(args), environment: force ? { AGENT_BURN_FORCE_REFRESH: "1" } : {} });
+        p.exec({ command: [bin].concat(args, ["--config", cliConfig]),
+                 environment: Object.assign({ AGENT_BURN_FORCE_REFRESH: null, AGENT_BURN_QUOTA_ONLY: null, LOG_LEVEL: null }, env) });
     }
-    function missing() {
+    function note(source, msg) {
+        recentErrors = recentErrors.concat([{ t: Date.now(), source: source, msg: msg }]).slice(-20);
+    }
+    // Lancement impossible (aucun started) : CLI absent. Le relevé léger reste muet, comme ses autres échecs.
+    function missing(p) {
+        var msg = "agent-burn introuvable ou non exécutable : " + bin;
+        p.failed = true;
+        if (p === quotaProc) return note("quota", msg);
         cliMissing = true;
-        error = "agent-burn introuvable ou non exécutable : " + bin;
+        error = msg;
+        note("cli", msg);
     }
-    // Fin d'un run → objet JSON (rapport summary : avec agents[]), ou null et error renseignée.
-    function result(p, code, report) {
+    // Rapport summary : avec agents[] (le relevé seul d'AGENT_BURN_QUOTA_ONLY n'en a pas).
+    function isReport(d) { return Array.isArray(d.agents); }
+    // Fin d'un run → objet JSON (validé par check), ou null et p.problem renseigné (noté dans recentErrors).
+    // Erreurs du CLI sur stderr : « Error: CliError("…") » en code 1, option inconnue en code 2.
+    function result(p, code, check) {
         cliMissing = false;
-        if (p.timedOut) error = "agent-burn n'a pas répondu en 120 s : réessaie dans un instant.";
-        else if (code !== 0) error = "agent-burn a échoué (code " + code + ") : vérifie le CLI et la connexion de l'agent.";
+        p.failed = true;
+        var lines = p.errorOutput.split("\n").map(l => l.trim()).filter(l => l);
+        var line = lines.find(l => l.startsWith("Error: ")) ?? lines[0] ?? "";   // un WARN peut précéder l'erreur
+        var m = line.match(/^Error: CliError\("(.*)"\)$/);
+        var detail = m ? m[1].replace(/\\(["\\])/g, "$1") : line;   // chaîne Debug de Rust : \" et \\ échappés
+        if (detail.length > 160) detail = detail.slice(0, 159) + "…";
+        if (p.timedOut) p.problem = "agent-burn n'a pas répondu en 120 s : réessaie dans un instant.";
+        else if (code === 2) p.problem = "CLI agent-burn incompatible" + (detail ? " : " + detail : "");
+        else if (code !== 0) p.problem = "agent-burn a échoué (code " + code + ")" + (detail ? " : " + detail : "");
         else {
             try {
                 var d = JSON.parse(p.output);
-                if (d && typeof d === "object" && (!report || Array.isArray(d.agents))) {
+                if (d && typeof d === "object" && (!check || check(d))) {
                     p.at = Date.now();
+                    p.failed = false;
                     return d;
                 }
             } catch (e) {}
-            error = "Rapport illisible renvoyé par agent-burn.";
+            p.problem = "Rapport illisible renvoyé par agent-burn.";
         }
+        note(p.source, p.problem);
         return null;
     }
     function harnessDone(agent, p, code) {
-        var d = result(p, code, false);
-        if (!d) {
-            error = agentName(agent) + " : " + error;
-            return;
-        }
-        var h = Object.assign({}, harnesses);
-        h[agent] = d;
-        harnesses = h;
+        var d = result(p, code), e = Object.assign({}, harnessErrors);
+        if (d) {
+            var h = Object.assign({}, harnesses);
+            h[agent] = d;
+            harnesses = h;
+            delete e[agent];
+        } else e[agent] = p.problem;
+        harnessErrors = e;
     }
     function setSummary(d) {
         now = Date.now();
         summary = d;
+        summaryCached = false;
         updatedAt = now;
         error = "";
         signInExpired = d.claudeAccountStatus === "signInExpired";
@@ -350,14 +443,23 @@ Singleton {
 
     FileView { id: historyFile; path: Quickshell.dataPath("burn-history.json"); blockLoading: true }
     FileView { id: quotaFile; path: Quickshell.dataPath("burn-quota.json"); blockLoading: true }
+    FileView { id: summaryFile; path: Quickshell.dataPath("burn-summary.json"); blockLoading: true }
     // Un FileView par copie : setText ignore un contenu égal à celui déjà vu par la vue, même d'un autre chemin.
     FileView { id: historyBak; path: historyFile.path + ".bak"; preload: false; blockWrites: true }
     FileView { id: quotaBak; path: quotaFile.path + ".bak"; preload: false; blockWrites: true }
+    FileView { id: summaryBak; path: summaryFile.path + ".bak"; preload: false; blockWrites: true }
     Component.onCompleted: {
         history = load(historyFile, historyBak);
         var q = load(quotaFile, quotaBak);
         account = q.account ?? null;
         samples = q.samples ?? {};
+        // Dernier summary réussi, affiché « en cache » jusqu'au 1er run : ni fusion ni relevés rejoués.
+        var c = load(summaryFile, summaryBak);
+        if (c.at > 0 && c.data && isReport(c.data)) {
+            summary = c.data;
+            updatedAt = c.at;
+            summaryCached = true;
+        }
     }
     // Au plus une écriture par seconde (modèle NotifCenter), atomique.
     Timer {
@@ -366,17 +468,23 @@ Singleton {
         onTriggered: {
             historyFile.setText(JSON.stringify(root.history));
             quotaFile.setText(JSON.stringify({ account: root.account, samples: root.samples }));
+            if (root.summary) summaryFile.setText(JSON.stringify({ at: root.updatedAt, data: root.summary }));
         }
     }
 
     // Un run du CLI : un seul à la fois par instance, JSON lu à la fin.
     component Cli: Process {
+        property string source   // origine dans recentErrors : summary, range, harness:<agent>, quota
         property real since
         property real at         // fin du dernier run réussi
+        property bool failed     // dernier run en échec (lancement, code, délai, JSON)
+        property string problem  // message de ce dernier échec
         property bool launched   // started reçu : sinon échec de lancement, sans exited
         property bool timedOut
         property alias output: out.text
+        property alias errorOutput: err.text
         stdout: StdioCollector { id: out }
+        stderr: StdioCollector { id: err }
         onStarted: {
             since = Date.now();
             launched = true;
@@ -384,47 +492,55 @@ Singleton {
     }
     Cli {
         id: sumProc
+        source: "summary"
         property bool forced
-        onRunningChanged: if (!running && !launched) root.missing()
+        onRunningChanged: if (!running && !launched) root.missing(sumProc)
         onExited: code => {
-            var d = root.result(sumProc, code, true);
+            var d = root.result(sumProc, code, root.isReport);
             if (d) root.setSummary(d);
+            else root.error = sumProc.problem;
             if (root.pendingForce) {
                 root.pendingForce = false;
                 root.refresh(true);
-            } else if (root.dashboardOpen) {
-                // Après le summary plutôt qu'en parallèle : son relevé partagé (55 s) sert aux suivants,
-                // l'API d'usage répond 429 à plusieurs process à la fois.
-                for (var a of ["claude", "codex"]) if (root.harnesses[a]) root.loadHarness(a, sumProc.forced);
-                root.loadRange(sumProc.forced);
+                return;
             }
+            // Après le summary plutôt qu'en parallèle : son relevé partagé (55 s) sert aux suivants,
+            // l'API d'usage répond 429 à plusieurs process à la fois. Harness demandés pendant le run,
+            // puis ceux du dashboard ouvert.
+            var w = root.pendingHarness;
+            root.pendingHarness = {};
+            for (var a of ["claude", "codex"])
+                if (w.hasOwnProperty(a) || root.dashboardOpen && root.harnesses[a]) root.loadHarness(a, sumProc.forced || !!w[a]);
+            if (root.dashboardOpen) root.loadRange(sumProc.forced);
         }
     }
     Cli {
         id: rangeProc
+        source: "range"
         property string key
-        onRunningChanged: if (!running && !launched) root.missing()
+        onRunningChanged: if (!running && !launched) root.missing(rangeProc)
         onExited: code => {
-            var d = root.result(rangeProc, code, true);
+            var d = root.result(rangeProc, code, root.isReport);
             if (d) {
                 var c = Object.assign({}, root.rangeCache);
                 c[key] = { at: Date.now(), data: d };
                 root.rangeCache = c;
                 root.remember(d);
                 root.merge(d);   // jours de la plage plus frais : cartes et tableau des modèles concordent
-            }
+            } else root.error = rangeProc.problem;
             if (root.range !== key) root.loadRange(false);   // plage changée pendant le run
         }
     }
-    // Relevé léger de la pill. Échec silencieux : le dernier relevé reste, signalé ancien après 10 min.
-    // Le relevé ne porte que semaine et session : limites par modèle et crédits gardent ceux du summary.
+    // Relevé léger de la pill. Échec muet (recentErrors seulement) : le dernier relevé reste, signalé ancien
+    // après 10 min. Le relevé ne porte que semaine et session : limites par modèle et crédits gardent ceux du summary.
     Cli {
         id: quotaProc
+        source: "quota"
+        onRunningChanged: if (!running && !launched) root.missing(quotaProc)
         onExited: code => {
-            var q = null;
-            try { q = code === 0 ? JSON.parse(quotaProc.output) : null; } catch (e) {}
-            var w = q?.window, s = q?.sessionWindow;
-            if (!w || !(q.observedAt > 0)) return;
+            var q = root.result(quotaProc, code, x => !!x.window && x.observedAt > 0);
+            if (!q) return;
+            var w = q.window, s = q.sessionWindow;
             // reset = instant du relevé + part restante de la fenêtre
             var end = x => q.observedAt + (100 - x.elapsedPercent) * x.windowMinutes * 600;
             var a = Object.assign({}, root.account, { observedAtMs: q.observedAt,
@@ -436,19 +552,21 @@ Singleton {
     }
     Cli {
         id: claudeProc
-        onRunningChanged: if (!running && !launched) root.missing()
+        source: "harness:claude"
+        onRunningChanged: if (!running && !launched) root.missing(claudeProc)
         onExited: code => root.harnessDone("claude", claudeProc, code)
     }
     Cli {
         id: codexProc
-        onRunningChanged: if (!running && !launched) root.missing()
+        source: "harness:codex"
+        onRunningChanged: if (!running && !launched) root.missing(codexProc)
         onExited: code => root.harnessDone("codex", codexProc, code)
     }
     // Timeout 120 s par run, comme l'app Mac : process tué, l'erreur part de son exited.
     Timer {
-        interval: 5000; repeat: true; running: root.loading
+        interval: 5000; repeat: true; running: root.loading || quotaProc.running
         onTriggered: {
-            for (var p of [sumProc, rangeProc, claudeProc, codexProc])
+            for (var p of [sumProc, rangeProc, claudeProc, codexProc, quotaProc])
                 if (p.running && Date.now() - p.since > 120000) {
                     p.timedOut = true;
                     p.signal(9);
@@ -456,10 +574,11 @@ Singleton {
         }
     }
 
-    // 1er refresh 3 s après le chargement, poke() au retour d'inactivité, puis un tour toutes les 5 min.
-    // Pill sur la session ou la semaine de Claude : relevé léger, summary complet (2 s, ~20 s de CPU)
-    // au plus toutes les heures pour que l'archive voie chaque jour avant la purge à 30 jours.
-    // Sinon (autre agent, limite par modèle) : summary à chaque tour.
+    // 1er refresh 3 s après le chargement, sauf run en cours ou summary réussi depuis moins d'1 min
+    // (dashboard ouvert au lancement : déjà lancé par poke()) ; poke() au retour d'inactivité, puis un
+    // tour par cadence. Pill sur la session ou la semaine de Claude : relevé léger, summary complet (1 s
+    // en ligne, jusqu'à 1 min de CPU hors ligne) au plus toutes les heures pour que l'archive voie chaque
+    // jour avant la purge à 30 jours. Sinon (autre agent, limite par modèle) : summary à chaque tour.
     IdleMonitor {
         id: afk
         timeout: 300
@@ -468,9 +587,9 @@ Singleton {
             root.poke();
         }
     }
-    Timer { interval: 3000; running: true; onTriggered: root.refresh(false) }
+    Timer { interval: 3000; running: true; onTriggered: if (!root.loading && Date.now() - sumProc.at > 60000) root.refresh(false) }
     Timer {
-        interval: 300000; repeat: true; running: !afk.isIdle
+        interval: root.cadence; repeat: true; running: !afk.isIdle
         onTriggered: root.remainingAgent === "claude" && !root.remainingWindow.startsWith("scoped:")
             && Date.now() - root.updatedAt < 3600000 ? root.loadQuota() : root.refresh(false)
     }

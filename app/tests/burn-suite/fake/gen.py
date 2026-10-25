@@ -1,5 +1,6 @@
 # Prépare dans DOSSIER le faux CLI et ses fixtures (desktop/agent-burn/tests/fixtures) : dates décalées
-# pour que le dernier jour = aujourd'hui, compte Claude daté de maintenant, état du faux CLI remis à zéro.
+# pour que le dernier jour = aujourd'hui, comptes Claude datés de maintenant, état du faux CLI remis à zéro.
+# Les summary-<mode>.json sont servis quand le fichier « mode » vaut <mode> (sorties réelles du CLI, nettoyées).
 # Usage : python3 -I gen.py <dossier>
 import datetime
 import json
@@ -57,6 +58,25 @@ r["totals"]["totalCost"] = 999.99   # marqueur du run --since
 dump("summary-range.json", r)
 
 dump("harness-claude.json", load("harness-claude.json"))
+
+c = load("codex/summary-live.json")
+c["claudeAccount"] = a["claudeAccount"]   # même relevé que A : Claude reste en direct
+dump("summary-codex.json", c)
+del c["claudeAccount"]
+dump("summary-noauth.json", c)            # Claude sans compte : non connecté ou hors ligne
+dump("summary-empty.json", load("summary-empty-home.json"))
+dump("summary-codex-stale.json", load("summary-codex-stale-logs.json"))
+dump("summary-expired.json", load("summary-claude-signin-expired.json"))
+dump("summary-leak.json", load("summary-quota-env-leak.json"))   # AGENT_BURN_QUOTA_ONLY hérité : sans agents[]
+i = load("summary-installed-no-usage.json")
+i["claudeAccount"].update(observedAtMs=obs, sessionResetsAtMs=obs + 2 * 3600_000, weeklyResetsAtMs=obs + 4 * 86400_000)
+dump("summary-installed.json", i)
+dump("harness-codex.json.next", load("codex/harness-codex.json"))   # posé par la suite : harness codex d'abord en échec
+q = load("quota-claude-live.json")
+q["observedAt"] = now
+dump("quota-claude.json", q)
+shutil.copyfile(src / "error-claude-config-dir.stderr.txt", os.path.join(out, "stderr-1.txt"))
+shutil.copyfile(src / "error-unknown-flag.stderr.txt", os.path.join(out, "stderr-2.txt"))
 
 for name, text in (("count", "0\n"), ("calls.log", ""), ("mode", "ok\n")):
     with open(os.path.join(out, name), "w") as f:

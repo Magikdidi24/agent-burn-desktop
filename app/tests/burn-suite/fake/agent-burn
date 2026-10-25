@@ -1,18 +1,32 @@
 #!/bin/sh
-# Faux agent-burn du test : journalise l'appel puis sert les fixtures selon le mode (fichier "mode").
+# Faux agent-burn du test : journalise l'appel puis sert les fixtures selon le mode (fichier "mode") :
+# fail/err1/err2 (échecs, stderr réels du CLI pour err1/err2), garbage, slow (bloqué), delay (1 s de plus),
+# <nom> (summary-<nom>.json) ; sinon summary-a puis summary-b. Relevé seul (QUOTA_ONLY) : quota-claude.json.
 d=$(dirname "$0")
-echo "$* FORCE=${AGENT_BURN_FORCE_REFRESH:-0}" >> "$d/calls.log"
-case "$(cat "$d/mode")" in
+echo "$* FORCE=${AGENT_BURN_FORCE_REFRESH:-0}${AGENT_BURN_QUOTA_ONLY:+ QUOTA=$AGENT_BURN_QUOTA_ONLY}" >> "$d/calls.log"
+m=$(cat "$d/mode")
+case "$m" in
     fail) exit 3 ;;
+    err1) echo "WARN  Failed to load Cursor usage from the dashboard API." >&2; cat "$d/stderr-1.txt" >&2; exit 1 ;;
+    err2) cat "$d/stderr-2.txt" >&2; exit 2 ;;
     garbage) echo "pas du json"; exit 0 ;;
     slow) exec sleep 300 ;;
+    delay) sleep 1 ;;
 esac
 case "$1" in
-    harness) cat "$d/harness-$2.json" ;;
+    harness)
+        if [ -n "$AGENT_BURN_QUOTA_ONLY" ]; then exec cat "$d/quota-claude.json"; fi
+        if [ ! -f "$d/harness-$2.json" ]; then
+            # forme Debug de Rust : guillemets et barres obliques inverses échappés
+            printf '%s\n' 'Error: CliError("pas de fixture \"harness-'"$2"'.json\" dans C:\\fake")' >&2
+            exit 1
+        fi
+        cat "$d/harness-$2.json" ;;
     summary)
         case "$*" in
             *--since*) cat "$d/summary-range.json" ;;
             *)
+                if [ -f "$d/summary-$m.json" ]; then exec cat "$d/summary-$m.json"; fi
                 n=$(($(cat "$d/count") + 1))
                 echo "$n" > "$d/count"
                 if [ "$n" -eq 1 ]; then cat "$d/summary-a.json"; else cat "$d/summary-b.json"; fi ;;
