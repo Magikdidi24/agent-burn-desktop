@@ -110,7 +110,7 @@ Sous le shim, depuis `app/` (code 1 si un test échoue) :
 ```sh
 t python tests/run_burn_suite.py
 t env BURN_TEST=corrupt python tests/run_burn_suite.py   # fichiers persistés illisibles
-t env BURN_TEST=timeout python tests/run_burn_suite.py   # CLI bloqué : environ 2 min
+t env BURN_TEST=timeout python tests/run_burn_suite.py   # CLI bloqué, délai abaissé à 10 s : environ 20 s
 t python tests/run_burn_suite.py <dossier>   # autre shell.qml ; son Burn.qml remplace celui du dépôt (mutants)
 ```
 
@@ -129,7 +129,7 @@ env -u DISPLAY -u WAYLAND_DISPLAY QT_QPA_PLATFORM=offscreen XDG_RUNTIME_DIR=$R X
 ```
 
 qs sort en 0 même quand des tests échouent : lire la ligne `RESULT`. Mêmes variantes avec `BURN_TEST=corrupt`
-et `BURN_TEST=timeout` (alors `timeout 170`). Les avertissements de qs sur Wayland, l'inactivité ou les portails
+et `BURN_TEST=timeout`. Les avertissements de qs sur Wayland, l'inactivité ou les portails
 viennent de l'environnement sans écran.
 
 La suite ne tourne que sous Linux : sous Windows, la console en cp1252 abîme ses messages (vu sous Wine).
@@ -339,7 +339,7 @@ branche, du même tag ou de la même pull request ; un push et la pull request d
 
 | Job | Machine | Contenu | Artefacts |
 |---|---|---|---|
-| Tests | `ubuntu-24.04` | bibliothèques Qt, Xvfb et Mesa ; dépendances du verrou haché ; tests unitaires ; outils de licence (`tools/`) ; suite du cœur (normal, corrompu) ; suivi de l'amont ; selftest sous Xvfb ; suite « CLI bloqué » en dernier | `selftest-linux-dev` (7 jours) |
+| Tests | `ubuntu-24.04` | bibliothèques Qt, Xvfb et Mesa ; dépendances du verrou haché ; tests unitaires ; outils de licence (`tools/`) ; suite du cœur (normal, corrompu, CLI bloqué) ; suivi de l'amont ; selftest sous Xvfb | `selftest-linux-dev` (7 jours) |
 | Linux (paquets) | conteneur `python:3.12-slim-bookworm`, épinglé par empreinte | `linux/build.sh` | `agent-burn-desktop-linux` (1 jour) |
 | Paquets sur … | 7 conteneurs de distros (étiquettes, pas d'empreinte : des distros à jour) | `linux/smoke.sh` sur l'artefact téléchargé dans `dist-in/` | `smoke-<n>` en cas d'échec (7 jours) : journaux et captures de `smoke.sh` |
 | Windows x64 | `windows-2025` (image épinglée : `windows-latest` en changerait sans prévenir) | Python 3.13 ; venv `.venv` rempli du verrou haché (celui de `build.ps1`), tests unitaires sur un vrai Windows (sortie en UTF-8, 5 min au plus), Inno Setup (choco 6.7.1 si absent), `build.ps1`, `smoke.ps1` | `agent-burn-desktop-windows-x64` (1 jour, déposé avant `smoke.ps1`), `selftest-windows-x64` (7 jours, dès que le build a tourné : selftest du build et sorties de `smoke.ps1`, sans la copie extraite du zip) |
@@ -357,7 +357,7 @@ branche, du même tag ou de la même pull request ; un push et la pull request d
   `pull_request_target` (une pull request de fork n'a ni secret ni droit d'écriture), runs groupés par numéro de
   pull request ou par ref complet (celle d'un fork ne peut pas annuler un run du dépôt).
 - Pas dans la CI : la suite du cœur sous Quickshell, la suite du cœur sous Windows, un lint QML.
-- Durées du premier run complet : tests 3 min 40, paquets Linux 2 min 30, Windows x64 10 min, chaque distro
+- Durées du premier run complet : tests 3 min 40 (dont 2 min pour la suite « CLI bloqué », 20 s depuis), paquets Linux 2 min 30, Windows x64 10 min, chaque distro
   1 min environ, soit 15 min de bout en bout ; plus 5 à 12 min quand le CLI est recompilé (estimation). Dépôt
   public : GitHub ne facture pas les minutes de ses runners standard. Les artefacts de paquets (environ 300 Mo
   Linux et 110 Mo Windows par run) ne sont gardés qu'un jour : les releases gardent les paquets.

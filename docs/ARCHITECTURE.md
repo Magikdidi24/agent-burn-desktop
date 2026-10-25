@@ -121,7 +121,8 @@ Publique, utilisée par les vues et les hôtes :
   `harness:codex`, `quota`, `cli`).
 - **État** : `loading`, `error` (summary, période, CLI absent), `cliMissing`, `signInExpired`, `limitsStale`,
   `dataState` (`live`, `cached`, `unavailable`), `pricingMissing`, `updatedAt`, `now`.
-- **Réglé par l'hôte** : `refreshInterval` (ms, 300 000 par défaut ; l'app le lie à ses réglages), `cliHint`
+- **Réglé par l'hôte** : `refreshInterval` (ms, 300 000 par défaut ; l'app le lie à ses réglages),
+  `cliTimeoutMs` (délai maximal d'un run du CLI, 120 000 ms ; seule la suite de tests le change), `cliHint`
   (remède affiché quand le CLI manque), `bin` (`AGENT_BURN_BIN`, sinon `~/.local/bin/agent-burn`),
   `accessibleText` (faux par défaut ; vrai dans l'app de bureau, faux dans la barre : voir
   [Contrat plateforme](#contrat-plateforme)).
@@ -145,7 +146,7 @@ Internes, publics par nécessité en QML, à ne pas utiliser ailleurs : `cadence
 `since`, `at`, `failed`, `problem`, `launched`, `timedOut`, `errorOutput`.
 
 `dataState` : `unavailable` sans summary ; `cached` si le summary vient du disque (`summaryCached`), si le
-dernier summary a échoué, ou s'il a plus d'une heure plus une `cadence` plus 2 min (le délai maximal d'un run :
+dernier summary a échoué, ou s'il a plus d'une heure plus une `cadence` plus `cliTimeoutMs` (le délai maximal d'un run :
 le summary horaire en cours ne fait pas passer en cache) ; sinon `live`. `stateText()` le traduit en « En
 direct », « En cache », « Indisponible ». `limitsStale` : relevé Claude plus vieux que `staleAfter` =
 max(10 min, 2 × `cadence`), ou connexion à vérifier. `providerState()` est décrit dans
@@ -214,7 +215,7 @@ forcé si l'un des appels l'était ; c'est alors la fin de ce summary qui rechar
 période ne tournent donc jamais ensemble. `loadHarness()` et `loadQuota()`, eux, n'attendent pas la période
 (rare : une période dure environ 1 s).
 
-Chien de garde : toutes les 5 s tant qu'un run tourne, un run de plus de 120 s est tué (`signal(9)`) ; son
+Chien de garde : toutes les 5 s tant qu'un run tourne, un run de plus de `cliTimeoutMs` (120 s) est tué (`signal(9)`) ; son
 `exited` produit le message de délai dépassé.
 
 ## Isolation du CLI

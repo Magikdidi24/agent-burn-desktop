@@ -37,13 +37,14 @@ Singleton {
     property var rangeCache: ({})   // { plage: { at, data } }
     readonly property var rangeSummary: range === "all" ? summary : rangeCache[range]?.data ?? null
     property int refreshInterval: 300000   // tour de fond en ms, réglé par l'app de bureau
+    property int cliTimeoutMs: 120000   // run du CLI tué au-delà, comme l'app Mac (abaissé par la suite de tests)
     readonly property int cadence: Math.max(60000, refreshInterval)
     // Relevé Claude ancien après 2 tours de fond (un relevé manqué), 10 min au moins.
     readonly property real staleAfter: Math.max(600000, 2 * cadence)
     // En cache : relu du disque, dernier summary en échec, ou plus vieux que le rythme horaire de la pill,
-    // durée du summary horaire comprise (2 min : son délai maximal).
+    // durée du summary horaire comprise (cliTimeoutMs : son délai maximal).
     readonly property string dataState: !summary ? "unavailable"
-        : summaryCached || sumProc.failed || now - updatedAt > 3600000 + cadence + 120000 ? "cached" : "live"
+        : summaryCached || sumProc.failed || now - updatedAt > 3600000 + cadence + cliTimeoutMs ? "cached" : "live"
     // Tokens sans aucun coût : tarifs indisponibles (hors ligne, LiteLLM injoignable), le CLI compte 0 $.
     readonly property bool pricingMissing: (summary?.totals?.totalTokens ?? 0) > 0 && summary.totals.totalCost === 0
 
@@ -356,7 +357,7 @@ Singleton {
         var m = line.match(/^Error: CliError\("(.*)"\)$/);
         var detail = m ? m[1].replace(/\\(["\\])/g, "$1") : line;   // chaîne Debug de Rust : \" et \\ échappés
         if (detail.length > 160) detail = detail.slice(0, 159) + "…";
-        if (p.timedOut) p.problem = "agent-burn n'a pas répondu en 120 s : réessaie dans un instant.";
+        if (p.timedOut) p.problem = "agent-burn n'a pas répondu en " + Math.round(cliTimeoutMs / 1000) + " s : réessaie dans un instant.";
         else if (code === 2) p.problem = "CLI agent-burn incompatible" + (detail ? " : " + detail : "");
         else if (code !== 0) p.problem = "agent-burn a échoué (code " + code + ")" + (detail ? " : " + detail : "");
         else {
@@ -585,12 +586,12 @@ Singleton {
         onRunningChanged: if (!running && !launched) root.missing(codexProc)
         onExited: code => root.harnessDone("codex", codexProc, code)
     }
-    // Timeout 120 s par run, comme l'app Mac : process tué, l'erreur part de son exited.
+    // Délai maximal par run (cliTimeoutMs) : process tué, l'erreur part de son exited.
     Timer {
         interval: 5000; repeat: true; running: root.loading || quotaProc.running
         onTriggered: {
             for (var p of [sumProc, rangeProc, claudeProc, codexProc, quotaProc])
-                if (p.running && Date.now() - p.since > 120000) {
+                if (p.running && Date.now() - p.since > root.cliTimeoutMs) {
                     p.timedOut = true;
                     p.signal(9);
                 }

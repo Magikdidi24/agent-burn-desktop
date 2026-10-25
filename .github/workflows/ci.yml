@@ -81,6 +81,11 @@ jobs:
         working-directory: app
         run: BURN_TEST=corrupt dbus-run-session -- python tests/run_burn_suite.py
 
+      # La suite abaisse le délai du CLI de Burn.qml (cliTimeoutMs, 120 s dans l'app) à 10 s : ~20 s d'attente.
+      - name: 'Suite Burn.qml : CLI bloqué'
+        working-directory: app
+        run: BURN_TEST=timeout dbus-run-session -- python tests/run_burn_suite.py
+
       - name: Suivi amont
         run: python3 -I scripts/test_agent_burn_upstream.py
 
@@ -98,11 +103,6 @@ jobs:
           name: selftest-linux-dev
           path: ${{ runner.temp }}/selftest/
           retention-days: 7
-
-      # En dernier : 2 min d'attente (Burn.qml tue le CLI bloqué à 120 s).
-      - name: 'Suite Burn.qml : CLI bloqué'
-        working-directory: app
-        run: BURN_TEST=timeout dbus-run-session -- python tests/run_burn_suite.py
 
   linux:
     name: Linux (paquets)

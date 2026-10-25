@@ -9,7 +9,7 @@ import QtQuick
 //          lire la ligne RESULT)
 //   shim : python ../run_burn_suite.py   (python du venv PySide6 ; code 1 si un test échoue)
 // BURN_TEST=corrupt : fichiers persistés illisibles → copie .bak, puis états des agents sans compte.
-// BURN_TEST=timeout : CLI bloqué → summary et relevé léger tués à 120 s (qs : timeout 150).
+// BURN_TEST=timeout : CLI bloqué → summary et relevé léger tués par le chien de garde, délai abaissé à 10 s.
 // Burn n'est référencé qu'après l'écriture des fichiers de départ (singleton créé au 1er accès).
 Scope {
     id: t
@@ -98,7 +98,7 @@ Scope {
         interval: 100; repeat: true; running: t.step > 0
         onTriggered: {
             try { t.tick(); } catch (e) { t.check(false, "exception : " + e + " " + e.stack); t.next(); }
-            if (t.step > 0 && t.waited(t.slow ? 140000 : 8000)) { t.check(false, "délai dépassé"); t.finish(); }
+            if (t.step > 0 && t.waited(t.slow ? 30000 : 8000)) { t.check(false, "délai dépassé"); t.finish(); }
         }
     }
 
@@ -127,6 +127,7 @@ Scope {
                 return;
             }
             if (slow) {
+                Burn.cliTimeoutMs = 10000;   // 120 s dans l'app : même chien de garde, sans 2 min d'attente
                 mode.setText("slow\n");   // avant le 1er refresh (3 s)
                 Burn.loadQuota();          // relevé léger bloqué lui aussi
                 step = 89;
@@ -712,11 +713,11 @@ Scope {
         case 90:  // CLI bloqué : summary et relevé léger tués par le watchdog
             if (Burn.error === "") return;
             var dt = Date.now() - burnAt;
-            check(Burn.error.indexOf("120 s") >= 0, "erreur de délai : " + Burn.error);
-            check(dt >= 123000 && dt <= 133000, "tué vers 3 s + 120 s (" + dt + " ms)");
+            check(Burn.error.indexOf("en 10 s") >= 0, "erreur de délai : " + Burn.error);
+            check(dt >= 13000 && dt <= 20000, "tué vers 3 s + 10 s (" + dt + " ms)");
             check(Burn.summaryCached && Burn.dataState === "cached", "summary en cache gardé");
             eq(Burn.loading, false, "plus de run en cours");
-            check(Burn.recentErrors.some(e => e.source === "quota" && e.msg.indexOf("120 s") >= 0), "relevé léger tué à 120 s");
+            check(Burn.recentErrors.some(e => e.source === "quota" && e.msg.indexOf("en 10 s") >= 0), "relevé léger tué à 10 s");
             eq(Burn.account.observedAtMs, seedAt - 7200000, "dernier relevé gardé");
             finish();
             break;
