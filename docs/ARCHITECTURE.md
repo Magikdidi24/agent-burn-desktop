@@ -146,8 +146,8 @@ Internes, publics par nécessité en QML, à ne pas utiliser ailleurs : `cadence
 `since`, `at`, `failed`, `problem`, `launched`, `timedOut`, `errorOutput`.
 
 `dataState` : `unavailable` sans summary ; `cached` si le summary vient du disque (`summaryCached`), si le
-dernier summary a échoué, ou s'il a plus d'une heure plus une `cadence` plus `cliTimeoutMs` (le délai maximal d'un run :
-le summary horaire en cours ne fait pas passer en cache) ; sinon `live`. `stateText()` le traduit en « En
+dernier summary a échoué, ou s'il a plus d'une heure plus une `cadence` plus `cliTimeoutMs` (le délai maximal
+d'un run : le summary horaire en cours ne fait pas passer en cache) ; sinon `live`. `stateText()` le traduit en « En
 direct », « En cache », « Indisponible ». `limitsStale` : relevé Claude plus vieux que `staleAfter` =
 max(10 min, 2 × `cadence`), ou connexion à vérifier. `providerState()` est décrit dans
 [PROVIDERS.md](PROVIDERS.md#états-dun-fournisseur).
@@ -215,8 +215,8 @@ forcé si l'un des appels l'était ; c'est alors la fin de ce summary qui rechar
 période ne tournent donc jamais ensemble. `loadHarness()` et `loadQuota()`, eux, n'attendent pas la période
 (rare : une période dure environ 1 s).
 
-Chien de garde : toutes les 5 s tant qu'un run tourne, un run de plus de `cliTimeoutMs` (120 s) est tué (`signal(9)`) ; son
-`exited` produit le message de délai dépassé.
+Chien de garde : toutes les 5 s tant qu'un run tourne, un run de plus de `cliTimeoutMs` (120 s) est tué
+(`signal(9)`) ; son `exited` produit le message de délai dépassé.
 
 ## Isolation du CLI
 

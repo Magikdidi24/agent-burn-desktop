@@ -174,9 +174,9 @@ Images de la CI : `ubuntu:22.04`, `ubuntu:24.04`, `debian:12`, `debian:13`, `fed
 [`linux/smoke.sh`](../linux/smoke.sh) vérifie `SHA256SUMS`, installe le paquet natif sans ses recommandations
 (Arch : l'archive dans `/opt` et `/usr/local`), contrôle le `PATH`, le lanceur, les icônes, AppStream, le fichier
 `/usr/share/doc/agent-burn-desktop/copyright` (Debian, Ubuntu) et `--version` du CLI embarqué, résout chaque
-bibliothèque du bundle avec `ldd` (`find` installé sous openSUSE, dont l'image ne l'a pas ; échec sans lui), lance le selftest de l'app installée (rendu logiciel, puis OpenGL Mesa sous
-Xvfb), désinstalle et vérifie qu'il ne reste aucun fichier. Sous Arch, il essaie aussi l'AppImage
-(`APPIMAGE_EXTRACT_AND_RUN=1`). Journaux et captures : `dist/linux/smoke-<distro>-<version>/` (dans la CI,
+bibliothèque du bundle avec `ldd` (`find` installé sous openSUSE, dont l'image ne l'a pas ; échec sans lui),
+lance le selftest de l'app installée (rendu logiciel, puis OpenGL Mesa sous Xvfb), désinstalle et vérifie qu'il
+ne reste aucun fichier. Sous Arch, il essaie aussi l'AppImage (`APPIMAGE_EXTRACT_AND_RUN=1`). Journaux et captures : `dist/linux/smoke-<distro>-<version>/` (dans la CI,
 artefact `smoke-<n>` en cas d'échec).
 
 ### Installeur Windows : `smoke.ps1`
@@ -349,11 +349,11 @@ branche, du même tag ou de la même pull request ; un push et la pull request d
 | Release (brouillon) | `ubuntu-24.04` | tags `desktop-v*` seulement, après les paquets et Windows : refus d'un tag dont la version n'est pas celle des paquets, `SHA256SUMS`, `gh release create --draft --verify-tag` | release brouillon |
 
 - Caches : CLI par `AB_REV` (et par architecture sous Windows) avec le registre cargo, sauvé dès la compilation
-  même si la suite échoue, jamais repris par un tag de release ; polices extraites (`app/fonts`, revérifiées par sha256 à chaque build) ; pip des
-  jobs Tests et Windows (setup-python), indexé par le verrou. Pas de cache de
-  la chaîne Rust : rustup installe celle de l'amont à chaque compilation du CLI (15 s environ), et un cache par
-  révision ne serait jamais relu. Un cache n'est vu que de sa branche et de `main` : fusionner le workflow dans
-  `main` les amorce pour toutes les branches.
+  même si la suite échoue, jamais repris par un tag de release ; polices extraites (`app/fonts`, revérifiées
+  par sha256 à chaque build) ; pip des jobs Tests et Windows (setup-python), indexé par le verrou. Pas de cache
+  de la chaîne Rust : rustup installe celle de l'amont à chaque compilation du CLI (15 s environ), et un cache
+  par révision ne serait jamais relu. Un cache n'est vu que de sa branche et de `main` : fusionner le workflow
+  dans `main` les amorce pour toutes les branches.
 - Hygiène : actions épinglées par SHA (version en commentaire), `persist-credentials: false`, permissions
   `contents: read` (sauf la release), délai maximal sur chaque job, `pull_request` et jamais
   `pull_request_target` (une pull request de fork n'a ni secret ni droit d'écriture), runs groupés par numéro de
