@@ -137,6 +137,12 @@ jobs:
           key: agent-burn-cli-linux-x64-${{ steps.rev.outputs.rev }}
           restore-keys: agent-burn-cli-linux-x64-
 
+      # Polices extraites (app/fonts, ignoré par git) : build.sh revérifie leurs sha256 et retélécharge au moindre écart.
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: app/fonts
+          key: fonts-jetbrainsmono-nf-v3.4.0   # à changer avec la version des polices de build.sh et build.ps1
+
       - name: 'Build : bundle, AppImage, .deb, .rpm, archive'
         env:
           CLI_HIT: ${{ steps.cli.outputs.cache-hit }}
@@ -253,6 +259,12 @@ jobs:
           path: ${{ env.CLI_CACHE }}
           key: agent-burn-cli-windows-${{ matrix.arch }}-${{ steps.rev.outputs.rev }}
           restore-keys: agent-burn-cli-windows-${{ matrix.arch }}-
+
+      # Comme sous Linux : build.ps1 revérifie les sha256 (zip de 129 Mo sinon téléchargé à chaque run).
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: app/fonts
+          key: fonts-jetbrainsmono-nf-v3.4.0
 
       - name: Inno Setup (si absent de l'image)
         run: |

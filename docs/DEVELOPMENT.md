@@ -342,7 +342,8 @@ branche, du même tag ou de la même pull request ; un push et la pull request d
 | Release (brouillon) | `ubuntu-24.04` | tags `desktop-v*` seulement, après les paquets et Windows : refus d'un tag dont la version n'est pas celle des paquets, `SHA256SUMS`, `gh release create --draft --verify-tag` | release brouillon |
 
 - Caches : CLI par `AB_REV` (et par architecture sous Windows) avec le registre cargo, sauvé dès la compilation
-  même si la suite échoue ; pip des jobs Tests et Windows (setup-python), indexé par le verrou. Pas de cache de
+  même si la suite échoue ; polices extraites (`app/fonts`, revérifiées par sha256 à chaque build) ; pip des
+  jobs Tests et Windows (setup-python), indexé par le verrou. Pas de cache de
   la chaîne Rust : rustup installe celle de l'amont à chaque compilation du CLI (15 s environ), et un cache par
   révision ne serait jamais relu. Un cache n'est vu que de sa branche et de `main` : fusionner le workflow dans
   `main` les amorce pour toutes les branches.
@@ -380,7 +381,8 @@ branche, du même tag ou de la même pull request ; un push et la pull request d
   `StartupWMClass`), les exécutables `AgentBurn.exe` et `agent-burn-desktop`, le CLI dans `<dossier de l'exe>/bin/`,
   les clés de `build-info.json` (`appVersion`, `cliRev`, `cliVersion`, `target`, `builtAt`) écrites par les
   deux scripts de build, l'empreinte de l'image de build (workflow et `linux/build-local.sh`), les sommes des
-  polices JetBrainsMono Nerd Font extraites (`linux/build.sh` et `build.ps1`).
+  polices JetBrainsMono Nerd Font extraites (`linux/build.sh` et `build.ps1`) et la version dans la clé de leur
+  cache (workflow).
 
 ## ARM64
 
