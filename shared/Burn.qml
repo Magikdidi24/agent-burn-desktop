@@ -37,9 +37,10 @@ Singleton {
     readonly property int cadence: Math.max(60000, refreshInterval)
     // Relevé Claude ancien après 2 tours de fond (un relevé manqué), 10 min au moins.
     readonly property real staleAfter: Math.max(600000, 2 * cadence)
-    // En cache : relu du disque, dernier summary en échec, ou plus vieux que le rythme horaire de la pill.
+    // En cache : relu du disque, dernier summary en échec, ou plus vieux que le rythme horaire de la pill,
+    // durée du summary horaire comprise (2 min : son délai maximal).
     readonly property string dataState: !summary ? "unavailable"
-        : summaryCached || sumProc.failed || now - updatedAt > 3600000 + cadence ? "cached" : "live"
+        : summaryCached || sumProc.failed || now - updatedAt > 3600000 + cadence + 120000 ? "cached" : "live"
     // Tokens sans aucun coût : tarifs indisponibles (hors ligne, LiteLLM injoignable), le CLI compte 0 $.
     readonly property bool pricingMissing: (summary?.totals?.totalTokens ?? 0) > 0 && summary.totals.totalCost === 0
 

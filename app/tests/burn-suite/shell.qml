@@ -450,10 +450,10 @@ Scope {
             u = Burn.updatedAt;
             Burn.refreshInterval = 1000;   // < 1 min : compté 1 min
             Burn.now = Date.now();
-            Burn.updatedAt = Burn.now - 3600000 - 70000;
-            eq(Burn.dataState, "cached", "plus vieux qu'1 h + cadence (plancher 1 min) → en cache");
-            Burn.updatedAt = Burn.now - 3600000 - 50000;
-            eq(Burn.dataState, "live", "1 h 50 s : encore en direct");
+            Burn.updatedAt = Burn.now - 3600000 - 190000;
+            eq(Burn.dataState, "cached", "plus vieux qu'1 h + cadence (plancher 1 min) + 2 min de run → en cache");
+            Burn.updatedAt = Burn.now - 3600000 - 170000;
+            eq(Burn.dataState, "live", "1 h 2 min 50 s : summary horaire en cours, encore en direct");
             Burn.refreshInterval = 300000;
             Burn.updatedAt = u;
             // Relevé Claude ancien après 2 tours de fond, 10 min au moins.
