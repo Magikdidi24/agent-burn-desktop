@@ -26,6 +26,8 @@ _CLI_VARS = ("AGENT_BURN_QUOTA_ONLY", "AGENT_BURN_FORCE_REFRESH", "LOG_LEVEL")
 # Posées par PyInstaller pour l'app gelée (avec _PYI_* et LD_LIBRARY_PATH) : kde-open, lancé par xdg-open,
 # chargerait sinon les plugins Qt du bundle.
 _BUNDLE_VARS = ("QT_PLUGIN_PATH", "QML2_IMPORT_PATH", "QML_IMPORT_PATH")
+# Posées par l'app pour elle-même (__main__ : QSG_RENDER_LOOP) : ni le CLI ni xdg-open n'en héritent.
+APP_VARS = set()
 
 
 def child_environment():
@@ -44,7 +46,7 @@ def child_environment():
             env.remove("LD_LIBRARY_PATH_ORIG")
         else:
             env.remove("LD_LIBRARY_PATH")
-    for name in _CLI_VARS:
+    for name in _CLI_VARS + tuple(APP_VARS):
         env.remove(name)
     if sys.platform == "win32" and env.contains("USERPROFILE"):
         env.insert("HOME", env.value("USERPROFILE"))

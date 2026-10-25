@@ -14,6 +14,7 @@ from pathlib import Path
 
 FROZEN = getattr(sys, "frozen", False)
 APP_ID = "io.github.magikdidi24.AgentBurn"   # fichier .desktop, app_id Wayland, autostart XDG
+OWN_ENV = set()   # variables posées par main() pour l'app seule
 log = logging.getLogger("agentburn")
 
 
@@ -80,8 +81,11 @@ def main():
     # Linux : boucle de rendu sans fil dédié. Celle à fil de Qt 6.12 plante dans QtWaylandClient
     # (QWaylandWindow::beginFrame) pendant l'affichage d'une fenêtre ; l'app anime peu, rien n'y est perdu.
     # Hors écran (selftest), rien de Wayland, et la boucle basique y capture à moitié le popover agrandi.
-    if sys.platform.startswith("linux") and not os.environ.get("QT_QPA_PLATFORM", "").startswith("offscreen"):
-        os.environ.setdefault("QSG_RENDER_LOOP", "basic")
+    # Réglage de l'utilisateur gardé ; le nôtre ne passe pas aux process lancés (OWN_ENV → shim.APP_VARS).
+    if (sys.platform.startswith("linux") and not os.environ.get("QT_QPA_PLATFORM", "").startswith("offscreen")
+            and "QSG_RENDER_LOOP" not in os.environ):
+        os.environ["QSG_RENDER_LOOP"] = "basic"
+        OWN_ENV.add("QSG_RENDER_LOOP")
     if "AGENT_BURN_BIN" not in os.environ:   # lu par Burn.qml au chargement
         exe = "agent-burn.exe" if sys.platform == "win32" else "agent-burn"   # bundle Linux : sans .exe
         os.environ["AGENT_BURN_BIN"] = (str(Path(sys.executable).parent / "bin" / exe) if FROZEN
@@ -149,6 +153,8 @@ def run(args):
     from PySide6.QtWidgets import QApplication, QFileIconProvider
 
     from agentburn import diagnostics, logs, paths, runtime, settings, shim, tray
+
+    shim.APP_VARS.update(OWN_ENV)
 
     mode = "selftest" if args.selftest else args.show or "tray"
     QCoreApplication.setApplicationName("AgentBurn")

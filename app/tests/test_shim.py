@@ -100,6 +100,12 @@ def wait_for(cond, seconds=10):
 
 
 class ChildEnvironment(unittest.TestCase):
+    def test_app_own_render_loop_not_inherited_user_one_kept(self):
+        with mock.patch.dict(os.environ, {"QSG_RENDER_LOOP": "basic"}), mock.patch.object(shim, "APP_VARS", {"QSG_RENDER_LOOP"}):
+            self.assertNotIn("QSG_RENDER_LOOP", env_of(shim.child_environment()))
+        with mock.patch.dict(os.environ, {"QSG_RENDER_LOOP": "threaded"}), mock.patch.object(shim, "APP_VARS", set()):
+            self.assertEqual(env_of(shim.child_environment()).get("QSG_RENDER_LOOP"), "threaded")
+
     def test_frozen_bundle_leaks_removed_library_path_restored(self):
         with mock.patch.dict(os.environ, LEAKS), frozen():
             env = env_of(shim.child_environment())
