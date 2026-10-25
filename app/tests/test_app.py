@@ -1,6 +1,6 @@
 # Tests de l'app Windows : faux CLI, position et hauteur du popover, icône, dossier QML d'exécution,
 # démarrage avec Windows (registre factice).
-#   cd windows/agent-burn/app && python -m unittest discover -s tests -v
+#   cd desktop/agent-burn/app && python -m unittest discover -s tests -v
 import datetime
 import json
 import os

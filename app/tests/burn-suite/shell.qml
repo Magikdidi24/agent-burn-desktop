@@ -3,7 +3,7 @@ import Quickshell.Io
 import QtQuick
 
 // Test headless de Burn.qml (aucune fenêtre), sous qs et sous le shim de l'app Windows : mêmes résultats
-// attendus. Fixtures de windows/agent-burn/tests/fixtures servies par un faux CLI (fake/). Depuis ce dossier :
+// attendus. Fixtures de desktop/agent-burn/tests/fixtures servies par un faux CLI (fake/). Depuis ce dossier :
 //   qs   : d=$(mktemp -d) && python3 -I fake/gen.py "$d" && AGENT_BURN_BIN="$d/agent-burn" timeout 25 qs -p "$PWD"
 //   shim : python ../run_burn_suite.py   (python du venv PySide6 ; code 1 si un test échoue)
 // BURN_TEST=corrupt : fichiers persistés illisibles → copie .bak.

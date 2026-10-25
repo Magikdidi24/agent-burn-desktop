@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[3]   # <repo>/config/quickshell/scripts/
 INSTALL_SH = Path(os.environ.get("AGENT_BURN_INSTALL_SH") or ROOT / "install.sh").resolve()
 ENV = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}   # lancé en fond par qs : jamais de demande d'identifiants
 
-QS, WIN = "config/quickshell/", "windows/agent-burn/app/"
+QS, WIN = "config/quickshell/", "desktop/agent-burn/app/"
 BURN, POP, DASH = QS + "Burn.qml", QS + "BurnPopover.qml", QS + "BurnDashboardView.qml"
 # App Mac (Sources/AgentBurn/<nom>.swift) → fichiers de ce repo qui la portent ; [] = non porté.
 PORT = {
@@ -100,7 +100,7 @@ def mac_targets(path):
     if "/Resources/Brands/" in path:
         return [QS + "assets/burn/"]
     if path.endswith("/AppIcon.icns"):
-        return ["windows/agent-burn/assets/agent-burn.ico"]
+        return ["desktop/agent-burn/assets/agent-burn.ico"]
     return None
 
 
@@ -323,7 +323,7 @@ def bump(rev):
                                                "install.sh (avant, copie .bak)", "install.sh"))
     repo = INSTALL_SH.parent
     print(f"\nCompatible : CLI installé ({dst}), install.sh épinglé. Étapes suivantes :\n"
-          f"  recapture windows/agent-burn/tests/fixtures avec ce CLI (selftest et tests de l'app Windows ;\n"
+          f"  recapture desktop/agent-burn/tests/fixtures avec ce CLI (selftest et tests de l'app Windows ;\n"
           f"  date de capture dans fake_cli de __main__.py et dans gen.py de la suite burn-suite)\n"
           f"  git -C {repo} add install.sh   (+ les fichiers portés)\n"
           f'  git -C {repo} commit -m "agent-burn : CLI épinglé sur {sha[:12]} ({ver})"\n'

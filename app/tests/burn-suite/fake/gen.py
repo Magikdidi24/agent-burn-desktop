@@ -1,4 +1,4 @@
-# Prépare dans DOSSIER le faux CLI et ses fixtures (windows/agent-burn/tests/fixtures) : dates décalées
+# Prépare dans DOSSIER le faux CLI et ses fixtures (desktop/agent-burn/tests/fixtures) : dates décalées
 # pour que le dernier jour = aujourd'hui, compte Claude daté de maintenant, état du faux CLI remis à zéro.
 # Usage : python3 -I gen.py <dossier>
 import datetime

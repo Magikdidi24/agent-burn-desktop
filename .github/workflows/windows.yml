@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - windows/agent-burn/**
+      - desktop/agent-burn/**
       - config/quickshell/Burn.qml
       - config/quickshell/BurnPopover.qml
       - config/quickshell/BurnDashboardView.qml
@@ -41,7 +41,7 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            windows/agent-burn/build/cli
+            desktop/agent-burn/build/cli
           key: agent-burn-cli-${{ runner.os }}-${{ steps.rev.outputs.rev }}
           restore-keys: agent-burn-cli-${{ runner.os }}-
 
@@ -50,14 +50,14 @@ jobs:
           if (-not (Test-Path 'C:/Program Files (x86)/Inno Setup 6/ISCC.exe')) { choco install innosetup -y --no-progress }
 
       - name: Build
-        run: pwsh -File windows/agent-burn/build.ps1
+        run: pwsh -File desktop/agent-burn/build.ps1
 
       - uses: actions/upload-artifact@v7
         with:
           name: AgentBurn-windows
           path: |
-            windows/agent-burn/dist/AgentBurn-Setup-*.exe
-            windows/agent-burn/dist/AgentBurn-portable-*.zip
+            desktop/agent-burn/dist/AgentBurn-Setup-*.exe
+            desktop/agent-burn/dist/AgentBurn-portable-*.zip
           if-no-files-found: error
 
       # Captures et rapport du selftest, aussi (surtout) quand le build échoue.
@@ -65,4 +65,4 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: selftest
-          path: windows/agent-burn/dist/selftest/
+          path: desktop/agent-burn/dist/selftest/

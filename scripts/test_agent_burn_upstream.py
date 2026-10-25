@@ -17,7 +17,7 @@ sys.dont_write_bytecode = True   # importer le script ne doit pas laisser de __p
 HERE = Path(__file__).resolve().parent
 QS = HERE.parent
 SCRIPT = HERE / "agent-burn-upstream.py"
-FIX = HERE.parents[2] / "windows/agent-burn/tests/fixtures"   # sorties réelles du CLI
+FIX = HERE.parents[2] / "desktop/agent-burn/tests/fixtures"   # sorties réelles du CLI
 
 INSTALL_SH = """#!/usr/bin/env bash
 # en-tête
@@ -202,8 +202,8 @@ class Upstream(unittest.TestCase):
         self.assertEqual(d["toPort"], ["config/quickshell/Burn.qml", "config/quickshell/BurnDashboard.qml",
                                        "config/quickshell/BurnDashboardView.qml", "config/quickshell/BurnPill.qml",
                                        "config/quickshell/BurnPopover.qml", "config/quickshell/BurnQuotaChart.qml",
-                                       "windows/agent-burn/app/agentburn/tray.py", "windows/agent-burn/app/qml/Colors.qml",
-                                       "windows/agent-burn/app/qml/DashboardWindow.qml"])
+                                       "desktop/agent-burn/app/agentburn/tray.py", "desktop/agent-burn/app/qml/Colors.qml",
+                                       "desktop/agent-burn/app/qml/DashboardWindow.qml"])
         self.assertEqual(d["compareUrl"], "")   # pas GitHub
         self.assertTrue(d["fetchedAt"])
         self.assertEqual(d["error"], "")
@@ -221,10 +221,10 @@ class Upstream(unittest.TestCase):
                   self.c2[:7], "feat(macos): plage du graphe de quota",
                   "QuotaChart.swift → config/quickshell/BurnQuotaChart.qml",
                   "Theme.swift → config/quickshell/BurnPopover.qml, config/quickshell/BurnDashboardView.qml, "
-                  "windows/agent-burn/app/qml/Colors.qml",
+                  "desktop/agent-burn/app/qml/Colors.qml",
                   "CursorAccountView.swift → non porté",
                   "AgentBurnApp.swift → config/quickshell/BurnPill.qml, config/quickshell/BurnDashboard.qml, "
-                  "windows/agent-burn/app/agentburn/tray.py, windows/agent-burn/app/qml/DashboardWindow.qml",
+                  "desktop/agent-burn/app/agentburn/tray.py, desktop/agent-burn/app/qml/DashboardWindow.qml",
                   "CompactHarnessView.swift → config/quickshell/BurnPopover.qml",
                   "[adapter/claude]", "[sortie JSON → vérifier Burn.qml]", "[tarifs]",
                   "v20.0.22", "macos-v1.1.0", "Fichiers du repo à revoir", "config/quickshell/Burn.qml",
@@ -344,7 +344,7 @@ class Upstream(unittest.TestCase):
         self.assertEqual(sorted(calls), ["harness claude --value --json --no-color --offline",
                                          "summary --value --json --no-color --offline"])
         for s in ["+AB_REV=" + self.head, '+AB_VER="agent-burn 20.0.22"', "Compatible", "Étapes suivantes",
-                  "recapture windows/agent-burn/tests/fixtures", "push", "Non vérifiable hors ligne : claudeAccount",
+                  "recapture desktop/agent-burn/tests/fixtures", "push", "Non vérifiable hors ligne : claudeAccount",
                   "summary : ok (19 clés)", "harness claude : ok (9 clés)"]:
             self.assertIn(s, r.stdout)
 

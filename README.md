@@ -79,7 +79,7 @@ recompile le CLI tout seul.
 
 ## Tests (sous Linux)
 
-Depuis `windows/agent-burn/app`, avec un Python où PySide6 6.12 est installé :
+Depuis `desktop/agent-burn/app`, avec un Python où PySide6 6.12 est installé :
 
 ```sh
 python -m unittest discover -s tests          # faux CLI, popover, icône, dossier QML, registre factice
