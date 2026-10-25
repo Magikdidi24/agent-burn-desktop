@@ -184,6 +184,7 @@ Scope {
             eq(Burn.cliHint, "CLI agent-burn introuvable (~/.local/bin/agent-burn) : relance install.sh", "cliHint par défaut");
             eq(Burn.cliConfig, Quickshell.dataPath("agent-burn-cli.json"), "cliConfig dans le dossier de données");
             eq(Burn.refreshInterval, 300000, "cadence par défaut 5 min");
+            eq(Burn.accessibleText, false, "textes non exposés par défaut (barre : boucle de rendu threaded)");
 
             check(Burn.summary !== null && Burn.summary.agents.length === 0, "summary en cache relu au démarrage");
             eq(Burn.summaryCached, true, "summaryCached");

@@ -25,6 +25,9 @@ Singleton {
     property bool cliMissing: false
     // Remède affiché quand le CLI manque (BurnPopover) ; l'app de bureau donne le sien.
     property string cliHint: "CLI agent-burn introuvable (~/.local/bin/agent-burn) : relance install.sh"
+    // Textes des vues exposés aux lecteurs d'écran : vrai dans l'app de bureau (boucle de rendu basic sous Linux).
+    // Faux dans la barre : sous Qt 6.12, ils font planter bien plus souvent la boucle de rendu threaded de Wayland.
+    property bool accessibleText: false
     property bool dashboardOpen: false
     property string dashboardPage: "all"   // "all" ou un agent
     property bool pendingForce: false   // refresh(true) demandé pendant un run : rejoué à sa fin
