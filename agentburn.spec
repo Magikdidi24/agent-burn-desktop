@@ -46,8 +46,12 @@ unused = ('WebEngine', 'WebView', 'WebChannel', 'WebSockets', '3D', 'Quick3D', '
           'Multimedia', 'SpatialAudio', 'TextToSpeech', 'Charts', 'Graphs', 'DataVisualization', 'Pdf',
           'Location', 'Positioning', 'Sensors', 'VirtualKeyboard', 'Scxml', 'StateMachine', 'RemoteObjects',
           'Sql', 'LocalStorage', 'StyleKit')
+# Plugins d'images que l'app (PNG seulement, lus par QtGui) n'ouvre jamais : sans eux, ni libjpeg, ni libtiff, ni
+# libwebp ne sont livrés (leurs licences exigent une notice). opengl32sw (Windows, Mesa + LLVM) : OpenGL logiciel,
+# inutile à Qt Quick qui rend en Direct3D 11.
 drop = re.compile(r'(?i)(Qt6?|Qt6Qml|Labs|qml/Qt|qml/QtQuick/|qml/QtQml/|qml/Qt/labs/|imageformats/(lib)?q)(%s)'
-                  r'|plugins/qmltooling/' % '|'.join(unused))
+                  r'|plugins/qmltooling/|imageformats/(lib)?q(jpeg|tiff|webp|gif|tga|wbmp|icns)\b|opengl32sw'
+                  % '|'.join(unused))
 if not win:
     # Toutes les distros les fournissent (dépendances des paquets) : celles de bookworm embarquées masquaient
     # celles du système (libstdc++ trop vieux : GLX de Mesa KO sur Fedora 44, Debian 13, Ubuntu 24.04, Arch,
