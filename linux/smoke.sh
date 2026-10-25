@@ -105,7 +105,7 @@ ok "PATH ($exe), lanceur, icônes, AppStream, CLI embarqué ($ABVER)"
 # fournissent tout ce que le bundle demande (LD_LIBRARY_PATH = celui que pose le lanceur PyInstaller).
 missing=$(find /opt/agent-burn-desktop -type f -name '*.so*' -exec env LD_LIBRARY_PATH=/opt/agent-burn-desktop ldd {} + \
     2>/dev/null | grep 'not found' | sort -u || true)
-[ -z "$missing" ] || die "bibliothèques introuvables avec les seules dépendances du paquet : $(echo $missing)"
+[ -z "$missing" ] || die "bibliothèques introuvables avec les seules dépendances du paquet : ${missing//$'\n'/ }"
 ok "toutes les bibliothèques du bundle se résolvent"
 
 step "Selftest de l'app installée (dépendances du paquet seules : rendu logiciel)"
@@ -118,7 +118,7 @@ step "Désinstallation"
 files=$(pkg_files)
 pkg_remove >"$OUT/remove.log" 2>&1 || die "désinstallation : $OUT/remove.log"
 left=$(echo "$files" | while read -r f; do if [ -L "$f" ] || [ -f "$f" ]; then echo "$f"; fi; done)
-[ -z "$left" ] || die "fichiers restés après désinstallation : $(echo $left | head -c 500)"
+[ -z "$left" ] || die "fichiers restés après désinstallation : $(head -c 500 <<<"$left")"
 [ ! -e /opt/agent-burn-desktop ] || die "/opt/agent-burn-desktop reste après désinstallation"
 ok "plus aucun fichier du paquet ($(echo "$files" | wc -l) entrées vérifiées)"
 

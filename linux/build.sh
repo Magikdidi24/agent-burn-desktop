@@ -159,7 +159,7 @@ have=$({ find "$B" -printf '%f\n'; sed -n 's/^ *- "\(lib[^"(]*\)()(64bit)"$/\1/p
          printf '%s\n' libc.so.6 libm.so.6 libdl.so.2 libpthread.so.0 librt.so.1 libutil.so.1 libresolv.so.2 \
             ld-linux-x86-64.so.2; } | sort -u)
 undeclared=$(comm -23 <(echo "$needed") <(echo "$have"))
-[ -z "$undeclared" ] || die "bibliothèques ni embarquées ni déclarées dans linux/nfpm.yaml : $(echo $undeclared)"
+[ -z "$undeclared" ] || die "bibliothèques ni embarquées ni déclarées dans linux/nfpm.yaml : ${undeclared//$'\n'/ }"
 GLIBC=$({ find "$B" -type f -exec objdump -p {} + 2>/dev/null || true; } | grep -o 'GLIBC_2\.[0-9.]*' | sort -uV | tail -1)
 GLIBC=${GLIBC#GLIBC_}
 [ -n "$GLIBC" ] || die "version minimale de glibc introuvable"
