@@ -1,6 +1,6 @@
 # Tests du shim Quickshell de l'app de bureau : environnement des process lancés (fuites du bundle gelé,
 # réglages du CLI hérités, HOME sous Windows), stderr lu avant exited, dossier courant, journal des runs,
-# xdg-open détaché.
+# running déclaré avant command, xdg-open détaché.
 #   cd desktop/agent-burn/app && python -m unittest discover -s tests -v
 import json
 import os
@@ -45,6 +45,20 @@ Process {
     stdout: StdioCollector { id: o }
     stderr: StdioCollector { id: e }
     onExited: c => { out = o.text; err = e.text; code = c; }
+}
+'''
+
+# running: true écrit avant command: (ordre de déclaration de Stats.qml) : qs le démarre après le chargement.
+DECL = '''import Quickshell.Io
+import QtQuick
+Process {
+    id: proc
+    property string out
+    property int starts: 0
+    running: true
+    command: [%s, "-I", "-c", "print('started-ok')"]
+    stdout: StdioCollector { onStreamFinished: proc.out = text.trim() }
+    onStarted: starts++
 }
 '''
 
@@ -125,14 +139,19 @@ class ChildEnvironment(unittest.TestCase):
             self.assertEqual(env_of(shim.child_environment())["HOME"], "/home/me")
 
 
+def create(test, qml):
+    engine = QQmlEngine()
+    component = QQmlComponent(engine)
+    component.setData(qml, QUrl.fromLocalFile(str(tmp / "t.qml")))
+    p = component.create()
+    test.assertIsNotNone(p, [e.toString() for e in component.errors()])
+    test.qml = getattr(test, "qml", ()) + (engine, component, p)   # en vie jusqu'à la fin du test
+    return p
+
+
 class ProcessRun(unittest.TestCase):
     def run_child(self, command):
-        engine = QQmlEngine()
-        component = QQmlComponent(engine)
-        component.setData(QML, QUrl.fromLocalFile(str(tmp / "t.qml")))
-        p = component.create()
-        self.assertIsNotNone(p, [e.toString() for e in component.errors()])
-        self.qml = engine, component, p   # en vie jusqu'à la fin du test
+        p = create(self, QML)
         p.setProperty("command", command)
         p.setProperty("running", True)
         self.assertTrue(wait_for(lambda: not p.property("running")), "run sans fin")
@@ -170,6 +189,19 @@ class ProcessRun(unittest.TestCase):
             p = self.run_child([str(tmp / "absent")])
         self.assertEqual(p.property("code"), -1)   # pas d'exited : Burn.qml le voit par running sans started
         self.assertIn("lancement impossible", logs.output[0])
+
+
+class DeclaredRunning(unittest.TestCase):
+    def test_running_before_command_starts_after_creation(self):
+        p = create(self, (DECL % json.dumps(sys.executable)).encode())
+        self.assertTrue(wait_for(lambda: p.property("out") == "started-ok"), "run jamais lancé")
+        self.assertEqual(p.property("starts"), 1)
+
+    def test_running_cleared_before_the_start_cancels_it(self):
+        p = create(self, (DECL % json.dumps(sys.executable)).encode())
+        p.setProperty("running", False)
+        wait_for(lambda: False, 0.5)
+        self.assertEqual(p.property("starts"), 0)
 
 
 class Detached(unittest.TestCase):

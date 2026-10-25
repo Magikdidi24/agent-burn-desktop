@@ -130,8 +130,13 @@ class Process(QObject):
         self._stdout = None
         self._stderr = None
         self._since = 0.0
+        self._pending = False   # running posé sans command : lancé après le chargement
 
     def _set_running(self, running):
+        # Comme qs, qui ne lance qu'après le chargement : running: true écrit avant command: attend celui-ci.
+        self._pending = running and not self._command
+        if self._pending:
+            QTimer.singleShot(0, self, lambda: self._pending and self._command and self._set_running(True))
         if not running:
             if self._process:
                 self._process.terminate()
