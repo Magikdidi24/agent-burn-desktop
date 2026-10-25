@@ -37,7 +37,7 @@ contents:
     file_info:
       mode: 0644
 deb:
-  compression: xz
+  compression: zstd   # xz : 30 s sur un seul cœur ; dpkg lit zstd sur toutes les distros .deb visées
 rpm:
   compression: zstd
 overrides:
