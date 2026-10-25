@@ -15,6 +15,28 @@ Item {
     property string page: Burn.dashboardPage
     readonly property string agent: page === "all" ? "" : page
     readonly property color tint: agent ? Burn.agentColor(agent) : Colors.accent
+    // Réglages de l'hôte (app de bureau) : bouton en bas de la barre latérale. La barre Quickshell n'en a pas.
+    property bool settingsAvailable: false
+    signal settingsRequested()
+
+    readonly property var pages: ["all"].concat(Burn.agents)
+    readonly property var provider: agent ? Burn.providerState(agent) : null
+    // Carte « Fournisseurs » : Claude et Codex toujours, même absents, puis les autres agents vus.
+    readonly property var providerIds: Burn.knownProviders.concat(Burn.agents.filter(a => !Burn.knownProviders.includes(a)))
+    // Bandeaux, du plus grave au moins grave : erreur du CLI ; page d'un agent, son erreur (harness) et
+    // son état s'il n'est pas en direct ; tarifs manquants. 1er chargement : « Lecture de l'usage… ».
+    readonly property var notices: {
+        const n = [], p = provider;
+        if (Burn.error) n.push({ msg: Burn.error, tint: Colors.danger });
+        if (p?.error) n.push({ msg: p.error, tint: Colors.danger });
+        if (!Burn.summary && Burn.loading) n.push({ msg: "Lecture de l'usage…", tint: Colors.muted, plain: true });
+        else if (p && p.state !== "live")
+            n.push({ msg: p.detail + (p.state === "expired" && limits.length ? " Dernières valeurs enregistrées affichées." : ""),
+                     tint: stateTone(p.state) });
+        if (Burn.pricingMissing)
+            n.push({ msg: "Tarifs indisponibles : montants incomplets (réseau coupé ou tarifs non téléchargés)", tint: Colors.warn });
+        return n;
+    }
 
     readonly property var ranges: [
         { key: "all", label: "Tout", long: "Tout l'historique" },
@@ -34,6 +56,21 @@ Item {
         return series.filter(p => p.date >= from);
     }
     function total(series, key) { return series.reduce((s, p) => s + (p[key] || 0), 0); }
+    // Teinte d'un état de Burn.providerState : le mot reste écrit à côté.
+    function stateTone(s) { return Burn.tone({ live: "good", stale: "warn", expired: "danger", unavailable: "danger" }[s] ?? ""); }
+    // Flèches de la barre latérale et du sélecteur de plage : voisin sélectionné et focalisé.
+    function stepPage(d) {
+        const i = pages.indexOf(page) + d;
+        if (i < 0 || i >= pages.length) return;
+        Burn.dashboardPage = pages[i];
+        sideEntries.itemAt(i).forceActiveFocus();
+    }
+    function stepRange(d) {
+        const i = ranges.findIndex(r => r.key === Burn.range) + d;
+        if (i < 0 || i >= ranges.length) return;
+        Burn.setRange(ranges[i].key);
+        rangeOptions.itemAt(i).forceActiveFocus();
+    }
 
     readonly property var days: inRange(Burn.dailySeries(agent))
     readonly property bool noData: !Burn.summary && days.length === 0   // ni rapport ni archive : « — », pas 0
@@ -139,6 +176,23 @@ Item {
         }
         Meter { width: gauge.width; value: gauge.ratio; fill: gauge.fill }
     }
+    // État d'un fournisseur (Burn.providerState) : le mot, le point teinté n'en est qu'un rappel.
+    component Badge: Rectangle {
+        id: badge
+        property string label
+        property color tone
+        width: badgeRow.implicitWidth + 20
+        height: 24
+        radius: 12
+        color: Colors.withAlpha(tone, 0.14)
+        Row {
+            id: badgeRow
+            anchors.centerIn: parent
+            spacing: 5
+            Txt { text: "●"; color: badge.tone; font.pixelSize: 11; Accessible.ignored: true }
+            Txt { text: badge.label; font.pixelSize: 11; font.bold: true }
+        }
+    }
 
     // ── Barre latérale ──
     Rectangle {
@@ -165,13 +219,15 @@ Item {
                 leftPadding: 10
                 bottomPadding: 14
                 spacing: 8
-                Txt { text: "\uf06d"; color: Colors.accent; font.pixelSize: 16 }  // fire
+                Txt { text: "\uf06d"; color: Colors.accent; font.pixelSize: 16; Accessible.ignored: true }  // fire
                 Txt { text: "Agent Burn"; font.pixelSize: 14; font.bold: true }
             }
 
+            // Pages : onglets verticaux, flèches haut / bas pour passer de l'un à l'autre.
             Repeater {
-                model: ["all"].concat(Burn.agents)
-                delegate: Rectangle {
+                id: sideEntries
+                model: root.pages
+                delegate: BurnButton {
                     id: entry
                     required property string modelData
                     readonly property bool sel: root.page === modelData
@@ -179,7 +235,14 @@ Item {
                     height: 36
                     radius: 10
                     color: sel ? Colors.withAlpha(Colors.accent, 0.18)
-                         : entryMa.containsMouse ? Colors.withAlpha(Colors.muted, 0.10) : "transparent"
+                         : entry.hovered ? Colors.withAlpha(Colors.muted, 0.10) : "transparent"
+                    Accessible.role: Accessible.PageTab
+                    Accessible.name: entryLabel.text
+                    Accessible.checkable: true
+                    Accessible.checked: entry.sel
+                    Keys.onUpPressed: root.stepPage(-1)
+                    Keys.onDownPressed: root.stepPage(1)
+                    onClicked: Burn.dashboardPage = entry.modelData
 
                     Txt {
                         x: 10
@@ -190,6 +253,7 @@ Item {
                         text: "\uf080"  // bar-chart
                         color: Colors.accent
                         font.pixelSize: 15
+                        Accessible.ignored: true
                     }
                     IconImage {
                         x: 10
@@ -198,6 +262,7 @@ Item {
                         source: Burn.agentIcon(entry.modelData)
                     }
                     Txt {
+                        id: entryLabel
                         x: 42
                         width: parent.width - 50
                         anchors.verticalCenter: parent.verticalCenter
@@ -206,14 +271,38 @@ Item {
                         color: entry.sel ? Colors.foreground : Colors.withAlpha(Colors.foreground, 0.75)
                         font.bold: entry.sel
                     }
-                    MouseArea {
-                        id: entryMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: Burn.dashboardPage = entry.modelData
-                    }
                 }
+            }
+        }
+
+        // Réglages : seulement si l'hôte en a (settingsAvailable), il ouvre sa vue sur settingsRequested.
+        BurnButton {
+            id: settings
+            visible: root.settingsAvailable
+            x: 10
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 12
+            width: parent.width - 20
+            height: 36
+            radius: 10
+            color: settings.hovered ? Colors.withAlpha(Colors.muted, 0.10) : "transparent"
+            Accessible.name: "Paramètres"
+            onClicked: root.settingsRequested()
+            Txt {
+                x: 10
+                width: 22
+                anchors.verticalCenter: parent.verticalCenter
+                horizontalAlignment: Text.AlignHCenter
+                text: "\uf013"  // cog
+                color: Colors.muted
+                font.pixelSize: 15
+                Accessible.ignored: true
+            }
+            Txt {
+                x: 42
+                anchors.verticalCenter: parent.verticalCenter
+                text: "Paramètres"
+                color: Colors.withAlpha(Colors.foreground, 0.75)
             }
         }
     }
@@ -251,6 +340,7 @@ Item {
                             text: "\uf080"  // bar-chart
                             color: Colors.accent
                             font.pixelSize: 30
+                            Accessible.ignored: true
                         }
                         IconImage { anchors.fill: parent; source: Burn.agentIcon(root.agent) }
                     }
@@ -258,10 +348,26 @@ Item {
                         width: header.width - rangePicker.width - 70
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 3
-                        Txt {
-                            text: root.agent ? Burn.agentName(root.agent) : "Tous les agents"
-                            font.pixelSize: 22
-                            font.bold: true
+                        Row {
+                            id: titleRow
+                            width: parent.width
+                            spacing: 12
+                            // Fenêtre étroite : le nom s'abrège, le badge ne déborde pas sur le sélecteur de plage.
+                            Txt {
+                                width: Math.min(implicitWidth, titleRow.width - (pageBadge.visible ? pageBadge.width + titleRow.spacing : 0))
+                                elide: Text.ElideRight
+                                text: root.agent ? Burn.agentName(root.agent) : "Tous les agents"
+                                font.pixelSize: 22
+                                font.bold: true
+                            }
+                            // Page d'un agent : d'où viennent ses chiffres, en toutes lettres (détail en bandeau).
+                            Badge {
+                                id: pageBadge
+                                anchors.verticalCenter: parent.verticalCenter
+                                visible: root.provider !== null
+                                label: root.provider?.label ?? ""
+                                tone: root.stateTone(root.provider?.state ?? "")
+                            }
                         }
                         Txt {
                             width: parent.width
@@ -271,6 +377,7 @@ Item {
                         }
                     }
                 }
+                // Plage : boutons radio, flèches gauche / droite.
                 Rectangle {
                     id: rangePicker
                     anchors.right: parent.right
@@ -279,13 +386,16 @@ Item {
                     height: 32
                     radius: 10
                     color: Colors.withAlpha(Colors.surface, 0.55)
+                    Accessible.role: Accessible.Grouping
+                    Accessible.name: "Période"
                     Row {
                         id: seg
                         x: 3
                         anchors.verticalCenter: parent.verticalCenter
                         Repeater {
+                            id: rangeOptions
                             model: root.ranges
-                            delegate: Rectangle {
+                            delegate: BurnButton {
                                 id: opt
                                 required property var modelData
                                 readonly property bool sel: Burn.range === modelData.key
@@ -293,19 +403,19 @@ Item {
                                 height: 26
                                 radius: 8
                                 color: sel ? Colors.withAlpha(Colors.accent, 0.25)
-                                     : optMa.containsMouse ? Colors.withAlpha(Colors.muted, 0.12) : "transparent"
+                                     : opt.hovered ? Colors.withAlpha(Colors.muted, 0.12) : "transparent"
+                                Accessible.role: Accessible.RadioButton
+                                Accessible.name: opt.modelData.long
+                                Accessible.checkable: true
+                                Accessible.checked: opt.sel
+                                Keys.onLeftPressed: root.stepRange(-1)
+                                Keys.onRightPressed: root.stepRange(1)
+                                onClicked: Burn.setRange(opt.modelData.key)
                                 Txt {
                                     id: optText
                                     anchors.centerIn: parent
                                     text: opt.modelData.label
                                     color: opt.sel ? Colors.foreground : Colors.muted
-                                }
-                                MouseArea {
-                                    id: optMa
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: Burn.setRange(opt.modelData.key)
                                 }
                             }
                         }
@@ -318,48 +428,54 @@ Item {
                 width: parent.width
                 height: 30
                 Txt {
+                    id: archive
+                    readonly property string kept: Burn.historyDays + (Burn.historyDays > 1 ? " jours conservés" : " jour conservé")
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "\uf1c0   Historique journalier · " + Burn.historyDays  // database
-                          + (Burn.historyDays > 1 ? " jours conservés" : " jour conservé") + " sur ce PC"
+                    text: "\uf1c0   Historique journalier · " + archive.kept + " sur ce PC"  // database
                     color: Colors.muted
+                    Accessible.name: "Historique journalier : " + archive.kept + " sur ce PC"
                 }
-                Rectangle {
+                BurnButton {
+                    id: backup
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     width: backupText.implicitWidth + 24
                     height: 28
                     radius: 8
-                    color: Colors.withAlpha(Colors.muted, backupMa.containsMouse ? 0.25 : 0.15)
-                    Txt { id: backupText; anchors.centerIn: parent; text: "\uf07c  Afficher la sauvegarde" }  // folder-open
-                    MouseArea {
-                        id: backupMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: Quickshell.execDetached(["xdg-open", Burn.dataDir])
-                    }
+                    color: Colors.withAlpha(Colors.muted, backup.hovered ? 0.25 : 0.15)
+                    Accessible.name: "Afficher la sauvegarde"
+                    onClicked: Quickshell.execDetached(["xdg-open", Burn.dataDir])
+                    Txt { id: backupText; anchors.centerIn: parent; text: "\uf07c  Afficher la sauvegarde"; Accessible.ignored: true }  // folder-open
                 }
             }
 
-            // Erreur du CLI, connexion Claude expirée (page Claude), ou 1er chargement encore vide.
-            Rectangle {
-                id: notice
-                readonly property string msg: Burn.error || (root.agent === "claude" && Burn.signInExpired
-                    ? "Connexion Claude Code expirée : lance claude dans un terminal puis /login. "
-                      + "Dernières valeurs enregistrées affichées." : "")
-                visible: msg !== "" || (!Burn.summary && Burn.loading)
-                width: parent.width
-                height: noticeText.implicitHeight + 22
-                radius: 10
-                color: Colors.withAlpha(msg ? Colors.danger : Colors.muted, 0.12)
-                Txt {
-                    id: noticeText
-                    x: 14
-                    width: parent.width - 28
-                    anchors.verticalCenter: parent.verticalCenter
-                    wrapMode: Text.WordWrap
-                    text: notice.msg ? "\uf071  " + notice.msg : "Lecture de l'usage…"  // warning
-                    color: notice.msg ? Colors.danger : Colors.muted
+            Repeater {
+                model: root.notices
+                delegate: Rectangle {
+                    id: notice
+                    required property var modelData
+                    width: parent.width
+                    height: noticeText.implicitHeight + 22
+                    radius: 10
+                    color: Colors.withAlpha(modelData.tint, 0.12)
+                    // Icône teintée, texte en couleur normale : lisible sur la teinte (3,7:1 en rouge sur rouge clair).
+                    Txt {
+                        x: 14
+                        y: noticeText.y
+                        visible: !notice.modelData.plain
+                        text: "\uf071"  // warning
+                        color: notice.modelData.tint
+                        Accessible.ignored: true
+                    }
+                    Txt {
+                        id: noticeText
+                        x: notice.modelData.plain ? 14 : 36
+                        width: parent.width - x - 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        wrapMode: Text.WordWrap
+                        text: notice.modelData.msg
+                        color: notice.modelData.plain ? Colors.muted : Colors.foreground
+                    }
                 }
             }
 
@@ -373,7 +489,7 @@ Item {
                     Row {
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 10
-                        Txt { text: "\uf09d"; color: root.tint; font.pixelSize: 15 }  // credit-card
+                        Txt { text: "\uf09d"; color: root.tint; font.pixelSize: 15; Accessible.ignored: true }  // credit-card
                         Txt { text: "Forfait " + (root.sub?.plan ?? ""); font.pixelSize: 14; font.bold: true }
                         // Âge du relevé des limites Claude : le pied ne date que le summary.
                         Txt {
@@ -451,6 +567,7 @@ Item {
                                 text: root.weeklyPace?.status === "good" ? "\uf058" : "\uf071"  // check-circle / warning
                                 color: Burn.tone(root.weeklyPace?.status)
                                 font.pixelSize: 14
+                                Accessible.ignored: true
                             }
                             Txt {
                                 width: weekCol.width - 30
@@ -467,9 +584,12 @@ Item {
                             color: Colors.muted
                         }
                         Txt {
+                            id: weekReset
+                            readonly property string when: "Réinitialisation " + Burn.until(root.weekly?.resetsAtMs ?? 0)
                             visible: (root.weekly?.resetsAtMs ?? 0) > 0
-                            text: "\uf017  Réinitialisation " + Burn.until(root.weekly?.resetsAtMs ?? 0)  // clock
+                            text: "\uf017  " + weekReset.when  // clock
                             color: Colors.muted
+                            Accessible.name: weekReset.when
                         }
                     }
                     BurnQuotaChart {
@@ -518,10 +638,13 @@ Item {
                         ratio: (eco.e?.pricePerMonth ?? 0) / eco.peak
                         fill: Colors.muted
                     }
+                    // Usage sous le prix du forfait (Codex peu utilisé) : écart négatif, et aucune remise.
                     Txt {
                         width: parent.width
                         wrapMode: Text.WordWrap
-                        text: Burn.money(eco.e?.subsidyPerMonth) + " / mois au-delà du forfait · remise de "
+                        text: eco.e?.subsidyPerMonth < 0
+                            ? "Valeur d'usage inférieure de " + Burn.money(-eco.e.subsidyPerMonth) + " / mois au prix du forfait"
+                            : Burn.money(eco.e?.subsidyPerMonth) + " / mois au-delà du forfait · remise de "
                               + Burn.pct(eco.e?.discountPercent, 1) + " sur le tarif API"
                         color: Colors.muted
                         font.pixelSize: 11
@@ -543,7 +666,7 @@ Item {
                             label: ({ input: "Entrée", output: "Sortie", cacheCreation: "Écriture cache",
                                       cacheRead: "Lecture cache" })[modelData.key] ?? modelData.label
                             value: Burn.pct(modelData.costPercent, 1) + " · " + Burn.tokens(modelData.tokens)
-                                   + " · " + Burn.money(modelData.costUSD)
+                                   + " · " + Burn.money(Burn.priced(modelData.costUSD, modelData.tokens))
                             ratio: modelData.costPercent / 100
                             fill: root.tint
                         }
@@ -558,8 +681,8 @@ Item {
                     width: parent.width
                     Repeater {
                         model: [
-                            { title: "Dépense totale", value: root.noData ? "—" : Burn.money(root.total(root.days, "cost")),
-                              detail: "Équivalent API" },
+                            { title: "Dépense totale", detail: "Équivalent API", value: root.noData ? "—"
+                                : Burn.money(Burn.priced(root.total(root.days, "cost"), root.total(root.days, "tokens"))) },
                             { title: "Tokens", value: root.noData ? "—" : Burn.tokens(root.total(root.days, "tokens")),
                               detail: "Entrée, sortie et cache" },
                             { title: "Jours enregistrés", value: root.noData ? "—" : String(root.days.length), detail: root.rangeLong },
@@ -605,6 +728,51 @@ Item {
                 }
             }
 
+            // Sur « Tous » : chaque fournisseur, son état et la provenance de ses chiffres.
+            Card {
+                width: parent.width
+                visible: !root.agent
+                Heading { width: parent.width; title: "Fournisseurs"; detail: "Claude et Codex, puis les agents détectés" }
+                Repeater {
+                    model: root.providerIds
+                    delegate: Item {
+                        id: prov
+                        required property string modelData
+                        readonly property var info: Burn.providerState(modelData)
+                        width: parent.width
+                        height: Math.max(26, provDetail.implicitHeight)
+                        IconImage {
+                            anchors.verticalCenter: parent.verticalCenter
+                            implicitSize: 20
+                            source: Burn.agentIcon(prov.modelData)
+                        }
+                        Txt {
+                            x: 30
+                            width: 130
+                            anchors.verticalCenter: parent.verticalCenter
+                            elide: Text.ElideRight
+                            text: Burn.agentName(prov.modelData)
+                            font.bold: true
+                        }
+                        Badge {
+                            x: 170
+                            anchors.verticalCenter: parent.verticalCenter
+                            label: prov.info.label
+                            tone: root.stateTone(prov.info.state)
+                        }
+                        Txt {
+                            id: provDetail
+                            x: 352
+                            width: parent.width - x
+                            anchors.verticalCenter: parent.verticalCenter
+                            wrapMode: Text.WordWrap
+                            text: prov.info.detail
+                            color: Colors.muted
+                        }
+                    }
+                }
+            }
+
             // Dépense journalière ; sur « Tous », la liste par agent à côté (comme l'app Mac).
             Row {
                 width: parent.width
@@ -613,11 +781,12 @@ Item {
                     width: parent.width - (byAgent.visible ? byAgent.width + parent.spacing : 0)
                     Heading { width: parent.width; title: "Dépense journalière" }
                     BurnBarChart {
+                        id: dailyChart
                         width: parent.width
                         height: 220
                         // Plage bornée : tous ses jours (0 $ sans usage), l'axe la couvre en entier.
-                        points: Burn.range === "all" ? root.days.map(d => ({ date: d.date, value: d.cost }))
-                            : Burn.lastDays(root.days, Burn.spans[Burn.range] + 1)
+                        points: Burn.range === "all" ? root.days.map(d => ({ date: d.date, value: Burn.priced(d.cost, d.tokens) }))
+                            : dailyChart.lastDays(root.days, Burn.spans[Burn.range] + 1)
                         barColor: root.tint
                     }
                 }
@@ -637,13 +806,17 @@ Item {
                         spacing: 2
                         boundsBehavior: Flickable.StopAtBounds
                         model: root.agentRows
-                        delegate: Rectangle {
+                        delegate: BurnButton {
                             id: ag
                             required property var modelData
+                            readonly property string costText: Burn.money(Burn.priced(modelData.cost, modelData.tokens))
                             width: ListView.view.width
                             height: 52
                             radius: 10
-                            color: agMa.containsMouse ? Colors.withAlpha(Colors.muted, 0.10) : "transparent"
+                            color: ag.hovered ? Colors.withAlpha(Colors.muted, 0.10) : "transparent"
+                            Accessible.name: Burn.agentName(ag.modelData.agent) + " : " + ag.costText + ", "
+                                             + Burn.tokens(ag.modelData.tokens) + " tokens"
+                            onClicked: Burn.dashboardPage = ag.modelData.agent
                             IconImage {
                                 x: 8
                                 anchors.verticalCenter: parent.verticalCenter
@@ -659,7 +832,7 @@ Item {
                                     width: parent.width
                                     height: 15
                                     Txt { text: Burn.agentName(ag.modelData.agent); font.bold: true }
-                                    Txt { anchors.right: parent.right; text: Burn.money(ag.modelData.cost); font.bold: true }
+                                    Txt { anchors.right: parent.right; text: ag.costText; font.bold: true }
                                 }
                                 Meter {
                                     width: parent.width
@@ -668,13 +841,6 @@ Item {
                                     fill: Burn.agentColor(ag.modelData.agent)
                                 }
                                 Txt { text: Burn.tokens(ag.modelData.tokens) + " tokens"; color: Colors.muted; font.pixelSize: 10 }
-                            }
-                            MouseArea {
-                                id: agMa
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: Burn.dashboardPage = ag.modelData.agent
                             }
                         }
                         Txt {
@@ -696,7 +862,7 @@ Item {
                     Row {
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 10
-                        Txt { text: "Modèles · données sources disponibles"; font.pixelSize: 14; font.bold: true }
+                        Txt { text: "Modèles"; font.pixelSize: 14; font.bold: true }
                         Txt {
                             anchors.verticalCenter: parent.verticalCenter
                             text: root.models ? root.models.length : "—"
@@ -711,7 +877,7 @@ Item {
                         color: Colors.withAlpha(Colors.background, 0.6)
                         border.width: 1
                         border.color: search.activeFocus ? Colors.accent : Colors.withAlpha(Colors.muted, 0.3)
-                        Txt { x: 10; anchors.verticalCenter: parent.verticalCenter; text: "\uf002"; color: Colors.muted }  // search
+                        Txt { x: 10; anchors.verticalCenter: parent.verticalCenter; text: "\uf002"; color: Colors.muted; Accessible.ignored: true }  // search
                         TextInput {
                             id: search
                             x: 32
@@ -723,6 +889,8 @@ Item {
                             clip: true
                             selectByMouse: true
                             selectionColor: Colors.withAlpha(Colors.accent, 0.5)
+                            activeFocusOnTab: true
+                            Accessible.name: "Filtrer les modèles"
                             Txt {
                                 anchors.verticalCenter: parent.verticalCenter
                                 visible: search.text === ""
@@ -740,13 +908,20 @@ Item {
                         height: 26
                         Repeater {
                             model: [["model", "Modèle"], ["totalTokens", "Tokens"], ["totalCost", "Dépense"], ["percentage", "Part"]]
-                            delegate: Item {
+                            delegate: BurnButton {
                                 id: colHead
                                 required property var modelData
                                 required property int index
                                 readonly property bool sorted: root.sortKey === modelData[0]
                                 width: root.colW(index, parent.width)
                                 height: parent.height
+                                radius: 6
+                                Accessible.name: "Trier par " + colHead.modelData[1].toLowerCase()
+                                                 + (colHead.sorted ? (root.sortAsc ? ", tri croissant" : ", tri décroissant") : "")
+                                onClicked: {
+                                    if (colHead.sorted) root.sortAsc = !root.sortAsc;
+                                    else { root.sortKey = colHead.modelData[0]; root.sortAsc = colHead.modelData[0] === "model"; }
+                                }
                                 Row {
                                     x: 10
                                     anchors.verticalCenter: parent.verticalCenter
@@ -763,14 +938,7 @@ Item {
                                         rotation: root.sortAsc ? 180 : 0
                                         color: Colors.muted
                                         font.pixelSize: 11
-                                    }
-                                }
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        if (colHead.sorted) root.sortAsc = !root.sortAsc;
-                                        else { root.sortKey = colHead.modelData[0]; root.sortAsc = colHead.modelData[0] === "model"; }
+                                        Accessible.ignored: true
                                     }
                                 }
                             }
@@ -802,7 +970,11 @@ Item {
                                     text: Burn.tokens(mrow.modelData.totalTokens)
                                     color: Colors.muted
                                 }
-                                Txt { width: root.colW(2, mrow.width); leftPadding: 10; text: Burn.money(mrow.modelData.totalCost) }
+                                Txt {
+                                    width: root.colW(2, mrow.width)
+                                    leftPadding: 10
+                                    text: Burn.money(Burn.priced(mrow.modelData.totalCost, mrow.modelData.totalTokens))
+                                }
                                 Row {
                                     leftPadding: 10
                                     spacing: 8
@@ -821,8 +993,7 @@ Item {
                 }
                 Txt {
                     visible: root.modelRows.length === 0
-                    text: root.models === null ? (Burn.loading ? "Chargement des modèles…"
-                                                                : "Modèles indisponibles : rapport agent-burn non lu.")
+                    text: root.models === null ? (Burn.loading ? "Chargement des modèles…" : "Données indisponibles.")
                         : search.text !== "" ? "Aucun modèle ne correspond au filtre."
                         : "Aucun modèle utilisé sur cette période."
                     color: Colors.muted
@@ -853,45 +1024,51 @@ Item {
             x: 20
             anchors.verticalCenter: parent.verticalCenter
             spacing: 8
+            // En toutes lettres : en direct, en cache (relu du disque, dernier appel en échec ou trop ancien),
+            // indisponible ; le point n'en est qu'un rappel.
             Rectangle {
                 width: 6
                 height: 6
                 radius: 3
                 anchors.verticalCenter: parent.verticalCenter
-                color: Burn.error ? Colors.danger : Colors.good
+                color: Burn.dataState === "live" ? Colors.good : Burn.dataState === "cached" ? Colors.warn
+                     : Burn.loading ? Colors.muted : Colors.danger
             }
             Txt {
-                text: Burn.updatedAt === 0 ? (Burn.loading ? "Lecture de l'usage…" : "Aucune donnée pour l'instant")
-                    : (Burn.error ? "Dernière mise à jour réussie " : "Mis à jour ") + Burn.ago(Burn.updatedAt)
+                text: Burn.dataState !== "unavailable" ? Burn.stateText(Burn.dataState) + " · mis à jour " + Burn.ago(Burn.updatedAt)
+                    : Burn.loading ? "Lecture de l'usage…" : Burn.stateText(Burn.dataState)
                 color: Colors.muted
                 font.pixelSize: 11
             }
         }
-        Txt {
+        // 28 px (cible de l'ancienne icône de 16 px + 6 px autour), glyphe au même endroit.
+        BurnButton {
+            id: footRefresh
             anchors.right: parent.right
-            anchors.rightMargin: 18
+            anchors.rightMargin: 12
             anchors.verticalCenter: parent.verticalCenter
-            width: 16
-            height: 16
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-            text: "\uf021"  // refresh
-            color: refreshMa.containsMouse ? Colors.foreground : Colors.muted
-            RotationAnimation on rotation {
-                running: Burn.loading
-                from: 0
-                to: 360
-                duration: 1000
-                loops: Animation.Infinite
-                alwaysRunToEnd: true   // finit le tour : l'icône s'arrête droite
-            }
-            MouseArea {
-                id: refreshMa
-                anchors.fill: parent
-                anchors.margins: -6
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: Burn.refresh(true)
+            width: 28
+            height: 28
+            radius: 8
+            tip: "Rafraîchir"
+            onClicked: Burn.refresh(true)
+            Txt {
+                anchors.centerIn: parent
+                width: 16
+                height: 16
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                text: "\uf021"  // refresh
+                color: footRefresh.hovered ? Colors.foreground : Colors.muted
+                Accessible.ignored: true
+                RotationAnimation on rotation {
+                    running: Burn.loading
+                    from: 0
+                    to: 360
+                    duration: 1000
+                    loops: Animation.Infinite
+                    alwaysRunToEnd: true   // finit le tour : l'icône s'arrête droite
+                }
             }
         }
     }
