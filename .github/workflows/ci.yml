@@ -166,7 +166,8 @@ jobs:
           name: agent-burn-desktop-linux
           path: dist/linux/
           if-no-files-found: error
-          retention-days: 1   # ~300 Mo par run ; les releases gardent les paquets
+          compression-level: 0   # .deb, .rpm, AppImage et .tar.gz déjà compressés
+          retention-days: 30     # en attendant la première release, seul endroit où trouver les paquets (README)
 
       # Suivi amont : le contrôle qui demande le vrai CLI (~/.local/bin/agent-burn), sauté dans « Tests », tourne ici
       # avec celui de ce build.
@@ -316,7 +317,8 @@ jobs:
             dist/AgentBurn-Setup-*-${{ matrix.arch }}.exe
             dist/AgentBurn-portable-*-${{ matrix.arch }}.zip
           if-no-files-found: error
-          retention-days: 1   # ~110 Mo par run ; les releases gardent les paquets
+          compression-level: 0   # installeur (LZMA) et zip déjà compressés
+          retention-days: 30     # comme les paquets Linux
 
       - name: Installation, lancement, désinstallation
         run: |

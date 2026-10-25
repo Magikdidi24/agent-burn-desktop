@@ -342,9 +342,9 @@ branche, du même tag ou de la même pull request ; un push et la pull request d
 | Job | Machine | Contenu | Artefacts |
 |---|---|---|---|
 | Tests | `ubuntu-24.04` | bibliothèques Qt, Xvfb et Mesa ; dépendances du verrou haché ; tests unitaires ; outils de licence (`tools/`) ; suite du cœur (normal, corrompu, CLI bloqué) ; suivi de l'amont ; selftest sous Xvfb | `selftest-linux-dev` (7 jours) |
-| Linux (paquets) | conteneur `python:3.12-slim-bookworm`, épinglé par empreinte | `linux/build.sh`, puis le contrôle du suivi amont avec le CLI construit | `agent-burn-desktop-linux` (1 jour) |
+| Linux (paquets) | conteneur `python:3.12-slim-bookworm`, épinglé par empreinte | `linux/build.sh`, puis le contrôle du suivi amont avec le CLI construit | `agent-burn-desktop-linux` (30 jours) |
 | Paquets sur … | 7 conteneurs de distros (étiquettes, pas d'empreinte : des distros à jour) | `linux/smoke.sh` sur l'artefact téléchargé dans `dist-in/` | `smoke-<n>` en cas d'échec (7 jours) : journaux et captures de `smoke.sh` |
-| Windows x64 | `windows-2025` (image épinglée : `windows-latest` en changerait sans prévenir) | Python 3.13 ; venv `.venv` rempli du verrou haché (celui de `build.ps1`), tests unitaires sur un vrai Windows (sortie en UTF-8, 5 min au plus), Inno Setup (choco 6.7.1 si absent), `build.ps1`, `smoke.ps1` | `agent-burn-desktop-windows-x64` (1 jour, déposé avant `smoke.ps1`), `selftest-windows-x64` (7 jours, dès que le build a tourné : selftest du build et sorties de `smoke.ps1`, sans la copie extraite du zip) |
+| Windows x64 | `windows-2025` (image épinglée : `windows-latest` en changerait sans prévenir) | Python 3.13 ; venv `.venv` rempli du verrou haché (celui de `build.ps1`), tests unitaires sur un vrai Windows (sortie en UTF-8, 5 min au plus), Inno Setup (choco 6.7.1 si absent), `build.ps1`, `smoke.ps1` | `agent-burn-desktop-windows-x64` (30 jours, déposé avant `smoke.ps1`), `selftest-windows-x64` (7 jours, dès que le build a tourné : selftest du build et sorties de `smoke.ps1`, sans la copie extraite du zip) |
 | Windows ARM64 (expérimental) | `windows-11-arm` | comme x64 ; seulement au lancement manuel avec `arm64`, son échec n'échoue pas le run | idem, `-arm64` |
 | Release (brouillon) | `ubuntu-24.04` | tags `desktop-v*` seulement, après les paquets et Windows : refus d'un tag dont la version n'est pas celle des paquets, `SHA256SUMS`, `gh release create --draft --verify-tag` | release brouillon |
 
@@ -359,10 +359,12 @@ branche, du même tag ou de la même pull request ; un push et la pull request d
   `pull_request_target` (une pull request de fork n'a ni secret ni droit d'écriture), runs groupés par numéro de
   pull request ou par ref complet (celle d'un fork ne peut pas annuler un run du dépôt).
 - Pas dans la CI : la suite du cœur sous Quickshell, la suite du cœur sous Windows, un lint QML.
-- Durées du premier run complet : tests 3 min 40 (dont 2 min pour la suite « CLI bloqué », 20 s depuis), paquets Linux 2 min 30, Windows x64 10 min, chaque distro
-  1 min environ, soit 15 min de bout en bout ; plus 5 à 12 min quand le CLI est recompilé (estimation). Dépôt
-  public : GitHub ne facture pas les minutes de ses runners standard. Les artefacts de paquets (environ 300 Mo
-  Linux et 110 Mo Windows par run) ne sont gardés qu'un jour : les releases gardent les paquets.
+- Durées du premier run complet : tests 3 min 40 (dont 2 min pour la suite « CLI bloqué », 20 s depuis),
+  paquets Linux 2 min 30, Windows x64 10 min, chaque distro 1 min environ, soit 15 min de bout en bout ; plus 5 à
+  12 min quand le CLI est recompilé (estimation). Dépôt public : GitHub ne facture pas les minutes de ses runners
+  standard. Les artefacts de paquets (environ 300 Mo Linux et 110 Mo Windows par run) sont gardés 30 jours,
+  déposés sans recompression (`compression-level: 0`) : en attendant la première release, c'est là que les
+  utilisateurs les trouvent (voir le README).
 
 ## Conventions
 

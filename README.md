@@ -44,7 +44,7 @@ et les sessions KWin imbriquées du tableau.
 - **En attendant la première release, les artefacts de la CI** : onglet
   [Actions](https://github.com/Magikdidi24/agent-burn-desktop/actions) → workflow « Agent Burn (bureau) » → un
   run réussi → `agent-burn-desktop-linux` ou `agent-burn-desktop-windows-x64`. Il faut être connecté à GitHub
-  pour les télécharger, et ils ne sont gardés qu'un jour.
+  pour les télécharger, et ils sont gardés 30 jours.
 - **Build local** : voir [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 | Fichier | Pour |
