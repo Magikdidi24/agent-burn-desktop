@@ -18,6 +18,7 @@ from agentburn import __version__, logs, shim
 
 log = logging.getLogger("agentburn")
 BUILD_KEYS = ("appVersion", "cliRev", "cliVersion", "target", "builtAt")
+PROBE_MS = 10000   # agent-burn --version bloqué : tué au bout de ce délai
 # État de Burn lu dans le contexte de Main.qml, sérialisé en JSON : aucune conversion de valeurs JS par PySide.
 _BURN = """JSON.stringify({ data: Burn.stateText(Burn.dataState), updatedAt: Burn.updatedAt, errors: Burn.recentErrors,
     providers: Array.from(new Set(Burn.knownProviders.concat(Burn.agents)))
@@ -118,14 +119,17 @@ class Desktop(QObject):
         p = self._probe = QProcess(self)
         p.setProcessEnvironment(shim.child_environment())
         p.setWorkingDirectory(self._dirs["data"])   # comme les runs de Burn : pas de ./.agent-burn/ lu
+        hung = []
 
         def done(code=0, status=None, failed=False):
             # Ignoré si l'un des deux est détruit (process tué à la fermeture de l'app).
             if not (shiboken6.isValid(self) and shiboken6.isValid(p)) or self._probe is not p:
                 return
             self._probe = None
-            text = ("introuvable" if failed else bytes(p.readAllStandardOutput()).decode("utf-8", "replace").strip()
-                    if code == 0 and status == QProcess.ExitStatus.NormalExit else f"en échec (code {code})")
+            out = bytes(p.readAllStandardOutput()).decode("utf-8", "replace").strip()
+            text = ("introuvable" if failed else f"sans réponse ({PROBE_MS // 1000} s)" if hung
+                    else out or "illisible" if code == 0 and status == QProcess.ExitStatus.NormalExit
+                    else f"en échec (code {code})")
             p.deleteLater()
             if text != self._cli:
                 self._cli = text
@@ -133,7 +137,7 @@ class Desktop(QObject):
 
         p.finished.connect(done)
         p.errorOccurred.connect(lambda e: e == QProcess.ProcessError.FailedToStart and done(failed=True))
-        QTimer.singleShot(10000, p, p.kill)   # CLI bloqué : finished avec arrêt forcé
+        QTimer.singleShot(PROBE_MS, p, lambda: (hung.append(True), p.kill()))   # finished suit, avec arrêt forcé
         p.start(self._bin, ["--version"])
 
     def facts(self):

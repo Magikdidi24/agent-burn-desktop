@@ -85,6 +85,20 @@ class CliVersion(unittest.TestCase):
         self.assertTrue(wait_for(lambda: d.cliVersion != "", 10))
         self.assertEqual(d.cliVersion, "introuvable")
 
+    @unittest.skipIf(sys.platform == "win32", "faux CLI en sh")
+    def test_empty_or_hung_version(self):
+        # Rien sur stdout : « illisible », pas « lecture… » à vie ; bloqué : tué au délai, dit tel quel.
+        with tempfile.TemporaryDirectory() as tmp:
+            for body, shown in (("exit 0", "illisible"), ("exec sleep 30", "sans réponse (1 s)")):
+                cli = Path(tmp) / "agent-burn"
+                cli.write_text(f"#!/bin/sh\n{body}\n")
+                cli.chmod(0o755)
+                d = desktop(str(cli))
+                with mock.patch.object(diagnostics, "PROBE_MS", 1000):
+                    d.probeCli()
+                    self.assertTrue(wait_for(lambda: d.cliVersion != "", 10), body)
+                self.assertEqual(d.cliVersion, shown)
+
 
 class BuildInfo(unittest.TestCase):
     def test_dev_reads_the_pinned_cli_from_install_sh(self):
