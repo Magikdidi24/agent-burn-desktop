@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Suivi du dépôt amont github.com/Melvynx/agent-burn (app Mac + CLI) depuis la révision épinglée
-dans install.sh (AB_REV) : ce qu'il reste à porter dans ce repo, et le bump du CLI.
+dans cli.env (AB_REV) : ce qu'il reste à porter dans ce repo, et le bump du CLI.
 
   agent-burn-upstream [status] [--fetch] [--json]  commits AB_REV..main amont, regroupés, et fichiers à revoir
   agent-burn-upstream diff QuotaChart.swift        diff amont d'un fichier (nom ou chemin) depuis AB_REV
-  agent-burn-upstream update [REV|latest]          compile le CLI de REV, vérifie son JSON, l'installe et l'épingle
+  agent-burn-upstream update [REV|latest]          compile le CLI de REV, vérifie son JSON et l'épingle (cli.env)
 
 --fetch (avec chaque commande) met d'abord à jour la copie de l'amont. Anciennes formes, toujours valides :
 --diff FICHIER, --bump [REV].
@@ -25,11 +25,11 @@ from pathlib import Path
 URL = os.environ.get("AGENT_BURN_UPSTREAM_URL") or "https://github.com/Melvynx/agent-burn"
 CACHE = Path(os.environ.get("AGENT_BURN_UPSTREAM_CACHE") or Path.home() / ".cache/agent-burn-upstream")
 REPO = CACHE / "repo"
-ROOT = Path(__file__).resolve().parents[3]   # <repo>/config/quickshell/scripts/ce-fichier
-INSTALL_SH = Path(os.environ.get("AGENT_BURN_INSTALL_SH") or ROOT / "install.sh").resolve()
-ENV = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}   # lancé en fond par qs : jamais de demande d'identifiants
+ROOT = Path(__file__).resolve().parents[1]   # <repo>/scripts/ce-fichier
+CLI_ENV = Path(os.environ.get("AGENT_BURN_CLI_ENV") or ROOT / "cli.env").resolve()
+ENV = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}   # peut tourner en fond : jamais de demande d'identifiants
 
-QS, APP = "config/quickshell/", "desktop/agent-burn/app/"
+QS, APP = "shared/", "app/"
 BURN, POP, DASH = QS + "Burn.qml", QS + "BurnPopover.qml", QS + "BurnDashboardView.qml"
 # App Mac (Sources/AgentBurn/<nom>.swift) → fichiers de ce repo qui la portent ; [] = non porté.
 PORT = {
@@ -45,17 +45,16 @@ PORT = {
     "ClaudeAccountView": [POP, DASH, BURN],   # ClaudeAccount et claudeVerdict : Burn.qml
     "Theme": [POP, DASH, APP + "qml/Colors.qml"],
     # Mode « barre de menus seule » et logo des fenêtres (__main__.py), réglage d'apparence (Colors.qml).
-    "AppAppearance": [APP + "agentburn/__main__.py", APP + "qml/Colors.qml", QS + "Colors.qml"],
+    "AppAppearance": [APP + "agentburn/__main__.py", APP + "qml/Colors.qml"],
     "LoginItem": [APP + "agentburn/platform_win.py", APP + "agentburn/platform_linux.py"],   # démarrage auto
     "BrandImages": [QS + "assets/burn/"],
-    # MenuBarLabel (pill, icône de notification) et fenêtre du dashboard.
-    "AgentBurnApp": [QS + "BurnPill.qml", QS + "BurnDashboard.qml", APP + "agentburn/tray.py",
-                     APP + "qml/DashboardWindow.qml"],
+    # MenuBarLabel (icône de notification) et fenêtre du dashboard.
+    "AgentBurnApp": [APP + "agentburn/tray.py", APP + "qml/DashboardWindow.qml"],
     # QuotaService : agent launchd du collecteur ; ici, relevé de Burn.qml tant que l'app tourne.
     **dict.fromkeys(["UsageStore", "QuotaFreshness", "QuotaJournal", "QuotaHistory", "QuotaCollector", "QuotaService",
                      "MetricsArchive", "UsageJournal", "Usage", "ClaudeAccountFile", "CLIClient", "ReportCache"], [BURN]),
     "CursorAccountView": [],
-    "AppUpdater": [],   # Sparkle : pas de mise à jour automatique, voulu (desktop/agent-burn/README.md)
+    "AppUpdater": [],   # Sparkle : pas de mise à jour automatique, voulu (README.md)
 }
 GROUPS = {"mac": "App Mac", "cli": "CLI", "docs": "Docs", "ci": "CI/infra", "other": "Autres"}
 # Clés lues dans les rapports par Burn.qml (setSummary, merge, windows, quotaProc) et par les vues (popover,
@@ -126,7 +125,7 @@ def mac_targets(path):
     if "/Resources/Brands/" in path:
         return [QS + "assets/burn/"]
     if path.endswith("/AppIcon.icns"):
-        return ["desktop/agent-burn/assets/agent-burn.ico"]
+        return ["assets/agent-burn.ico"]
     return None
 
 
@@ -147,12 +146,12 @@ def short(path):
 
 
 def read_pin():
-    """Texte d'install.sh (source de vérité), AB_REV et version d'AB_VER."""
-    text = INSTALL_SH.read_text()
+    """Texte de cli.env (source de vérité), AB_REV et version d'AB_VER."""
+    text = CLI_ENV.read_text()
     rev = re.findall(r"^AB_REV=([0-9a-f]{7,40})$", text, re.M)
     ver = re.findall(r'^AB_VER="agent-burn ([^"]+)"$', text, re.M)
     if len(rev) != 1 or len(ver) != 1:
-        raise Fail(f'{INSTALL_SH} : il faut une ligne AB_REV=<sha> et une ligne AB_VER="agent-burn <version>"')
+        raise Fail(f'{CLI_ENV} : il faut une ligne AB_REV=<sha> et une ligne AB_VER="agent-burn <version>"')
     return text, rev[0], ver[0]
 
 
@@ -251,7 +250,7 @@ def text(r, commits, sources):
         if r["compareUrl"]:
             out.append("\nComparer : " + r["compareUrl"])
         out.append("Diff d'un fichier : agent-burn-upstream diff QuotaChart.swift (nom ou chemin)")
-        out.append("Bump du CLI (install.sh, compilation, contrôle du JSON) : agent-burn-upstream update --fetch")
+        out.append("Bump du CLI (compilation, contrôle du JSON, cli.env) : agent-burn-upstream update --fetch")
     return "\n".join(out)
 
 
@@ -322,7 +321,7 @@ def check(binary, ver):
                                          timeout=300, cwd=home, env={"HOME": home, "PATH": os.environ.get("PATH", "")})
         got = clean(call("--version").stdout.strip())
         ok = got == ver
-        print(f"  --version : {got or '?'}" + ("" if ok else f" ≠ « {ver} » (install.sh recompilerait à chaque lancement)"))
+        print(f"  --version : {got or '?'}" + ("" if ok else f" ≠ « {ver} » (build.sh et build.ps1 refuseraient ce CLI)"))
         for cmd, keys in KEYS.items():
             r = call(*cmd.split(), "--value", "--json", "--no-color", "--offline")
             try:
@@ -338,8 +337,8 @@ def check(binary, ver):
                                    else f"ok ({len(keys) - len(null)} clés)"
                                    + (", non vérifiable (null ou vide) : " + ", ".join(null) if null else "")))
     print("  Non vérifiable hors ligne : claudeAccount, claudeAccountStatus (présent seulement quand la connexion a"
-          " expiré), relevé AGENT_BURN_QUOTA_ONLY (observedAt, sessionWindow) → regarde la pill après le"
-          " redémarrage de qs.")
+          " expiré), relevé AGENT_BURN_QUOTA_ONLY (observedAt, sessionWindow) → regarde l'aperçu et le dashboard"
+          " avec ce CLI, en ligne.")
     return ok
 
 
@@ -351,52 +350,47 @@ def bump(rev):
     except Fail:
         raise Fail(f"révision « {rev} » inconnue de l'amont (relance avec --fetch ?)") from None
     if sha == pinned:
-        print(f"install.sh épingle déjà {sha[:12]} : rien à faire.")
+        print(f"cli.env épingle déjà {sha[:12]} : rien à faire.")
         return 0
-    # Version recopiée dans AB_VER="…", que bash évalue : semver seulement.
+    # Version recopiée dans AB_VER="…" de cli.env, qu'un shell peut sourcer : semver seulement.
     m = re.search(r'^version\s*=\s*"([0-9][0-9A-Za-z.+-]*)"', git("show", f"{sha}:rust/crates/agent-burn/Cargo.toml"),
                   re.M)
     if not m:
         raise Fail(f"version introuvable dans rust/crates/agent-burn/Cargo.toml de {sha[:12]}")
     ver = "agent-burn " + m[1]
-    st = subprocess.run(["git", "-C", str(INSTALL_SH.parent), "--no-optional-locks", "status", "--porcelain", "--",
-                         INSTALL_SH.name], capture_output=True, text=True, env=ENV)
+    st = subprocess.run(["git", "-C", str(CLI_ENV.parent), "--no-optional-locks", "status", "--porcelain", "--",
+                         CLI_ENV.name], capture_output=True, text=True, env=ENV)
     dirty = st.returncode == 0 and st.stdout.strip() != ""
     if st.returncode == 0:   # hors d'un dépôt git : rien à signaler
-        print("install.sh : " + ("modifications non commitées, conservées (seules les lignes AB_REV et AB_VER changent,"
-                                 " copie dans install.sh.bak)." if dirty else "aucune modification locale."))
+        print("cli.env : " + ("modifications non commitées, conservées (seules les lignes AB_REV et AB_VER changent,"
+                              " copie dans cli.env.bak)." if dirty else "aucune modification locale."))
     print(f"Compilation de {ver} ({sha[:12]}) : cargo, ~2 min…", flush=True)
-    # Même commande qu'install.sh, mais à part : la barre garde son CLI tant que ce JSON n'est pas vérifié.
+    # Compilé dans le cache, jamais installé : seul cli.env change, une fois ce JSON vérifié.
     staged = CACHE / "cli/bin/agent-burn"
     if subprocess.run(["cargo", "install", "-q", "--locked", "--force", "--git", URL, "--rev", sha,
                        "agent-burn", "--bin", "agent-burn", "--root", str(CACHE / "cli")]).returncode:
-        raise Fail("cargo install a échoué : install.sh et le CLI installé sont inchangés.")
+        raise Fail("cargo install a échoué : cli.env inchangé.")
     print("\nContrôle du JSON lu par Burn.qml et les vues (CLI compilé, hors ligne, HOME synthétique) :")
     if not check(staged, ver):
-        print(f"\nIncompatible : rien n'a été changé (install.sh, CLI installé). Adapte d'abord le QML ; CLI compilé"
+        print(f"\nIncompatible : rien n'a été changé (cli.env). Adapte d'abord le QML ; CLI compilé"
               f" gardé pour l'examiner : AGENT_BURN_BIN={staged}")
         return 1
     text, _, _ = read_pin()   # relu : une modification faite pendant la compilation reste
-    # Renommage atomique : pas de « Text file busy » si la barre lance le CLI à cet instant.
-    dst = Path.home() / ".local/bin/agent-burn"
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(staged, dst.with_name("agent-burn.tmp"))
-    os.replace(dst.with_name("agent-burn.tmp"), dst)
     new = re.sub(r"^AB_REV=[0-9a-f]{7,40}$", lambda _: "AB_REV=" + sha, text, count=1, flags=re.M)
     new = re.sub(r'^AB_VER="agent-burn [^"]+"$', lambda _: f'AB_VER="{ver}"', new, count=1, flags=re.M)
-    shutil.copy2(INSTALL_SH, INSTALL_SH.with_name(INSTALL_SH.name + ".bak"))
-    tmp = INSTALL_SH.with_name(INSTALL_SH.name + ".tmp")
+    shutil.copy2(CLI_ENV, CLI_ENV.with_name(CLI_ENV.name + ".bak"))
+    tmp = CLI_ENV.with_name(CLI_ENV.name + ".tmp")
     tmp.write_text(new)
-    shutil.copymode(INSTALL_SH, tmp)
-    os.replace(tmp, INSTALL_SH)   # AB_REV et AB_VER changent ensemble, ou pas du tout
+    shutil.copymode(CLI_ENV, tmp)
+    os.replace(tmp, CLI_ENV)   # AB_REV et AB_VER changent ensemble, ou pas du tout
     sys.stdout.writelines(difflib.unified_diff(text.splitlines(True), new.splitlines(True),
-                                               "install.sh (avant, copie .bak)", "install.sh"))
-    repo = INSTALL_SH.parent
+                                               "cli.env (avant, copie .bak)", "cli.env"))
+    repo = CLI_ENV.parent
     add = "add -p" if dirty else "add"   # -p : le bump seul, sans les modifications locales
-    print(f"\nCompatible : CLI installé ({dst}), install.sh épinglé. Étapes suivantes :\n"
-          f"  recapture desktop/agent-burn/tests/fixtures avec ce CLI (selftest et tests de l'app de bureau ;\n"
+    print(f"\nCompatible : cli.env épinglé (CLI compilé : {staged}). Étapes suivantes :\n"
+          f"  recapture tests/fixtures avec ce CLI (selftest et tests de l'app de bureau ;\n"
           f"  date de capture dans fake_cli de __main__.py et dans gen.py de la suite burn-suite)\n"
-          f"  git -C {repo} {add} install.sh   (+ les fichiers portés)\n"
+          f"  git -C {repo} {add} cli.env   (+ les fichiers portés)\n"
           f'  git -C {repo} commit -m "agent-burn : CLI épinglé sur {sha[:12]} ({ver})"\n'
           f"  git -C {repo} push   → la CI recompile le CLI et l'app")
     return 0

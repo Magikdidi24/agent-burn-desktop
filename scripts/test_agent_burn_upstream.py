@@ -1,8 +1,8 @@
 """Tests d'agent-burn-upstream.py contre un faux dépôt amont local (git file://) et un faux cargo : stdlib et
-git seulement, rien d'écrit hors du dossier temporaire (HOME, cache et install.sh y sont redirigés). Seule
+git seulement, rien d'écrit hors du dossier temporaire (HOME, cache et cli.env y sont redirigés). Seule
 exception, si ~/.local/bin/agent-burn existe : le vrai CLI lit le HOME synthétique du contrôle, hors ligne.
 
-  python3 -I config/quickshell/scripts/test_agent_burn_upstream.py
+  python3 -I scripts/test_agent_burn_upstream.py
 """
 import contextlib
 import importlib.util
@@ -19,9 +19,9 @@ from pathlib import Path
 
 sys.dont_write_bytecode = True   # importer le script ne doit pas laisser de __pycache__ dans le dépôt
 HERE = Path(__file__).resolve().parent
-QS = HERE.parent
+ROOT = HERE.parent
 SCRIPT = HERE / "agent-burn-upstream.py"
-FIX = HERE.parents[2] / "desktop/agent-burn/tests/fixtures"   # sorties réelles du CLI
+FIX = ROOT / "tests/fixtures"   # sorties réelles du CLI
 
 
 def load():
@@ -31,11 +31,10 @@ def load():
     return mod
 
 
-INSTALL_SH = """#!/usr/bin/env bash
-# en-tête
+CLI_ENV = """# en-tête
 AB_REV={rev}
 AB_VER="agent-burn 20.0.21"
-echo fin
+# fin
 """
 
 FAKE_CARGO = """#!/usr/bin/env python3
@@ -43,8 +42,8 @@ import os, sys
 open(os.environ["FAKE_LOG"], "w").write("\\n".join(sys.argv[1:]))
 if os.environ.get("FAKE_CARGO_FAIL"):
     sys.exit(101)
-if os.environ.get("FAKE_CARGO_EDIT"):   # install.sh modifié pendant la compilation
-    open(os.environ["FAKE_CARGO_EDIT"], "a").write("echo ajout\\n")
+if os.environ.get("FAKE_CARGO_EDIT"):   # cli.env modifié pendant la compilation
+    open(os.environ["FAKE_CARGO_EDIT"], "a").write("# ajout\\n")
 root = sys.argv[sys.argv.index("--root") + 1]
 os.makedirs(root + "/bin", exist_ok=True)
 # Le contrôle lance le CLI avec un environnement vide : ses réglages de test sont écrits dans le binaire.
@@ -80,8 +79,7 @@ def sh(cwd, *args, env=None):
 class Port(unittest.TestCase):
     def test_every_target_exists(self):
         # Un fichier renommé ou supprimé : le rapport enverrait revoir un fichier absent.
-        root = HERE.parents[2]
-        self.assertEqual(sorted({t for ts in load().PORT.values() for t in ts if not (root / t).exists()}), [])
+        self.assertEqual(sorted({t for ts in load().PORT.values() for t in ts if not (ROOT / t).exists()}), [])
 
 
 class Upstream(unittest.TestCase):
@@ -171,13 +169,13 @@ class Upstream(unittest.TestCase):
         self.dir = Path(tempfile.mkdtemp(prefix="t-", dir=self.tmp))
         self.home = self.dir / "home"
         self.home.mkdir()
-        self.install = self.dir / "install.sh"
+        self.cli_env = self.dir / "cli.env"
         self.pin(self.c1)
         self.url = "file://" + str(self.up)
 
     def pin(self, rev):
-        self.install.write_text(INSTALL_SH.format(rev=rev))
-        self.install.chmod(0o755)
+        self.cli_env.write_text(CLI_ENV.format(rev=rev))
+        self.cli_env.chmod(0o600)   # hors du mode par défaut : test_bump_latest vérifie qu'il est gardé
 
     def copy_upstream(self):
         """Copie modifiable du faux amont, servie à la place de l'original."""
@@ -195,8 +193,8 @@ class Upstream(unittest.TestCase):
 
     def run_script(self, *args, **env):
         e = {**os.environ, "AGENT_BURN_UPSTREAM_URL": self.url, "AGENT_BURN_UPSTREAM_CACHE": str(self.dir / "cache"),
-             "AGENT_BURN_INSTALL_SH": str(self.install), "HOME": str(self.home),
-             "GIT_CEILING_DIRECTORIES": str(self.tmp),   # install.sh hors dépôt, même si TMPDIR est dans un dépôt
+             "AGENT_BURN_CLI_ENV": str(self.cli_env), "HOME": str(self.home),
+             "GIT_CEILING_DIRECTORIES": str(self.tmp),   # cli.env hors dépôt, même si TMPDIR est dans un dépôt
              "PATH": f"{self.fakebin}:{os.environ['PATH']}", "FAKE_LOG": str(self.dir / "cargo.log"),
              "FAKE_AB": str(self.tmp / "fake-agent-burn"), "FAKE_AB_LOG": str(self.dir / "ab.log"),
              "FAKE_AB_SUMMARY": str(FIX / "summary-live.json"), "FAKE_AB_HARNESS": str(FIX / "harness-claude.json"),
@@ -209,8 +207,8 @@ class Upstream(unittest.TestCase):
         return json.loads(r.stdout)
 
     def assert_nothing_installed(self, before):
-        self.assertEqual(self.install.read_text(), before)
-        self.assertFalse((self.home / ".local/bin/agent-burn").exists())
+        self.assertEqual(self.cli_env.read_text(), before)
+        self.assertFalse((self.home / ".local").exists())
 
     # ── rapport ──
     def test_no_cache_without_fetch(self):
@@ -234,11 +232,9 @@ class Upstream(unittest.TestCase):
         self.assertEqual(d["ahead"], 9)
         self.assertEqual(d["tags"], {"cli": ["v20.0.22"], "mac": ["macos-v1.1.0"]})
         self.assertEqual(d["categories"], {"mac": 3, "cli": 4, "docs": 1, "other": 1})
-        self.assertEqual(d["toPort"], ["config/quickshell/Burn.qml", "config/quickshell/BurnDashboard.qml",
-                                       "config/quickshell/BurnDashboardView.qml", "config/quickshell/BurnPill.qml",
-                                       "config/quickshell/BurnPopover.qml", "config/quickshell/BurnQuotaChart.qml",
-                                       "desktop/agent-burn/app/agentburn/tray.py", "desktop/agent-burn/app/qml/Colors.qml",
-                                       "desktop/agent-burn/app/qml/DashboardWindow.qml"])
+        self.assertEqual(d["toPort"], ["app/agentburn/tray.py", "app/qml/Colors.qml", "app/qml/DashboardWindow.qml",
+                                       "shared/Burn.qml", "shared/BurnDashboardView.qml", "shared/BurnPopover.qml",
+                                       "shared/BurnQuotaChart.qml"])
         self.assertEqual(d["compareUrl"], "")   # pas GitHub
         self.assertTrue(d["fetchedAt"])
         self.assertEqual(d["error"], "")
@@ -254,15 +250,13 @@ class Upstream(unittest.TestCase):
         out = r.stdout
         for s in ["9 nouveaux commits", "App Mac (3)", "CLI (4)", "Docs (1)", "CI/infra (1)",
                   self.c2[:7], "feat(macos): plage du graphe de quota",
-                  "QuotaChart.swift → config/quickshell/BurnQuotaChart.qml",
-                  "Theme.swift → config/quickshell/BurnPopover.qml, config/quickshell/BurnDashboardView.qml, "
-                  "desktop/agent-burn/app/qml/Colors.qml",
+                  "QuotaChart.swift → shared/BurnQuotaChart.qml",
+                  "Theme.swift → shared/BurnPopover.qml, shared/BurnDashboardView.qml, app/qml/Colors.qml",
                   "CursorAccountView.swift → non porté",
-                  "AgentBurnApp.swift → config/quickshell/BurnPill.qml, config/quickshell/BurnDashboard.qml, "
-                  "desktop/agent-burn/app/agentburn/tray.py, desktop/agent-burn/app/qml/DashboardWindow.qml",
-                  "CompactHarnessView.swift → config/quickshell/BurnPopover.qml",
+                  "AgentBurnApp.swift → app/agentburn/tray.py, app/qml/DashboardWindow.qml",
+                  "CompactHarnessView.swift → shared/BurnPopover.qml",
                   "[adapter/claude]", "[sortie JSON → vérifier Burn.qml]", "[tarifs]",
-                  "v20.0.22", "macos-v1.1.0", "Fichiers du repo à revoir", "config/quickshell/Burn.qml",
+                  "v20.0.22", "macos-v1.1.0", "Fichiers du repo à revoir", "shared/Burn.qml",
                   "agent-burn-upstream diff QuotaChart.swift", "agent-burn-upstream update --fetch"]:
             self.assertIn(s, out)
         self.assertNotIn("Merge branch popover", out)
@@ -313,7 +307,7 @@ class Upstream(unittest.TestCase):
         self.assertEqual(sh(cache, "git", "config", "remote.origin.partialclonefilter"), "blob:none")
         self.assertEqual([p.name for p in cache.iterdir()], [".git"])
         self.assertIn("2 nouveaux commits", r.stdout)
-        self.assertIn("HarnessView.swift → config/quickshell/BurnPopover.qml, config/quickshell/Burn.qml",
+        self.assertIn("HarnessView.swift → shared/BurnPopover.qml, shared/Burn.qml",
                       r.stdout)   # nom d'avant
         self.assertIn("HarnessPanel.swift → à évaluer", r.stdout)
 
@@ -323,10 +317,9 @@ class Upstream(unittest.TestCase):
         self.commit(up2, "feat(macos): réglages", {f"apps/macos/Sources/AgentBurn/{n}.swift": f"// {n}\n" for n in names})
         self.pin(self.head)
         self.assertEqual(self.report("--fetch")["toPort"], [
-            "config/quickshell/Burn.qml", "config/quickshell/BurnDashboardView.qml", "config/quickshell/BurnPopover.qml",
-            "config/quickshell/Colors.qml", "config/quickshell/assets/burn/", "desktop/agent-burn/app/agentburn/__main__.py",
-            "desktop/agent-burn/app/agentburn/platform_linux.py", "desktop/agent-burn/app/agentburn/platform_win.py",
-            "desktop/agent-burn/app/qml/Colors.qml", "desktop/agent-burn/app/qml/SettingsWindow.qml"])
+            "app/agentburn/__main__.py", "app/agentburn/platform_linux.py", "app/agentburn/platform_win.py",
+            "app/qml/Colors.qml", "app/qml/SettingsWindow.qml", "shared/Burn.qml", "shared/BurnDashboardView.qml",
+            "shared/BurnPopover.qml", "shared/assets/burn/"])
         out = self.run_script().stdout
         self.assertNotIn("à évaluer", out)
         self.assertIn("AppUpdater.swift → non porté", out)
@@ -347,8 +340,8 @@ class Upstream(unittest.TestCase):
         self.assertIn("AB_REV", d["error"])
         self.assertEqual(d["head"], "")   # échec dur : BurnUpstream l'affiche dans le bandeau
 
-    def test_install_sh_without_pin(self):
-        self.install.write_text("#!/bin/sh\necho rien\n")
+    def test_cli_env_without_pin(self):
+        self.cli_env.write_text("# rien\n")
         r = self.run_script("--fetch")
         self.assertEqual(r.returncode, 1)
         self.assertIn("AB_REV", r.stderr)
@@ -374,31 +367,29 @@ class Upstream(unittest.TestCase):
 
     # ── bump ──
     def test_bump_latest(self):
-        before = self.install.read_text()
+        before = self.cli_env.read_text()
         r = self.run_script("--fetch", "--bump")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        after = self.install.read_text()
+        after = self.cli_env.read_text()
         self.assertEqual(after, before.replace(self.c1, self.head).replace("20.0.21", "20.0.22"))
-        self.assertEqual((self.dir / "install.sh.bak").read_text(), before)
-        self.assertEqual(self.install.stat().st_mode & 0o777, 0o755)
-        # Compilé à part, puis copié à la place du CLI de la barre une fois son JSON vérifié.
+        self.assertEqual((self.dir / "cli.env.bak").read_text(), before)
+        self.assertEqual(self.cli_env.stat().st_mode & 0o777, 0o600)
+        # Compilé dans le cache et laissé là : rien d'installé dans le HOME (~/.local/bin).
         self.assertEqual((self.dir / "cargo.log").read_text().split("\n"),
                          ["install", "-q", "--locked", "--force", "--git", self.url, "--rev", self.head, "agent-burn",
                           "--bin", "agent-burn", "--root", str(self.dir / "cache/cli")])
-        installed = self.home / ".local/bin/agent-burn"
-        self.assertEqual(installed.read_bytes(), (self.dir / "cache/cli/bin/agent-burn").read_bytes())
-        self.assertTrue(os.access(installed, os.X_OK))
-        self.assertFalse((self.home / ".local/bin/agent-burn.tmp").exists())
+        self.assertTrue(os.access(self.dir / "cache/cli/bin/agent-burn", os.X_OK))
+        self.assertFalse((self.home / ".local").exists())
         calls = (self.dir / "ab.log").read_text().splitlines()
         self.assertEqual(sorted(calls), ["harness claude --value --json --no-color --offline",
                                          "harness codex --value --json --no-color --offline",
                                          "summary --value --json --no-color --offline"])
         for s in ["+AB_REV=" + self.head, '+AB_VER="agent-burn 20.0.22"', "Compatible", "Étapes suivantes",
-                  "recapture desktop/agent-burn/tests/fixtures", "push", "Non vérifiable hors ligne : claudeAccount",
+                  "recapture tests/fixtures", "push", "Non vérifiable hors ligne : claudeAccount",
                   "claudeAccountStatus", "summary : ok (22 clés)\n", "harness claude : ok (13 clés)\n",
-                  "harness codex : ok (10 clés)\n", f"git -C {self.dir} add install.sh"]:
+                  "harness codex : ok (10 clés)\n", f"git -C {self.dir} add cli.env"]:
             self.assertIn(s, r.stdout)
-        self.assertNotIn("install.sh : ", r.stdout)   # hors d'un dépôt git : rien à signaler
+        self.assertNotIn("cli.env : ", r.stdout)   # hors d'un dépôt git : rien à signaler
 
     def test_bump_checks_against_a_synthetic_home(self):
         # Ni les données, ni l'environnement, ni les réglages de l'utilisateur ne changent le contrôle.
@@ -429,30 +420,30 @@ class Upstream(unittest.TestCase):
                       "window.elapsedPercent, window.windowMinutes\n", out.getvalue())   # relevé live seulement
         self.assertIn("harness codex : ok (10 clés)\n", out.getvalue())
 
-    def test_bump_keeps_uncommitted_install_sh_changes(self):
+    def test_bump_keeps_uncommitted_cli_env_changes(self):
         git = lambda *a: sh(self.dir, "git", "-c", "user.name=t", "-c", "user.email=t@example.com",
                             "-c", "commit.gpgSign=false", *a)
         git("init", "-q")
-        git("add", "install.sh")
-        git("commit", "-q", "-m", "install")
+        git("add", "cli.env")
+        git("commit", "-q", "-m", "pin")
         r = self.run_script("--fetch", "update", "v20.0.22")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertIn("install.sh : aucune modification locale.", r.stdout)
+        self.assertIn("cli.env : aucune modification locale.", r.stdout)
         self.pin(self.c1)   # = le commit
-        self.install.write_text(self.install.read_text().replace("echo fin", "echo local"))   # non commité
-        before = self.install.read_text()
+        self.cli_env.write_text(self.cli_env.read_text().replace("# fin", "# local"))   # non commité
+        before = self.cli_env.read_text()
         r = self.run_script("update", "v20.0.22")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertLess(r.stdout.index("modifications non commitées, conservées"), r.stdout.index("Compilation"))
-        self.assertEqual(self.install.read_text(), before.replace(self.c1, self.c9).replace("20.0.21", "20.0.22"))
-        self.assertEqual((self.dir / "install.sh.bak").read_text(), before)
-        self.assertIn(f"git -C {self.dir} add -p install.sh", r.stdout)   # le bump seul
+        self.assertEqual(self.cli_env.read_text(), before.replace(self.c1, self.c9).replace("20.0.21", "20.0.22"))
+        self.assertEqual((self.dir / "cli.env.bak").read_text(), before)
+        self.assertIn(f"git -C {self.dir} add -p cli.env", r.stdout)   # le bump seul
 
     def test_bump_keeps_edits_made_during_the_build(self):
-        r = self.run_script("--fetch", "--bump", FAKE_CARGO_EDIT=str(self.install))
+        r = self.run_script("--fetch", "--bump", FAKE_CARGO_EDIT=str(self.cli_env))
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        text = self.install.read_text()
-        self.assertTrue(text.endswith("echo fin\necho ajout\n"), text)
+        text = self.cli_env.read_text()
+        self.assertTrue(text.endswith("# fin\n# ajout\n"), text)
         self.assertIn(f"AB_REV={self.head}\n", text)
 
     def test_bump_main_is_upstream_main_not_the_clone_branch(self):
@@ -466,7 +457,7 @@ class Upstream(unittest.TestCase):
             self.pin(self.c1)
             r = self.run_script("--bump", rev)
             self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-            self.assertIn(f"AB_REV={new}\n", self.install.read_text(), rev)
+            self.assertIn(f"AB_REV={new}\n", self.cli_env.read_text(), rev)
 
     def test_bump_offline_warns_before_bumping(self):
         up2 = self.copy_upstream()
@@ -479,11 +470,11 @@ class Upstream(unittest.TestCase):
         self.run_script("--fetch")
         r = self.run_script("--bump", self.c5[:9], FAKE_AB_VERSION="agent-burn 20.0.21")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertIn(f"AB_REV={self.c5}\n", self.install.read_text())
-        self.assertIn('AB_VER="agent-burn 20.0.21"\n', self.install.read_text())
+        self.assertIn(f"AB_REV={self.c5}\n", self.cli_env.read_text())
+        self.assertIn('AB_VER="agent-burn 20.0.21"\n', self.cli_env.read_text())
         r = self.run_script("--bump", "v20.0.22")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertIn(f"AB_REV={self.c9}\n", self.install.read_text())
+        self.assertIn(f"AB_REV={self.c9}\n", self.cli_env.read_text())
 
     def test_bump_same_rev(self):
         self.pin(self.head)
@@ -493,14 +484,14 @@ class Upstream(unittest.TestCase):
         self.assertFalse((self.dir / "cargo.log").exists())
 
     def test_bump_cargo_failure_changes_nothing(self):
-        before = self.install.read_text()
+        before = self.cli_env.read_text()
         r = self.run_script("--fetch", "--bump", FAKE_CARGO_FAIL="1")
         self.assertEqual(r.returncode, 1)
         self.assertIn("cargo", r.stderr)
         self.assert_nothing_installed(before)
 
     def test_bump_incompatible_json_changes_nothing(self):
-        before = self.install.read_text()
+        before = self.cli_env.read_text()
         r = self.run_script("--fetch", "--bump", FAKE_AB_SUMMARY=str(self.tmp / "summary-renamed.json"))
         self.assertEqual(r.returncode, 1)
         self.assertIn("summary : clés manquantes : agents[].totalCost, daily[].date, daily[].cost, daily[].tokens\n",
@@ -532,11 +523,11 @@ class Upstream(unittest.TestCase):
         self.assertIs(lacks({"agents": {}}, path), True)   # plus une liste
 
     def test_bump_refuses_a_non_semver_version(self):
-        # Recopiée dans AB_VER="…" d'install.sh, que bash évalue : $(…) y serait exécuté.
+        # Recopiée dans AB_VER="…" de cli.env, qu'un shell peut sourcer : $(…) y serait exécuté.
         up2 = self.copy_upstream()
         self.commit(up2, "chore: release", {"rust/crates/agent-burn/Cargo.toml":
                                             '[package]\nname = "agent-burn"\nversion = "20.0.23$(touch pwned)"\n'})
-        before = self.install.read_text()
+        before = self.cli_env.read_text()
         r = self.run_script("--fetch", "update")
         self.assertEqual(r.returncode, 1)
         self.assertIn("version introuvable", r.stderr)
@@ -544,7 +535,7 @@ class Upstream(unittest.TestCase):
         self.assert_nothing_installed(before)
 
     def test_bump_version_mismatch_changes_nothing(self):
-        before = self.install.read_text()
+        before = self.cli_env.read_text()
         r = self.run_script("--fetch", "--bump", FAKE_AB_VERSION="agent-burn 99.0.0")
         self.assertEqual(r.returncode, 1)
         self.assertIn("--version", r.stdout)
@@ -585,10 +576,10 @@ class Upstream(unittest.TestCase):
         self.assertIn("+struct QuotaChart { var range = 7 }", self.run_script("diff", "QuotaChart").stdout)
         r = self.run_script("update", "--fetch", "v20.0.22")   # options avant ou après REV
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertIn(f"AB_REV={self.c9}\n", self.install.read_text())
+        self.assertIn(f"AB_REV={self.c9}\n", self.cli_env.read_text())
         r = self.run_script("update")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertIn(f"AB_REV={self.head}\n", self.install.read_text())   # latest
+        self.assertIn(f"AB_REV={self.head}\n", self.cli_env.read_text())   # latest
         out = self.run_script("--help").stdout
         for s in ("agent-burn-upstream [status] [--fetch] [--json]", "agent-burn-upstream diff QuotaChart.swift",
                   "agent-burn-upstream update [REV|latest]"):
@@ -599,7 +590,7 @@ class Upstream(unittest.TestCase):
     # ── liste des clés ──
     def test_keys_are_read_by_the_qml(self):
         mod = load()
-        qml = "".join((QS / f).read_text() for f in ("Burn.qml", "BurnPopover.qml", "BurnDashboardView.qml"))
+        qml = "".join((ROOT / "shared" / f).read_text() for f in ("Burn.qml", "BurnPopover.qml", "BurnDashboardView.qml"))
         for paths in mod.KEYS.values():
             for p in paths:
                 for seg in p.split("."):

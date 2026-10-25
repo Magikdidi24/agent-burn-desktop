@@ -4,3 +4,5 @@ app/fonts/
 build/
 dist/
 __pycache__/
+# Copie laissée par scripts/agent-burn-upstream.py update
+cli.env.bak
