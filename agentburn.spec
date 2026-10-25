@@ -24,7 +24,8 @@ with open(entry, 'w') as f:
 
 # QML partagés avec le module Quickshell : lus dans le dépôt, jamais dupliqués dans git.
 datas = [(os.path.join(qs, f), 'shared') for f in SHARED]
-datas += [(os.path.join(qs, 'assets', 'burn'), 'shared/assets/burn'), (os.path.join(app, 'qml'), 'qml')]
+datas += [(os.path.join(qs, 'assets', 'burn'), 'shared/assets/burn'), (os.path.join(app, 'qml'), 'qml'),
+          (os.path.join(here, 'assets', 'agent-burn.png'), 'assets')]  # icône de fenêtre hors thème (Linux)
 if os.path.isdir(fonts):  # rempli par le script de build ; absent en dev (police système)
     datas.append((fonts, 'fonts'))
 if os.path.isdir(extra):

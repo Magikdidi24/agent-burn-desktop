@@ -165,8 +165,10 @@ def run(args):
     base = Path(sys._MEIPASS) if FROZEN else Path(__file__).resolve().parents[1]
     for font in sorted((base / "fonts").glob("*.ttf")):   # absent en dev : police du système
         QFontDatabase.addApplicationFont(str(font))
-    app.setWindowIcon(QFileIconProvider().icon(QFileInfo(sys.executable)) if FROZEN   # icône de l'exe
-                      else QIcon(str(Path(__file__).resolve().parents[2] / "assets" / "agent-burn.png")))
+    # Windows : icône de l'exe ; Linux : celle du thème (paquets), sinon le PNG embarqué (tarball, AppImage, dev).
+    png = (base if FROZEN else Path(__file__).resolve().parents[2]) / "assets" / "agent-burn.png"
+    app.setWindowIcon(QFileIconProvider().icon(QFileInfo(sys.executable)) if FROZEN and sys.platform == "win32"
+                      else QIcon.fromTheme(APP_ID, QIcon(str(png))))
 
     # Réglages (en mémoire pour le selftest : rendu identique partout) et diagnostic avant le moteur QML.
     system = None
