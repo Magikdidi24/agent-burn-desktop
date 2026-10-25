@@ -1,5 +1,6 @@
 # Tests du lancement à l'ouverture de session sous Linux (autostart XDG, XDG_CONFIG_HOME temporaire) :
-# écriture, lecture, Hidden=true, retrait de notre seul fichier, guillemets de la clé Exec.
+# écriture, lecture, Hidden=true et X-GNOME-Autostart-enabled=false, retrait de notre seul fichier,
+# guillemets de la clé Exec.
 #   cd desktop/agent-burn/app && python -m unittest discover -s tests -v
 import os
 import sys
@@ -52,6 +53,14 @@ class Autostart(unittest.TestCase):
         pl.set_autostart(True)
         self.assertTrue(pl.autostart())
         self.assertNotIn("Hidden", self.file.read_text(encoding="utf-8"))
+
+    def test_disabled_by_gnome_tools_means_off(self):
+        # Applications au démarrage (GNOME), Cinnamon, MATE : la clé passe à false, le fichier reste.
+        self.file.parent.mkdir(parents=True)
+        self.file.write_text("[Desktop Entry]\nType=Application\nName=Agent Burn\nExec=x\nX-GNOME-Autostart-enabled=false\n")
+        self.assertFalse(pl.autostart())
+        pl.set_autostart(True)
+        self.assertTrue(pl.autostart())
 
     def test_appimage_preferred_to_the_mounted_executable(self):
         with mock.patch.dict(os.environ, {"APPIMAGE": "/home/me/Applications/Agent Burn.AppImage"}), \

@@ -1,5 +1,6 @@
-# Lancement à l'ouverture de session sous Linux : fichier autostart XDG de l'utilisateur. Hidden=true
-# (posé par l'outil du bureau) vaut désactivé ; seul ce fichier-là est écrit ou retiré.
+# Lancement à l'ouverture de session sous Linux : fichier autostart XDG de l'utilisateur. Hidden=true ou
+# X-GNOME-Autostart-enabled=false (posés par l'outil du bureau) valent désactivé ; seul ce fichier-là est
+# écrit ou retiré.
 import os
 import re
 import sys
@@ -25,7 +26,7 @@ def autostart():
         text = _file().read_text(encoding="utf-8")
     except OSError:   # absent ou illisible
         return False
-    return not re.search(r"(?m)^Hidden\s*=\s*true\s*$", text)
+    return not re.search(r"(?m)^(?:Hidden\s*=\s*true|X-GNOME-Autostart-enabled\s*=\s*false)\s*$", text)
 
 
 def set_autostart(on):
