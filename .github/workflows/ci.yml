@@ -238,13 +238,21 @@ jobs:
           cache: pip
           cache-dependency-path: app/requirements.lock
 
+      # Dans le venv de build.ps1 (.venv) : les tests voient l'environnement du build, que build.ps1 ne fait que
+      # revérifier.
       - name: Dépendances Python
-        run: python -m pip install --require-hashes -r app/requirements.lock
+        run: |
+          python -m venv .venv
+          ./.venv/Scripts/python.exe -m pip install --require-hashes -r app/requirements.lock
 
-      # Sur un vrai Windows : winreg, ctypes et chemins Windows ne sont pas simulés.
+      # Sur un vrai Windows : winreg, ctypes et chemins Windows ne sont pas simulés. UTF-8 dans ce step seulement
+      # (sinon cp1252, et les messages en français arrivent abîmés) : build.ps1 et le selftest restent en cp1252.
       - name: Tests unitaires
         working-directory: app
-        run: python -m unittest discover -s tests -v
+        timeout-minutes: 5   # ~20 s : une fenêtre Qt bloquée ne tient pas le job 45 min
+        env:
+          PYTHONIOENCODING: utf-8
+        run: ../.venv/Scripts/python.exe -m unittest discover -s tests -v
 
       - name: Révision du CLI (cli.env)
         id: rev
