@@ -42,7 +42,9 @@ Ce que `Burn` en tire :
   dans les dernières erreurs.
 - **Page détaillée** : `harness claude` donne l'économie du forfait (`economics`) et la répartition par type de
   jeton (`spendMix`) de la page Claude du dashboard.
-- **Fraîcheur** : `limitsStale` dès que le relevé a plus de 10 min, ou que la connexion est à vérifier.
+- **Fraîcheur** : `limitsStale` dès que le relevé est plus vieux que `staleAfter` = max(10 min, 2 × `cadence`),
+  soit deux tours de fond (un relevé manqué) : 10 min aux rythmes de 1 et 5 min, 30 min à 15 min, 60 min à
+  30 min ; ou dès que la connexion est à vérifier.
 - **Reset passé** : une fenêtre dont la réinitialisation est passée repart à 0 %, sans attendre de relevé.
 
 **Signal de connexion.** Le seul est `claudeAccountStatus: "signInExpired"` dans le summary. Le CLI le produit
@@ -108,16 +110,19 @@ qui s'applique gagne :
 | # | `state` | Signal du CLI | Libellé | Détail affiché |
 |---|---|---|---|---|
 | 1 | `unavailable` | le binaire ne se lance pas (summary, période ou harness) | CLI introuvable | `Burn.cliHint` (barre : « CLI agent-burn introuvable (~/.local/bin/agent-burn) : relance install.sh » ; app : « Agent Burn ne trouve pas son CLI (<chemin>) : réinstalle l'application. ») |
-| 2 | `unknown` | aucun summary, ni réussi ni en cache | Inconnu | Pas encore de rapport du CLI agent-burn. |
-| 3 | `expired` | Claude : `claudeAccountStatus: "signInExpired"` | Connexion à vérifier | Limites refusées : réseau indisponible, ou connexion expirée (claude puis /login). |
-| 4 | `none` | ni `claudeAccount` (Claude), ni ligne dans `agents[]`, ni dans `subscription.agents[]` | Non détecté | agent-burn ne trouve ni usage ni abonnement pour cet agent. |
-| 5 | `live` | limites présentes et fraîches : Claude, relevé de moins de 10 min ; autres, fenêtre non expirée et rapport « En direct » | En direct | Claude : Limites lues sur le compte Claude, relevé récent. Autres : Limites du dernier rapport agent-burn (API ou logs de session). |
-| 5 | `stale` | limites présentes mais anciennes : Claude, relevé de plus de 10 min ; autres, rapport « En cache » | Relevé ancien | Claude : Dernières limites connues : aucun relevé depuis plus de 10 min. Autres : Dernières limites connues, rapport agent-burn en cache. |
-| 6 | `local` | usage sans limite : Claude sans compte ; autres sans fenêtre, ou fenêtre expirée | Usage local | Claude : Dépense lue dans les logs ; limites indisponibles (non connecté ou hors ligne). Autres : Dépense lue dans les logs ; limites absentes ou expirées. |
+| 2 | `unavailable` | aucun summary, ni réussi ni en cache, et `Burn.error` posé (summary ou période en échec) | Rapport en échec | `Burn.error`, le message du CLI (voir [ARCHITECTURE.md](ARCHITECTURE.md#erreurs)) |
+| 3 | `unknown` | aucun summary, ni réussi ni en cache, et pas d'erreur | Inconnu | Pas encore de rapport du CLI agent-burn. |
+| 4 | `expired` | Claude : `claudeAccountStatus: "signInExpired"` | Connexion à vérifier | Limites refusées : réseau indisponible, ou connexion expirée (claude puis /login). |
+| 5 | `none` | ni `claudeAccount` (Claude), ni ligne dans `agents[]`, ni dans `subscription.agents[]` | Non détecté | agent-burn ne trouve ni usage ni abonnement pour cet agent. |
+| 6 | `live` | limites présentes et fraîches : Claude, relevé de moins de `staleAfter` ; autres, fenêtre non expirée et rapport « En direct » | En direct | Claude : Limites lues sur le compte Claude, relevé récent. Autres : Limites du dernier rapport agent-burn (API ou logs de session). |
+| 6 | `stale` | limites présentes mais anciennes : Claude, relevé plus vieux que `staleAfter` ; autres, rapport « En cache » | Relevé ancien | Claude : Dernières limites connues : aucun relevé depuis plus de N min (N = `staleAfter`, 10 au moins). Autres : Dernières limites connues, rapport agent-burn en cache. |
+| 7 | `local` | usage sans limite : Claude sans compte ; autres sans fenêtre, ou fenêtre expirée | Usage local | Claude : Dépense lue dans les logs ; limites indisponibles (non connecté ou hors ligne). Autres : Dépense lue dans les logs ; limites absentes ou expirées. |
 
 - `error` : dernière erreur du harness de cet agent (`harnessErrors[agent]`), affichée sur sa seule page.
 - `at` : instant du relevé utilisé (`observedAtMs` de Claude, sinon l'heure du rapport) ; 0 pour `unavailable`
   et `unknown`.
+- Le rapport en échec reprend `state: "unavailable"` du CLI introuvable : aperçu, dashboard et Paramètres lui
+  donnent la même teinte d'alerte.
 - Un agent connu de la seule archive locale (journaux purgés) est `none`, mais garde ses jours dans
   l'historique.
 - La fonction ne fait que lire : elle est évaluée dans les liaisons QML à chaque tour d'horloge.

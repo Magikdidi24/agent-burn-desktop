@@ -109,10 +109,12 @@ L'app de bureau n'a pas ce suivi.
 
 7. **Vérifier l'app de bureau.** Depuis `desktop/agent-burn/app`, avec le Python du développement : tests
    unitaires, suite du cœur sous le shim (normal, `BURN_TEST=corrupt`, `BURN_TEST=timeout`) et sous qs, selftest
-   (OpenGL : session imbriquée ou `xvfb-run`), tests du suivi amont ; commandes dans
+   (OpenGL : session imbriquée ou `xvfb-run`), tests du suivi amont et des outils de licence ; commandes dans
    [DEVELOPMENT.md](DEVELOPMENT.md#tests). Puis `git push` : la CI
    ([`agent-burn-desktop.yml`](../../../.github/workflows/agent-burn-desktop.yml)) recompile le CLI épinglé
-   (son cache est indexé par `AB_REV`) et reconstruit les paquets.
+   (ses caches, CLI et chaîne Rust de l'amont, sont indexés par `AB_REV`) et reconstruit les paquets. Les
+   notices des crates (`THIRD-PARTY-NOTICES.txt`) et le champ License du `.rpm` en sont recalculés : une crate
+   dont la licence n'est pas une expression SPDX arrête le build Linux (`tools/package_license.py` la refuse).
 
 ## Ce que garantit `update`
 
