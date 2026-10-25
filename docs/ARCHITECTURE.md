@@ -307,7 +307,7 @@ Le JSON doit dépendre des seules données des agents, pas de la configuration d
   dans le filtre des modèles sont dans `BurnDashboardView`, partagé avec la barre.
 - `SettingsWindow.qml` : contrôles Qt Quick (Fusion) aux couleurs de `Colors` ; sections Général, Fournisseurs,
   Diagnostic, À propos. Entrée comme Espace (`activate()`), flèches gauche et droite entre les options d'une
-  rangée (`Choice`), onglet courant en gras et souligné et anneau de focus (`Tab`, `Ring`), `open(section)` qui
+  rangée (`Choice`), onglet courant en gras et souligné et anneau de focus (`PageTab`, `Ring`), `open(section)` qui
   donne le focus à l'onglet de la section, réinitialisation en deux temps (5 s), champs de chemin coupés
   n'importe où.
 - `Colors.qml` : même API que le `Colors.qml` de la barre ; thème choisi ou clair/sombre du système (inconnu :

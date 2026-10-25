@@ -79,10 +79,10 @@ ApplicationWindow {
         Accessible.name: "Sections des paramètres"
         Keys.onReturnPressed: event => win.activate(event)
         Keys.onEnterPressed: event => win.activate(event)
-        Tab { text: "Général" }
-        Tab { text: "Fournisseurs" }
-        Tab { text: "Diagnostic" }
-        Tab { text: "À propos" }
+        PageTab { text: "Général" }
+        PageTab { text: "Fournisseurs" }
+        PageTab { text: "Diagnostic" }
+        PageTab { text: "À propos" }
     }
 
     // Anneau de focus au clavier, celui des vues partagées (BurnButton) : le style n'en dessine aucun sur
@@ -96,7 +96,7 @@ ApplicationWindow {
         radius: 4
     }
     // Onglet : section courante soulignée et en gras, pas seulement teintée.
-    component Tab: TabButton {
+    component PageTab: TabButton {
         id: tab
         font.bold: checked
         Rectangle {
@@ -153,7 +153,7 @@ ApplicationWindow {
         }
         Txt { text: field.value; wrapMode: field.path ? Text.WrapAnywhere : Text.WrapAtWordBoundaryOrAnywhere }
     }
-    component Section: GroupBox {
+    component Group: GroupBox {
         Layout.fillWidth: true
         // GroupBox de Fusion : titre et cadre aux couleurs de la palette.
         default property alias content: box.data
@@ -208,7 +208,7 @@ ApplicationWindow {
 
             // ── Général ──
             Page {
-                Section {
+                Group {
                     title: "Données"
                     RowLayout {
                         spacing: 12
@@ -223,7 +223,7 @@ ApplicationWindow {
                     }
                     Hint { text: "Limites relevées à ce rythme, rapport complet au moins une fois par heure." }
                 }
-                Section {
+                Group {
                     title: "Apparence"
                     RowLayout {
                         spacing: 12
@@ -240,7 +240,7 @@ ApplicationWindow {
                         }
                     }
                 }
-                Section {
+                Group {
                     title: "Démarrage et zone de notification"
                     Switch {
                         text: "Lancer à l'ouverture de session"
@@ -282,7 +282,7 @@ ApplicationWindow {
             Page {
                 Repeater {
                     model: win.agents
-                    Section {
+                    Group {
                         id: agentBox
                         required property string modelData
                         readonly property var st: Burn.providerState(modelData)
@@ -324,7 +324,7 @@ ApplicationWindow {
                         }
                     }
                 }
-                Section {
+                Group {
                     title: "CLI agent-burn"
                     Field { label: "Emplacement"; value: Burn.bin; path: true }
                     Field { label: "Version"; value: Desktop.cliVersion || "lecture…" }
@@ -357,7 +357,7 @@ ApplicationWindow {
                         text: "Paramètres réinitialisés : le fichier de réglages était illisible, une copie a été gardée (settings.json.bak)."
                     }
                 }
-                Section {
+                Group {
                     title: "Versions"
                     Field {
                         label: "Agent Burn"
@@ -370,7 +370,7 @@ ApplicationWindow {
                         value: (Desktop.buildInfo.cliVersion || "—") + (Desktop.buildInfo.cliRev ? ", révision " + Desktop.buildInfo.cliRev.slice(0, 12) : "")
                     }
                 }
-                Section {
+                Group {
                     title: "Système"
                     Field { label: "Système"; value: Desktop.os }
                     Field {
@@ -386,7 +386,7 @@ ApplicationWindow {
                     Field { label: "Écrans"; value: Desktop.screens }
                     Field { label: "Zone de notification"; value: Desktop.trayAvailable ? "disponible" : "absente" }
                 }
-                Section {
+                Group {
                     title: "Dossiers"
                     Field { label: "Données"; value: Desktop.dataDir; path: true }
                     Field { label: "Réglages"; value: Desktop.configDir; path: true }
@@ -412,7 +412,7 @@ ApplicationWindow {
                         onToggled: Settings.debugLogging = checked
                     }
                 }
-                Section {
+                Group {
                     title: "Dernières erreurs"
                     Hint { visible: Burn.recentErrors.length === 0; text: "Aucune erreur depuis le lancement." }
                     Repeater {

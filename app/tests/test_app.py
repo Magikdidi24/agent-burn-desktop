@@ -5,6 +5,7 @@ import atexit
 import datetime
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -19,6 +20,7 @@ APP = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(APP))
 FIXTURES = APP.parent / "tests" / "fixtures"
 
+from PySide6 import QtCore, QtGui, QtNetwork, QtQml, QtQuick, QtWidgets  # noqa: E402
 from PySide6.QtCore import QCoreApplication, QEventLoop, QLockFile, QMetaObject, QPoint, QRect, QSize, Qt, QUrl  # noqa: E402
 from PySide6.QtGui import QColor, QGuiApplication  # noqa: E402
 from PySide6.QtNetwork import QLocalServer  # noqa: E402
@@ -338,6 +340,19 @@ class Runtime(unittest.TestCase):
             self.assertEqual(runtime.assemble(), d)
             self.assertFalse((d / "Extra.qml").exists())
             self.assertTrue((d / "qmldir").is_file())
+
+    def test_inline_components_not_named_like_a_qt_type(self):
+        # PySide type un objet QML par son nom de classe : un composant inline nommé comme un type Qt (Section,
+        # enum QDateTimeEdit.Section) prend ce type quand Python l'atteint, lu hors limites, et segfault.
+        qt = set()
+        for m in (QtCore, QtGui, QtNetwork, QtQml, QtQuick, QtWidgets):
+            for c in (getattr(m, n) for n in dir(m)):
+                if isinstance(c, type):
+                    qt |= {c.__name__} | {v.__name__ for v in vars(c).values() if isinstance(v, type)}
+        inline = {n for f in [*(APP / "qml").rglob("*.qml"), *(APP.parent / "shared").glob("*.qml")]
+                  for n in re.findall(r"^\s*component (\w+)\s*:", f.read_text(encoding="utf-8"), re.M)}
+        self.assertTrue(inline)
+        self.assertEqual(inline & qt, set())
 
 
 class Popover(unittest.TestCase):

@@ -30,7 +30,7 @@ privée, dépannage, désinstallation) ; pour les développeurs : [architecture]
 
 La CI ([`ci.yml`](.github/workflows/ci.yml)) rejoue les vérifications Windows et Linux ci-dessus à chaque push
 (résultats : onglet Actions) ; son premier run complet, vert, date du 2026-10-25, juste avant que l'app ait son
-propre dépôt. S'y ajoutent, en local sous Linux et depuis les sources : tests unitaires (117), suite du cœur sous
+propre dépôt. S'y ajoutent, en local sous Linux et depuis les sources : tests unitaires (118), suite du cœur sous
 Quickshell 0.3.2 et sous l'app (274 contrôles, 27 avec des fichiers corrompus, 6 avec un CLI bloqué), selftests,
 et les sessions KWin imbriquées du tableau.
 
