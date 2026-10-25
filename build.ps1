@@ -1,8 +1,10 @@
 #Requires -Version 7.4
 # Construit Agent Burn pour Windows : CLI Rust, polices, bundle PyInstaller, selftest, zip portable, installeur.
-#   pwsh -File windows\agent-burn\build.ps1 [-SkipCli]
+#   pwsh -File desktop\agent-burn\build.ps1 [-Arch x64|arm64] [-SkipCli]
 # Idempotent : une étape déjà faite est sautée (venv, polices, CLI à jour) ou écrasée (bundle, zip, setup).
 param(
+    # Sans compilation croisée : la machine et son Python doivent être de cette architecture (PyInstaller gèle la sienne).
+    [ValidateSet('x64', 'arm64', IgnoreCase = $false)][string]$Arch = 'x64',
     [switch]$SkipCli  # ne compile pas le CLI : réutilise build\cli tel quel (itérations sans Rust)
 )
 $ErrorActionPreference = 'Stop'
@@ -14,12 +16,18 @@ Set-Location $PSScriptRoot
 $sh = Get-Content -Raw ../../install.sh
 $rev = [regex]::Match($sh, '(?m)^AB_REV=(\w+)').Groups[1].Value
 $abVer = [regex]::Match($sh, '(?m)^AB_VER="([^"]+)"').Groups[1].Value
-$ver = [regex]::Match((Get-Content -Raw app/agentburn/__init__.py), '__version__ = "([^"]+)"').Groups[1].Value
-if (-not ($rev -and $abVer -and $ver)) { throw 'AB_REV / AB_VER (install.sh) ou __version__ (app) introuvable' }
+# X.Y.Z : les ressources de version Windows (exe, installeur) n'acceptent que des nombres.
+$ver = [regex]::Match((Get-Content -Raw app/agentburn/__init__.py), '__version__ = "(\d+\.\d+\.\d+)"').Groups[1].Value
+if (-not ($rev -and $abVer -and $ver)) { throw 'AB_REV / AB_VER (install.sh) ou __version__ X.Y.Z (app) introuvable' }
+$target = @{ x64 = 'x86_64-pc-windows-msvc'; arm64 = 'aarch64-pc-windows-msvc' }[$Arch]
 
 # Python : venv local, dépendances épinglées.
 $py = "$PSScriptRoot/.venv/Scripts/python.exe"
 if (-not (Test-Path $py)) { python -m venv .venv }
+$pyPlatform = & $py -c 'import sysconfig; print(sysconfig.get_platform())'
+if ($pyPlatform -ne @{ x64 = 'win-amd64'; arm64 = 'win-arm64' }[$Arch]) {
+    throw "Python $pyPlatform pour -Arch $Arch : supprime .venv et relance avec un Python $Arch dans le PATH"
+}
 & $py -m pip install -q --disable-pip-version-check -r app/requirements.txt pyinstaller==6.22.3
 
 # Polices : JetBrainsMono Nerd Font v3.4.0 comme install.sh (glyphes du QML validés sur cette version), et sa
@@ -50,25 +58,47 @@ if ($fonts.Keys | Where-Object { -not (Test-Sha256 "app/fonts/$_" $fonts[$_]) })
     foreach ($f in $fonts.Keys) { if (-not (Test-Sha256 "app/fonts/$f" $fonts[$f])) { throw "app/fonts/$f : somme sha256 inattendue" } }
 }
 
-# CLI agent-burn : compilé depuis la source à la révision épinglée, seulement si elle a changé. Témoin
-# build\cli\rev plutôt que --version : l'amont corrige le CLI sans changer sa version.
+# CLI agent-burn : compilé depuis une copie superficielle de l'amont à la révision épinglée, seulement si elle ou la
+# cible a changé. Témoin build\cli\rev plutôt que --version : l'amont corrige le CLI sans changer sa version. La copie
+# fournit aussi sa licence et son Cargo.lock (notices tierces), gardées dans build\cli avec l'exe (cache de la CI).
 $cli = "$PSScriptRoot/build/cli/bin/agent-burn.exe"
 $stamp = "$PSScriptRoot/build/cli/rev"
-if (-not $SkipCli -and -not ((Test-Path $cli) -and (Get-Content $stamp -ErrorAction Ignore) -eq $rev)) {
-    if (-not (Get-Command cargo -ErrorAction Ignore)) { throw 'cargo introuvable : installe Rust (rustup) ou relance avec -SkipCli' }
+$cliLicense = "$PSScriptRoot/build/cli/LICENSE-agent-burn.txt"
+$cliNotices = "$PSScriptRoot/build/cli/THIRD-PARTY-NOTICES.txt"
+$cliFiles = $cli, $stamp, $cliLicense, $cliNotices
+if (-not $SkipCli -and -not ((Test-Path $cliFiles) -notcontains $false -and (Get-Content $stamp) -eq "$rev $target")) {
+    foreach ($tool in 'git', 'cargo') {
+        if (-not (Get-Command $tool -ErrorAction Ignore)) { throw "$tool introuvable : installe Git et Rust (rustup) ou relance avec -SkipCli" }
+    }
+    # Dans %TEMP% comme cargo install : chemins courts pour les compilations C (aws-lc, SQLite), quelques centaines
+    # de Mo effacés après.
+    $src = Join-Path ([IO.Path]::GetTempPath()) 'agent-burn-cli'
+    Remove-Item $src -Recurse -Force -ErrorAction Ignore
+    git init -q $src
+    git -C $src fetch -q --depth 1 https://github.com/Melvynx/agent-burn $rev
+    git -C $src -c core.autocrlf=false checkout -q FETCH_HEAD
     # aws-lc (TLS du CLI) veut NASM, absent de Windows : objets précompilés. CRT statique : l'exe, seul
     # dans bin\ loin des DLL du bundle, tourne sans le Redistribuable Visual C++.
     $env:AWS_LC_SYS_PREBUILT_NASM = '1'
     $env:RUSTFLAGS = '-C target-feature=+crt-static'
+    # Depuis la copie : son rust-toolchain.toml (version de Rust) et son .cargo/config.toml (options SQLite) s'appliquent.
+    Push-Location "$src/rust"
     try {
-        cargo install --locked --force --git https://github.com/Melvynx/agent-burn --rev $rev agent-burn --bin agent-burn --root "$PSScriptRoot/build/cli"
-    } finally { Remove-Item Env:AWS_LC_SYS_PREBUILT_NASM, Env:RUSTFLAGS }
+        cargo build --release --locked -p agent-burn --bin agent-burn --target $target --target-dir "$src/target"
+    } finally { Pop-Location; Remove-Item Env:AWS_LC_SYS_PREBUILT_NASM, Env:RUSTFLAGS }
+    New-Item -ItemType Directory -Force (Split-Path $cli) | Out-Null
+    Copy-Item "$src/target/$target/release/agent-burn.exe" $cli
     # AB_VER doit décrire ce CLI : install.sh s'y fie sous Linux pour ne pas le recompiler.
     if ((& $cli --version) -ne $abVer) { throw "Le CLI compilé ne répond pas « $abVer » : AB_REV et AB_VER divergent dans install.sh" }
-    Set-Content $stamp $rev
+    Copy-Item "$src/apps/agent-burn/LICENSE" $cliLicense
+    & $py tools/third_party_notices.py $src $cliNotices --target $target
+    Set-Content $stamp "$rev $target"
+    Remove-Item $src -Recurse -Force
 }
-# Sinon agentburn.spec l'omet sans rien dire (bundle Linux de test) et l'app installée n'a pas de CLI.
-if (-not (Test-Path $cli)) { throw "$cli absent : relance sans -SkipCli (Rust requis)" }
+# Sinon agentburn.spec omet le CLI sans rien dire (bundle Linux de test) et l'app installée n'a pas de CLI.
+if (-not ((Test-Path $cliFiles) -notcontains $false -and (Get-Content $stamp) -match " $target$")) {
+    throw "build\cli incomplet ou compilé pour une autre cible que $target : relance sans -SkipCli (Git et Rust requis)"
+}
 
 # Bundle onedir → dist\AgentBurn
 & $py -m PyInstaller --noconfirm agentburn.spec
@@ -94,11 +124,11 @@ try {
 }
 if ($p.ExitCode -ne 0) { throw "Selftest en échec (code $($p.ExitCode)) : voir dist\selftest\selftest.json et stderr.txt" }
 
-# Zip portable puis installeur Inno Setup (sortie : installer.iss → OutputDir=dist).
-Compress-Archive -Path dist/AgentBurn -DestinationPath "dist/AgentBurn-portable-$ver.zip" -Force
+# Zip portable puis installeur Inno Setup (sortie : installer.iss → OutputDir=dist). Noms attendus par la CI.
+Compress-Archive -Path dist/AgentBurn -DestinationPath "dist/AgentBurn-portable-$ver-$Arch.zip" -Force
 $iscc = (Get-Command iscc -ErrorAction Ignore).Source
 if (-not $iscc) { $iscc = 'C:/Program Files (x86)/Inno Setup 6/ISCC.exe' }
 if (-not (Test-Path $iscc)) { throw 'Inno Setup 6 introuvable (https://jrsoftware.org/isdl.php)' }
-& $iscc /Q "/DAppVersion=$ver" installer.iss
+& $iscc /Q "/DAppVersion=$ver" "/DArch=$Arch" installer.iss
 
-Write-Host "OK : dist\AgentBurn-Setup-$ver.exe, dist\AgentBurn-portable-$ver.zip, dist\selftest\"
+Write-Host "OK : dist\AgentBurn-Setup-$ver-$Arch.exe, dist\AgentBurn-portable-$ver-$Arch.zip, dist\selftest\"

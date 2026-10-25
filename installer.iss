@@ -1,7 +1,10 @@
-﻿; Installeur Agent Burn (Inno Setup 6), compilé par build.ps1 : iscc /DAppVersion=<ver> installer.iss.
+﻿; Installeur Agent Burn (Inno Setup 6), compilé par build.ps1 : iscc /DAppVersion=<ver> /DArch=x64|arm64 installer.iss.
 ; Par utilisateur, sans droits admin. Encodé en UTF-8 avec BOM : sans lui, ISCC lit les accents en ANSI.
-#ifndef AppVersion
-  #error Compiler via build.ps1 (iscc /DAppVersion=<version> installer.iss)
+#if !defined(AppVersion) || !defined(Arch)
+  #error Compiler via build.ps1 (iscc /DAppVersion=<version> /DArch=x64|arm64 installer.iss)
+#endif
+#if Arch != "x64" && Arch != "arm64"
+  #error /DArch : x64 ou arm64
 #endif
 
 [Setup]
@@ -12,12 +15,18 @@ AppVersion={#AppVersion}
 DefaultDirName={localappdata}\Programs\Agent Burn
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
+#if Arch == "arm64"
+ArchitecturesAllowed=arm64
+ArchitecturesInstallIn64BitMode=arm64
+#else
+; x64compatible : aussi Windows 11 sur ARM, qui émule le x64.
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+#endif
 ; Qt 6 exige Windows 10 1809 ou plus récent.
 MinVersion=10.0.17763
 OutputDir=dist
-OutputBaseFilename=AgentBurn-Setup-{#AppVersion}
+OutputBaseFilename=AgentBurn-Setup-{#AppVersion}-{#Arch}
 SetupIconFile=assets\agent-burn.ico
 UninstallDisplayIcon={app}\AgentBurn.exe
 WizardStyle=modern
