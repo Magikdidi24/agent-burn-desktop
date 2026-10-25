@@ -216,6 +216,14 @@ jobs:
           chmod +x dist-in/*.AppImage   # un artefact ne garde pas le bit exécutable
           bash desktop/agent-burn/linux/smoke.sh "$PWD/dist-in"
 
+      # Journaux d'installation, de selftest et de désinstallation de smoke.sh (dist-in/smoke-<distro>/).
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: smoke-${{ strategy.job-index }}
+          path: dist-in/smoke-*/
+          retention-days: 7
+
   windows:
     name: ${{ matrix.arch == 'arm64' && 'Windows ARM64 (expérimental)' || 'Windows x64' }}
     needs: test
@@ -318,11 +326,16 @@ jobs:
           $zip = (Resolve-Path "desktop/agent-burn/dist/AgentBurn-portable-*-$env:ARCH.zip").Path
           pwsh -File desktop/agent-burn/windows/smoke.ps1 -Setup $setup -Portable $zip
 
+      # dist/smoke/ de smoke.ps1 : journaux d'installation et de désinstallation, selftests de l'exe installé et du
+      # zip ; sans la copie extraite du zip (~170 Mo).
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ !cancelled() }}
         with:
           name: selftest-windows-${{ matrix.arch }}
-          path: desktop/agent-burn/dist/selftest/
+          path: |
+            desktop/agent-burn/dist/selftest/
+            desktop/agent-burn/dist/smoke/
+            !desktop/agent-burn/dist/smoke/portable/
           retention-days: 7
 
   release:
