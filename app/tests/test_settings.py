@@ -62,6 +62,10 @@ class File(unittest.TestCase):
                          {"refreshMinutes": 15, "theme": "light", "closeToTray": False, "trayClick": "dashboard",
                           "debugLogging": True})
         self.assertEqual(sorted(p.name for p in self.path.parent.iterdir()), ["settings.json"])   # aucun reste temporaire
+        with self.assertLogs("agentburn.settings", "DEBUG") as logs:   # journal détaillé : chaque écriture
+            s.theme = "dark"
+        self.assertIn("réglages enregistrés dans", logs.output[0])
+        s.theme = "light"
         t = Settings(self.path)
         self.assertEqual((t.refreshMinutes, t.theme, t.closeToTray, t.trayClick, t.debugLogging),
                          (15, "light", False, "dashboard", True))

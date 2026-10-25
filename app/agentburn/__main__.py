@@ -238,9 +238,12 @@ def run(args):
         # Menus et boîtes natifs ; Colors.qml suit le réglage lui-même (plateformes qui ignorent la demande).
         hints.setColorScheme({"light": Qt.ColorScheme.Light, "dark": Qt.ColorScheme.Dark}.get(cfg.theme, Qt.ColorScheme.Unknown))
         logs.debug(cfg.debugLogging)
+        log.debug("réglages : %s ; thème du système %s", {k: cfg.property(k) for k in settings.CHOICES},
+                  hints.colorScheme().name)
 
     cfg.changed.connect(apply_settings)
     apply_settings()
+    hints.colorSchemeChanged.connect(lambda scheme: log.debug("thème du système : %s", scheme.name))
 
     qml = runtime.assemble()
     register(qml, data, cfg, desktop)
@@ -299,7 +302,8 @@ def run(args):
         else:
             QMetaObject.invokeMethod(root, "openDashboard")
     if server:   # 2e lancement de l'app : le dashboard de celle-ci s'ouvre
-        server.newConnection.connect(lambda: (server.nextPendingConnection().deleteLater(),
+        server.newConnection.connect(lambda: (log.debug("2e lancement : dashboard ouvert ici"),
+                                              server.nextPendingConnection().deleteLater(),
                                               QMetaObject.invokeMethod(root, "openDashboard")))
     log.info("démarrage : %s", "; ".join(f"{k} {v}" for k, v in desktop.facts()))
     code = app.exec()

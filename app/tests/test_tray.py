@@ -121,7 +121,9 @@ class TrayIcon(unittest.TestCase):
         self.assertTrue(wait_for(lambda: js(self.root, "Burn.dashboardOpen"), 5))
         self.hide_all()
         before = js(self.root, "Burn.updatedAt")
-        t.clicked(R.MiddleClick)
+        with self.assertLogs("agentburn.tray", "DEBUG") as logs:   # journal détaillé : clics de l'icône
+            t.clicked(R.MiddleClick)
+        self.assertEqual(logs.output, ["DEBUG:agentburn.tray:icône : MiddleClick"])
         self.assertTrue(wait_for(lambda: js(self.root, "Burn.updatedAt") > before, 20))
         t.clicked(R.Context)   # menu : rien d'autre
         self.assertFalse(self.pop.isVisible())

@@ -83,6 +83,7 @@ class Settings(QObject):
             return
         try:
             _write(self._path, json.dumps(self._values, indent=2).encode("utf-8"))
+            log.debug("réglages enregistrés dans %s", self._path)
         except OSError as e:
             log.warning("réglages non enregistrés (%s) : %s", self._path, e)
 

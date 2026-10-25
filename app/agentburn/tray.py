@@ -189,6 +189,7 @@ class Tray(QObject):
 
     def clicked(self, reason):
         R = QSystemTrayIcon.ActivationReason
+        log.debug("icône : %s", reason.name)
         if reason == R.Trigger:
             self.dashboard() if self.settings.property("trayClick") == "dashboard" else self.popover()
         elif reason == R.DoubleClick:   # Windows : le 1er clic a déjà fait son effet
