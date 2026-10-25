@@ -117,6 +117,28 @@ def fit(w, width, height, area):
     w.setPosition(area.topLeft() + QPoint((area.width() - w.width()) // 2, (area.height() - w.height()) // 2))
 
 
+def quit_when_closed(app, dash, prefs, cfg, desktop):
+    """Fenêtres fermées : l'app reste dans la zone de notification, sauf sans icône posée ou si le réglage le
+    refuse pour le dashboard, fermé avant ou après les réglages. 500 ms : Burn.openDashboard referme puis
+    rouvre la fenêtre pour la ramener devant."""
+    from PySide6.QtCore import QTimer
+
+    asked = False   # dashboard fermé avec closeToTray désactivé : quitter une fois tout fermé
+
+    def check():
+        if not (dash.isVisible() or prefs.isVisible()) and (asked or not desktop.property("trayAvailable")):
+            app.quit()
+
+    def dash_changed(*_):
+        nonlocal asked
+        asked = not dash.isVisible() and (asked or not cfg.closeToTray)   # rouvert : l'intention tombe
+        if not dash.isVisible():
+            QTimer.singleShot(500, check)
+
+    dash.visibleChanged.connect(dash_changed)
+    prefs.visibleChanged.connect(lambda *_: prefs.isVisible() or QTimer.singleShot(500, check))
+
+
 def run(args):
     from PySide6.QtCore import QCoreApplication, QFileInfo, QLockFile, QMetaObject, Qt, QtMsgType, QTimer, QUrl
     from PySide6.QtGui import QFontDatabase, QGuiApplication, QIcon
@@ -263,18 +285,7 @@ def run(args):
                         QGuiApplication.platformName())
             QMetaObject.invokeMethod(root, "openDashboard")
 
-        # Fenêtre fermée : l'app reste dans la zone de notification, sauf sans icône posée ou si le réglage
-        # le refuse (dashboard). 500 ms : Burn.openDashboard referme puis rouvre la fenêtre pour la ramener devant.
-        def closed(by_dashboard):
-            def check():
-                if dash.isVisible() or prefs.isVisible():
-                    return
-                if not desktop.property("trayAvailable") or by_dashboard and not cfg.closeToTray:
-                    app.quit()
-            QTimer.singleShot(500, check)
-
-        dash.visibleChanged.connect(lambda *_: dash.isVisible() or closed(True))
-        prefs.visibleChanged.connect(lambda *_: prefs.isVisible() or closed(False))
+        quit_when_closed(app, dash, prefs, cfg, desktop)
     else:
         # Sans icône (dev), l'app vit tant qu'une fenêtre est ouverte.
         def quit_if_hidden(*_):

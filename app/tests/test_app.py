@@ -199,6 +199,49 @@ class WindowSize(unittest.TestCase):
             self.assertTrue(dash.width() >= dash.minimumWidth() and dash.height() >= dash.minimumHeight())
 
 
+class CloseToTray(unittest.TestCase):
+    def setUp(self):
+        gui()
+        self.app, self.tray = mock.Mock(), True
+        self.dash, self.prefs = QQuickWindow(), QQuickWindow()
+        self.cfg = settings.Settings(None)
+        desktop = types.SimpleNamespace(property=lambda name: {"trayAvailable": self.tray}[name])
+        appmain.quit_when_closed(self.app, self.dash, self.prefs, self.cfg, desktop)
+        for w in (self.dash, self.prefs):   # fenêtres de ce test détruites ensuite sans rappeler l'app
+            self.addCleanup(w.visibleChanged.disconnect)
+
+    def quits(self):
+        wait_for(lambda: False, 0.7)   # après les 500 ms de l'aller-retour de Burn.openDashboard
+        return self.app.quit.called
+
+    def test_dashboard_closed_before_settings_still_quits_without_close_to_tray(self):
+        self.cfg.closeToTray = False
+        self.dash.show()
+        self.prefs.show()
+        self.dash.hide()
+        self.assertFalse(self.quits())   # réglages encore ouverts
+        self.prefs.hide()
+        self.assertTrue(self.quits())
+
+    def test_reopened_dashboard_drops_the_intent(self):
+        self.cfg.closeToTray = False
+        self.prefs.show()
+        self.dash.show()
+        self.dash.hide()
+        self.dash.show()   # Burn.openDashboard : referme puis rouvre
+        self.prefs.hide()
+        self.assertFalse(self.quits())
+
+    def test_close_to_tray_stays_unless_there_is_no_tray(self):
+        self.dash.show()
+        self.dash.hide()
+        self.assertFalse(self.quits())
+        self.tray = False
+        self.prefs.show()
+        self.prefs.hide()
+        self.assertTrue(self.quits())
+
+
 SCREEN = QRect(0, 0, 1920, 1080)
 CARD = QSize(440, 600)
 
