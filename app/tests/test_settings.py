@@ -94,6 +94,20 @@ class File(unittest.TestCase):
             self.assertEqual(self.path.with_name("settings.json.bak").read_bytes(), raw)
             self.assertEqual(self.path.read_bytes(), raw)   # rien d'écrasé avant un changement
 
+    def test_utf8_bom_is_read(self):
+        self.write(b'\xef\xbb\xbf{"theme": "light", "refreshMinutes": 15}')   # Bloc-notes, PowerShell 5
+        s = Settings(self.path)
+        self.assertEqual((s.theme, s.refreshMinutes), ("light", 15))
+        self.assertFalse(s.recovered)
+
+    def test_deep_nesting_recovered_instead_of_crashing_every_launch(self):
+        raw = b"[" * 100000
+        self.write(raw)
+        with self.assertLogs("agentburn.settings", "WARNING"):
+            s = Settings(self.path)
+        self.assertTrue(s.recovered)
+        self.assertEqual(self.path.with_name("settings.json.bak").read_bytes(), raw)
+
     def test_rejected_value_keeps_the_old_one(self):
         s = Settings(self.path)
         changes = []

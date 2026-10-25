@@ -58,10 +58,10 @@ class Settings(QObject):
             log.warning("réglages illisibles (%s) : valeurs par défaut", e)
             return values
         try:
-            data = json.loads(raw.decode("utf-8"))
+            data = json.loads(raw.decode("utf-8-sig"))   # BOM du Bloc-notes ou de PowerShell 5 accepté
             if not isinstance(data, dict):
                 raise ValueError("pas un objet JSON")
-        except ValueError as e:   # JSON ou UTF-8 invalide
+        except (ValueError, RecursionError) as e:   # JSON ou UTF-8 invalide, imbrication extrême
             self._recovered = True
             try:
                 _write(self._path.with_name(self._path.name + ".bak"), raw)
