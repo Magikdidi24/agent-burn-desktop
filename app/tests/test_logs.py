@@ -134,8 +134,10 @@ class Setup(unittest.TestCase):
 
     def test_qt_messages_on_qt_logger_and_hook(self):
         qWarning("avertissement de test")
+        qWarning("This plugin does not support raise()")   # limite de la plateforme hors écran
         self.assertIn("WARNING qt : avertissement de test", self.text())
-        self.assertEqual(self.qt, ["avertissement de test"])
+        self.assertNotIn("does not support", self.text())   # en DEBUG : journal détaillé seulement
+        self.assertEqual(self.qt, ["avertissement de test", "This plugin does not support raise()"])
 
     def test_stderr_in_utf8_even_when_redirected_in_the_ansi_code_page(self):
         # Windows : stderr redirigé (selftest du build) en cp1252, à côté d'un journal UTF-8.

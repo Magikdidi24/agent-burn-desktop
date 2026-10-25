@@ -87,7 +87,9 @@ def setup(directory, stderr=None, qt_hook=None):
 
     def on_qt(kind, context, message):
         category = context.category or "default"
-        qt.log(_LEVELS.get(kind, logging.WARNING), "%s", message if category == "default" else f"{category} : {message}")
+        # Limite de la plateforme (raise() hors écran, selftest), pas un problème : journal détaillé seulement.
+        level = logging.DEBUG if message.startswith("This plugin does not support") else _LEVELS.get(kind, logging.WARNING)
+        qt.log(level, "%s", message if category == "default" else f"{category} : {message}")
         if qt_hook:
             qt_hook(kind, context, message)
 
