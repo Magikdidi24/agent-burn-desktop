@@ -107,12 +107,13 @@ if ! fonts_ok; then
 fi
 
 step "Python : venv, PySide6, PyInstaller"
-V=$W/venv PYI=pyinstaller==6.22.3
-# Recréé quand requirements.txt ou PyInstaller change : un paquet retiré resterait sinon dans le venv (et le bundle).
-if [ "$(cat "$V/stamp" 2>/dev/null)" != "$(cat app/requirements.txt; echo $PYI)" ]; then
+V=$W/venv
+# Verrou haché : versions et sha256 de tout l'arbre, PyInstaller compris. Venv recréé quand il change : un paquet
+# retiré resterait sinon dans le venv (et le bundle).
+if [ "$(cat "$V/stamp" 2>/dev/null)" != "$(cat app/requirements.lock)" ]; then
     rm -rf "$V" && python3 -m venv "$V"
-    "$V/bin/pip" install -q --disable-pip-version-check --root-user-action=ignore -r app/requirements.txt $PYI
-    { cat app/requirements.txt; echo $PYI; } >"$V/stamp"
+    "$V/bin/pip" install -q --disable-pip-version-check --root-user-action=ignore --require-hashes -r app/requirements.lock
+    cp app/requirements.lock "$V/stamp"
 fi
 
 step "Icônes, licences, build-info.json"

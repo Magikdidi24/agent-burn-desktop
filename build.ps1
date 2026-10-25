@@ -21,14 +21,14 @@ $ver = [regex]::Match((Get-Content -Raw app/agentburn/__init__.py), '__version__
 if (-not ($rev -and $abVer -and $ver)) { throw 'AB_REV / AB_VER (install.sh) ou __version__ X.Y.Z (app) introuvable' }
 $target = @{ x64 = 'x86_64-pc-windows-msvc'; arm64 = 'aarch64-pc-windows-msvc' }[$Arch]
 
-# Python : venv local, dépendances épinglées.
+# Python : venv local, dépendances du verrou haché (versions et sha256 de tout l'arbre, PyInstaller compris).
 $py = "$PSScriptRoot/.venv/Scripts/python.exe"
 if (-not (Test-Path $py)) { python -m venv .venv }
 $pyPlatform = & $py -c 'import sysconfig; print(sysconfig.get_platform())'
 if ($pyPlatform -ne @{ x64 = 'win-amd64'; arm64 = 'win-arm64' }[$Arch]) {
     throw "Python $pyPlatform pour -Arch $Arch : supprime .venv et relance avec un Python $Arch dans le PATH"
 }
-& $py -m pip install -q --disable-pip-version-check -r app/requirements.txt pyinstaller==6.22.3
+& $py -m pip install -q --disable-pip-version-check --require-hashes -r app/requirements.lock
 
 # Polices : JetBrainsMono Nerd Font v3.4.0 comme install.sh (glyphes du QML validés sur cette version), et sa
 # licence. Sommes relevées le 2026-10-25 : un fichier de release peut être remplacé après coup.
