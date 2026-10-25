@@ -205,7 +205,7 @@ Item {
             radius: height / 2
             x: Math.max(plot.x, Math.min(root.width - width, dot.x + 6 - width / 2))
             y: dot.y - height - 4 >= plot.y ? dot.y - height - 4 : dot.y + 16
-            color: Colors.withAlpha(Colors.surface, 0.9)
+            color: Colors.withAlpha(Colors.background, 0.9)   // surface : 2,3:1 sous le texte avec wallust
             Text {
                 id: nowText
                 anchors.centerIn: parent

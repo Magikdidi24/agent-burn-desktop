@@ -5,7 +5,7 @@ import QtQuick
 // survol d'une colonne = info-bulle date + valeur. Composant pur : le parent fournit les points.
 Item {
     id: root
-    property var points: []          // [{ date: "YYYY-MM-DD", value }] triés
+    property var points: []          // [{ date: "YYYY-MM-DD", value }] triés ; value null = montant inconnu
     property color barColor: Colors.accent
     property string unit: "USD"
     property bool compact: false
@@ -17,6 +17,12 @@ Item {
     readonly property var fr: Qt.locale("fr_FR")
 
     function day(s) { const p = s.split("-"); return new Date(p[0], p[1] - 1, p[2]); }
+    // Points des n derniers jours (Burn.lastDays) d'une série Burn.dailySeries ; jour à tokens sans prix : null.
+    function lastDays(series, n) {
+        const tokens = {};
+        for (const d of series) tokens[d.date] = d.tokens;
+        return Burn.lastDays(series, n).map(p => ({ date: p.date, value: Burn.priced(p.value, tokens[p.date] ?? 0) }));
+    }
     function fmt(v) { return Burn.money(v); }
     // Graduations compactes, zéros décimaux en moins : "$1,000.00" → "$1,000", "$2.50" → "$2.5".
     function tick(v) { return fmt(v).replace(/(\.\d*?)0+(?=\D*$)/, "$1").replace(/\.(?=\D*$)/, ""); }
@@ -56,7 +62,8 @@ Item {
     Text {
         anchors.centerIn: parent
         visible: !root.chart.ok
-        text: "Aucune donnée"
+        // Tokens sans aucun prix (hors ligne) : des jours d'usage, pas un graphe vide.
+        text: (root.points || []).some(p => p.value === null) ? "Montants inconnus : tarifs indisponibles" : "Aucune donnée"
         color: Colors.muted
         font.family: "JetBrainsMono Nerd Font"
         font.pixelSize: root.fs + 1
@@ -163,7 +170,7 @@ Item {
                 plot.x + (root.chart.idx[hover.idx] + 0.5) * plot.slot - width / 2)) : 0
             y: p ? Math.max(0, plot.y + plot.height * (1 - p.value / root.chart.top) - height - 6) : 0
             radius: 8
-            color: Colors.withAlpha(Colors.surface, 0.97)
+            color: Colors.withAlpha(Colors.background, 0.97)   // surface : 2,3:1 sous le texte avec wallust
             border.color: Colors.withAlpha(Colors.accent, 0.4)
             border.width: 1
 
