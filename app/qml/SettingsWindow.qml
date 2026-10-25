@@ -329,6 +329,7 @@ ApplicationWindow {
                     Field {
                         label: "Rapport"
                         value: Burn.stateText(Burn.dataState) + (Burn.updatedAt > 0 ? ", mis à jour " + Burn.ago(Burn.updatedAt) : "")
+                            + (Burn.error ? "\n" + Burn.error : "")   // cause d'un échec du CLI
                     }
                     Button {
                         text: Burn.loading ? "Lecture en cours…" : "Rafraîchir maintenant"

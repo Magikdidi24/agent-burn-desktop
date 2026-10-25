@@ -8,6 +8,8 @@ QtObject {
 
     // Comme BurnPill : relevé Claude ancien gardé mais signalé, teinte selon le rythme.
     readonly property bool stale: Burn.remainingAgent === "claude" && Burn.limitsStale
+    // CLI en échec : la cause (Burn.error) est dans Paramètres, l'icône et son menu y renvoient.
+    readonly property string cliFailed: "échec du CLI (voir Paramètres › Diagnostic)"
     readonly property real remaining: Burn.remaining
     readonly property color tone: Burn.tone(stale || Burn.remaining < 0 ? ""
         : Burn.pace(Burn.remainingAgent, Burn.remainingWindow).status)
@@ -15,7 +17,7 @@ QtObject {
         const w = Burn.tightest?.w;
         if (!w)
             return "Agent Burn — " + Burn.stateText(Burn.dataState) + " · " + (Burn.cliMissing ? "CLI agent-burn introuvable"
-                : Burn.loading ? "lecture de l'usage…" : "aucune limite relevée");
+                : Burn.loading ? "lecture de l'usage…" : Burn.error ? root.cliFailed : "aucune limite relevée");
         return "Agent Burn — " + w.label + " : " + Math.round(w.remaining) + " % restant"
             + (w.resetsAtMs > 0 ? " · réinit. " + Burn.until(w.resetsAtMs) : "") + (stale ? " · ancien" : "");
     }
@@ -32,7 +34,8 @@ QtObject {
                 + " % restant" + (x.w.resetsAtMs > 0 ? " · réinit. " + Burn.until(x.w.resetsAtMs) : "")
                 + (Burn.providerState(x.agent).state === "stale" ? " · ancien" : ""));
         if (Burn.dataState === "unavailable")
-            return ["Données indisponibles" + (Burn.cliMissing ? " : CLI agent-burn introuvable" : Burn.loading ? " : lecture…" : "")];
+            return ["Données indisponibles" + (Burn.cliMissing ? " : CLI agent-burn introuvable" : Burn.loading ? " : lecture…"
+                : Burn.error ? " : " + root.cliFailed : "")];
         return Burn.knownProviders.map(a => Burn.agentName(a) + " : " + Burn.providerState(a).label);
     }
 

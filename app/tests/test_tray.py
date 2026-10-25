@@ -103,7 +103,12 @@ class TrayIcon(unittest.TestCase):
         js(self.root, "Burn.summary = null; Burn.account = null")
         shown = [a.text() for a in t.lines if a.isVisible()]
         self.assertEqual(shown, ["Données indisponibles"])
-        js(self.root, "Burn.refresh(false)")   # données rétablies pour la suite
+        # CLI en échec : la cause est dans Paramètres (sous Wayland, ces lignes sont tout ce que montre l'icône).
+        js(self.root, "Burn.error = 'agent-burn a échoué (code 1) : Permission denied'")
+        shown = [a.text() for a in t.lines if a.isVisible()]
+        self.assertEqual(shown, ["Données indisponibles : échec du CLI (voir Paramètres › Diagnostic)"])
+        self.assertEqual(t.icon.toolTip(), "Agent Burn — Indisponible · échec du CLI (voir Paramètres › Diagnostic)")
+        js(self.root, "Burn.error = ''; Burn.refresh(false)")   # données rétablies pour la suite
         self.assertTrue(wait_for(lambda: js(self.root, "Burn.summary !== null"), 20))
 
     def test_clicks(self):

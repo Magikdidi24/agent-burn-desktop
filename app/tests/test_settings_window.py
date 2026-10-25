@@ -193,6 +193,16 @@ class SettingsWindow(unittest.TestCase):
         self.assertEqual(self.cfg.theme, "system")
         self.assertEqual(reset.property("text"), "Réinitialiser les paramètres")
 
+    def fields(self):
+        return {f.property("label"): f.property("value") for f in self.items("QQuickRowLayout") if f.property("label")}
+
+    def test_report_field_gives_the_cli_error(self):
+        error = "agent-burn a échoué (code 1) : Permission denied (os error 13)"
+        js(self.root, f"Burn.error = '{error}'")
+        self.addCleanup(js, self.root, "Burn.error = ''")
+        self.open("providers")
+        self.assertTrue(self.fields()["Rapport"].endswith("\n" + error), self.fields()["Rapport"])
+
     def test_theme_light_drives_colors(self):
         self.cfg.theme = "light"
         self.assertFalse(js(self.root, "Colors.dark"))
