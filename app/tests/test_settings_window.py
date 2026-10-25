@@ -175,6 +175,12 @@ class SettingsWindow(unittest.TestCase):
         self.assertEqual((self.cfg.trayClick, self.cfg.theme), ("popover", "light"))
         self.assertEqual(self.messages, [])
 
+    def test_unavailable_autostart_switch_looks_disabled(self):
+        self.open("general")   # dev : pas d'exe installé, interrupteur inactif
+        switch = next(i for i in self.items("QQuickSwitch") if i.property("text") == "Lancer à l'ouverture de session")
+        self.assertFalse(switch.isEnabled())
+        self.assertLess(switch.opacity(), 1)
+
     def test_theme_light_drives_colors(self):
         self.cfg.theme = "light"
         self.assertFalse(js(self.root, "Colors.dark"))

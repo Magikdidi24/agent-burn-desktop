@@ -243,6 +243,7 @@ ApplicationWindow {
                     Switch {
                         text: "Lancer à l'ouverture de session"
                         enabled: Settings.autostartAvailable
+                        opacity: enabled ? 1 : 0.5   // le style garde le libellé en couleur normale
                         checked: Settings.autostart
                         onToggled: Settings.autostart = checked
                     }
