@@ -79,7 +79,8 @@ def main():
         os.environ.setdefault("QT_QUICK_BACKEND", "rhi")
     # Linux : boucle de rendu sans fil dédié. Celle à fil de Qt 6.12 plante dans QtWaylandClient
     # (QWaylandWindow::beginFrame) pendant l'affichage d'une fenêtre ; l'app anime peu, rien n'y est perdu.
-    if sys.platform.startswith("linux"):
+    # Hors écran (selftest), rien de Wayland, et la boucle basique y capture à moitié le popover agrandi.
+    if sys.platform.startswith("linux") and not os.environ.get("QT_QPA_PLATFORM", "").startswith("offscreen"):
         os.environ.setdefault("QSG_RENDER_LOOP", "basic")
     if "AGENT_BURN_BIN" not in os.environ:   # lu par Burn.qml au chargement
         exe = "agent-burn.exe" if sys.platform == "win32" else "agent-burn"   # bundle Linux : sans .exe

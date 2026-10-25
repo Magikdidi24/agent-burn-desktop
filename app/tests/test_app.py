@@ -140,15 +140,19 @@ class FakeCli(unittest.TestCase):
 
 class Startup(unittest.TestCase):
     def test_basic_render_loop_on_linux_unless_chosen(self):
-        # Boucle à fil de Qt 6.12 : plantages dans QtWaylandClient à l'affichage d'une fenêtre.
-        for platform, preset, loop in (("linux", None, "basic"), ("linux", "threaded", "threaded"), ("win32", None, None)):
-            with mock.patch.dict(os.environ), mock.patch.object(sys, "platform", platform), \
+        # Boucle à fil de Qt 6.12 : plantages dans QtWaylandClient à l'affichage d'une fenêtre. Hors écran
+        # (selftest) la boucle basique capture mal le popover agrandi, et il n'y a rien de Wayland.
+        for platform, qpa, preset, loop in (("linux", None, None, "basic"), ("linux", "xcb", None, "basic"),
+                                            ("linux", None, "threaded", "threaded"), ("linux", "offscreen", None, None),
+                                            ("win32", None, None, None)):
+            with mock.patch.dict(os.environ, {"AGENT_BURN_BIN": "agent-burn"}), mock.patch.object(sys, "platform", platform), \
                     mock.patch.object(sys, "argv", ["agentburn"]), mock.patch.object(appmain, "run", return_value=0):
-                os.environ.pop("QSG_RENDER_LOOP", None)
-                if preset:
-                    os.environ["QSG_RENDER_LOOP"] = preset
+                for name, value in (("QT_QPA_PLATFORM", qpa), ("QSG_RENDER_LOOP", preset)):
+                    os.environ.pop(name, None)
+                    if value:
+                        os.environ[name] = value
                 self.assertEqual(appmain.main(), 0)
-                self.assertEqual(os.environ.get("QSG_RENDER_LOOP"), loop, platform)
+                self.assertEqual(os.environ.get("QSG_RENDER_LOOP"), loop, (platform, qpa, preset))
 
 
 class SingleInstance(unittest.TestCase):
