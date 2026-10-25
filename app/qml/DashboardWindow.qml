@@ -13,6 +13,8 @@ Window {
     color: Colors.background
     visible: Burn.dashboardOpen
 
+    signal settingsRequested()   // bouton « Paramètres » de la vue partagée, ouvert par Main.qml
+
     // Fermée par la croix : le binding de visible tient, seul l'état est à remettre.
     onClosing: Burn.dashboardOpen = false
 
@@ -37,6 +39,8 @@ Window {
         focus: true
         sourceComponent: BurnDashboardView {
             focus: true
+            settingsAvailable: true
+            onSettingsRequested: win.settingsRequested()
             Keys.onEscapePressed: Burn.dashboardOpen = false
         }
     }

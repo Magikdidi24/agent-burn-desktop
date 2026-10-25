@@ -9,7 +9,8 @@ from pathlib import Path
 
 from agentburn import paths
 
-SHARED = ("Burn.qml", "BurnPopover.qml", "BurnDashboardView.qml", "BurnQuotaChart.qml", "BurnBarChart.qml")
+SHARED = ("Burn.qml", "BurnPopover.qml", "BurnDashboardView.qml", "BurnQuotaChart.qml", "BurnBarChart.qml",
+          "BurnButton.qml")
 SINGLETONS = ("Burn", "Colors")
 
 

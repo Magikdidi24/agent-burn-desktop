@@ -38,7 +38,7 @@ QtObject {
 
     // Typées QtObject : PySide ne convertit pas les types QML (ni Window), il retrouve QQuickWindow.
     readonly property QtObject popover: PopoverWindow {}
-    readonly property QtObject dashboard: DashboardWindow {}
+    readonly property QtObject dashboard: DashboardWindow { onSettingsRequested: prefs.open("general") }
     readonly property QtObject settingsWindow: SettingsWindow { id: prefs }
 
     // Réglages de l'app appliqués au cœur partagé et au thème (liste : QtObject n'a pas d'enfants).
