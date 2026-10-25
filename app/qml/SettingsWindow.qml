@@ -20,6 +20,7 @@ ApplicationWindow {
 
     function open(name) {
         section = Math.max(0, sections.indexOf(name));
+        tabs.currentItem.forceActiveFocus();   // pas sur un contrôle de la section quittée, caché : Espace le changerait
         visible = true;
         raise();
         requestActivate();

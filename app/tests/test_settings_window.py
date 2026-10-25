@@ -88,6 +88,19 @@ class SettingsWindow(unittest.TestCase):
         self.assertTrue(wait_for(lambda: self.cfg.refreshMinutes == 15, 2))
         self.assertEqual(js(self.root, "Burn.refreshInterval"), 15 * 60000)
 
+    def test_opening_a_section_focuses_its_tab_not_a_hidden_control(self):
+        # Menu de l'icône (« À propos ») pendant que le focus est sur un interrupteur de Général.
+        self.open("general")
+        switch = next(i for i in self.items("QQuickSwitch") if "zone de notification" in i.property("text"))
+        switch.forceActiveFocus()
+        before = self.cfg.closeToTray
+        self.open("about")
+        focused = self.win.activeFocusItem()
+        self.assertTrue(focused.inherits("QQuickTabButton"), focused.metaObject().className())
+        self.assertEqual(focused.property("text"), "À propos")
+        QTest.keyClick(self.win, Qt.Key.Key_Space)
+        self.assertEqual(self.cfg.closeToTray, before)
+
     def test_theme_light_drives_colors(self):
         self.cfg.theme = "light"
         self.assertFalse(js(self.root, "Colors.dark"))
