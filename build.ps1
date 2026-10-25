@@ -108,12 +108,21 @@ New-Item -ItemType Directory -Force "$extra/licenses" | Out-Null
 Copy-Item $cliLicense, $cliNotices, tools/licenses/LGPL-3.0.txt, tools/licenses/GPL-3.0.txt "$extra/licenses"
 Copy-Item LICENSE "$extra/licenses/LICENSE-agent-burn-desktop.txt"
 Copy-Item app/fonts/OFL.txt "$extra/licenses/LICENSE-JetBrainsMono-NerdFont.txt"
-# Python et les bibliothèques C de sa distribution (OpenSSL, libffi…) ; sous Windows, LICENSE.txt est à sa racine.
-Copy-Item (Join-Path (& $py -c 'import sys; print(sys.base_prefix)') LICENSE.txt) "$extra/licenses/LICENSE-Python.txt"
 # Qt et PySide6 (LGPL v3) : leurs wheels ne livrent que la notice commerciale ; versions lues dans le venv.
-$pyside, $qt = & $py -c 'import PySide6, PySide6.QtCore as c; print(PySide6.__version__); print(c.qVersion())'
+$pyside, $qt, $pyVer = & $py -c 'import sys, PySide6, PySide6.QtCore as c; print(PySide6.__version__); print(c.qVersion()); print(*sys.version_info[:2], sep=chr(46))'
 (Get-Content -Raw tools/licenses/NOTICE-Qt-PySide6.txt) -replace '@QT@', $qt -replace '@PYSIDE6@', $pyside |
     Set-Content -NoNewline "$extra/licenses/NOTICE-Qt-PySide6.txt"
+# Composants tiers de Qt et logiciels incorporés à Python : relevés pour ces versions, à refaire quand elles changent.
+$qtThird = Get-Content -Raw tools/licenses/QT-THIRD-PARTY.txt
+$pyThird = Get-Content -Raw tools/licenses/PYTHON-THIRD-PARTY.txt
+if (-not $qtThird.StartsWith("Qt $qt et PySide6 $pyside :")) { throw "tools\licenses\QT-THIRD-PARTY.txt ne décrit pas Qt $qt et PySide6 $pyside : à refaire" }
+if (-not $pyThird.StartsWith("Python $pyVer :")) { throw "tools\licenses\PYTHON-THIRD-PARTY.txt ne décrit pas Python $pyVer : à refaire" }
+Copy-Item tools/licenses/QT-THIRD-PARTY.txt "$extra/licenses"
+# Python et les bibliothèques C de sa distribution (OpenSSL, libffi…) : LICENSE.txt, à sa racine sous Windows, sans
+# les logiciels incorporés de Doc/license.rst, ajoutés à la suite.
+$pyLicense = Get-Content -Raw (Join-Path (& $py -c 'import sys; print(sys.base_prefix)') LICENSE.txt)
+if (-not $pyLicense.Contains('Licenses and Acknowledgements for Incorporated Software')) { $pyLicense += "`n`n$pyThird" }
+Set-Content -NoNewline "$extra/licenses/LICENSE-Python.txt" $pyLicense
 [ordered]@{
     appVersion = $ver
     cliRev     = (Get-Content $stamp) -replace ' .*'   # celui de build\cli, même avec -SkipCli

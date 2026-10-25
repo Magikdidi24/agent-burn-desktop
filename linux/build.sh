@@ -134,7 +134,19 @@ out, version, commit, rev, cli_version, cli_target = sys.argv[1:]
 notice = Path("tools/licenses/NOTICE-Qt-PySide6.txt").read_text(encoding="utf-8")
 Path(out, "licenses", "NOTICE-Qt-PySide6.txt").write_text(
     notice.replace("@QT@", qVersion()).replace("@PYSIDE6@", PySide6.__version__), encoding="utf-8")
-Path(out, "licenses", "LICENSE-Python.txt").write_bytes(Path(sysconfig.get_path("stdlib"), "LICENSE.txt").read_bytes())
+# Composants tiers de Qt et logiciels incorporés à Python : relevés pour ces versions, à refaire quand elles changent.
+qt_third = Path("tools/licenses/QT-THIRD-PARTY.txt").read_text(encoding="utf-8")
+py_third = Path("tools/licenses/PYTHON-THIRD-PARTY.txt").read_text(encoding="utf-8")
+if not qt_third.startswith(f"Qt {qVersion()} et PySide6 {PySide6.__version__} :"):
+    sys.exit(f"tools/licenses/QT-THIRD-PARTY.txt ne décrit pas Qt {qVersion()} et PySide6 {PySide6.__version__} : à refaire")
+if not py_third.startswith("Python %d.%d :" % sys.version_info[:2]):
+    sys.exit(f"tools/licenses/PYTHON-THIRD-PARTY.txt ne décrit pas Python {platform.python_version()} : à refaire")
+Path(out, "licenses", "QT-THIRD-PARTY.txt").write_text(qt_third, encoding="utf-8")
+# LICENSE.txt de Python sans les logiciels incorporés (Doc/license.rst) : ajoutés à la suite.
+py_license = Path(sysconfig.get_path("stdlib"), "LICENSE.txt").read_text(encoding="utf-8")
+if "Licenses and Acknowledgements for Incorporated Software" not in py_license:
+    py_license += "\n\n" + py_third
+Path(out, "licenses", "LICENSE-Python.txt").write_text(py_license, encoding="utf-8")
 Path(out, "build-info.json").write_text(json.dumps({
     "appVersion": version, "commit": commit, "target": "linux-x86_64",
     "builtAt": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -200,9 +212,13 @@ fetch https://github.com/goreleaser/nfpm/releases/download/v2.48.0/nfpm_2.48.0_L
     6d7f9a28b2f397934403950fcbba83f598b08d02edbe79a0815b3b4897341750 "$T/nfpm.tar.gz"
 fetch https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage \
     ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0 "$T/appimagetool"
-# Runtime épinglé, passé à appimagetool : sinon il télécharge la version « continuous » du moment.
-fetch https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64 \
+# Runtime épinglé, passé à appimagetool : sinon il télécharge la version « continuous » du moment. Il lie libfuse,
+# squashfuse, zstd, zlib, mimalloc et musl : leur notice, relevée pour cette version, va dans l'AppImage.
+RUNTIME=20251108
+fetch "https://github.com/AppImage/type2-runtime/releases/download/$RUNTIME/runtime-x86_64" \
     2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d "$T/runtime-x86_64"
+grep -q "^Runtime AppImage type2-runtime $RUNTIME " tools/licenses/NOTICE-AppImage-runtime.txt ||
+    die "tools/licenses/NOTICE-AppImage-runtime.txt ne décrit pas le runtime $RUNTIME : à refaire"
 tar -xzf "$T/nfpm.tar.gz" -C "$T" nfpm
 chmod +x "$T/appimagetool"
 
@@ -234,6 +250,7 @@ tar -C "$W" --owner=0 --group=0 --numeric-owner -czf "$OUT/$TB.tar.gz" "$TB"
 A=$W/AppDir
 rm -rf "$A" && mkdir -p "$A/usr/lib"
 cp -al "$B" "$A/usr/lib/agent-burn-desktop"
+cp tools/licenses/NOTICE-AppImage-runtime.txt "$A/usr/lib/agent-burn-desktop/licenses/"   # le runtime n'est que là
 share "$A/usr/share"
 mv "$A/usr/share/metainfo/$APPID.metainfo.xml" "$A/usr/share/metainfo/$APPID.appdata.xml"   # nom cherché par appimagetool
 install -m 755 linux/AppRun "$A/AppRun"

@@ -14,5 +14,5 @@ Sources correspondantes :
   PySide6 et Shiboken6 @PYSIDE6@ : https://download.qt.io/official_releases/QtForPython/
     (dépôt : https://code.qt.io/cgit/pyside/pyside-setup.git, étiquette v@PYSIDE6@)
 
-Composants tiers inclus dans Qt (ICU, HarfBuzz, PCRE2, libpng, libjpeg…) et leurs licences :
-https://doc.qt.io/qt-6/licenses-used-in-qt.html
+Composants tiers compilés dans les fichiers Qt et PySide6 livrés (ICU sous Linux, HarfBuzz, PCRE2, libpng…) :
+liste, licences et textes dans QT-THIRD-PARTY.txt. Pour tout Qt : https://doc.qt.io/qt-6/licenses-used-in-qt.html
