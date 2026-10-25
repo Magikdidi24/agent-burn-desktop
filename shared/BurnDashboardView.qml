@@ -148,16 +148,19 @@ Item {
         color: Colors.withAlpha(Colors.surface, 0.55)
         Column { id: cardBody; x: 18; y: 18; width: card.width - 36; spacing: 12 }
     }
-    // Titre de carte, précision discrète à droite.
+    // Titre de carte, précision discrète à droite ; carte étroite (fenêtre à sa taille minimale) : la
+    // précision cède la place au titre.
     component Heading: Item {
         id: heading
         property string title
         property string detail
         implicitHeight: 20
-        Txt { anchors.verticalCenter: parent.verticalCenter; text: heading.title; font.pixelSize: 14; font.bold: true }
+        Txt { id: headingTitle; anchors.verticalCenter: parent.verticalCenter; text: heading.title; font.pixelSize: 14; font.bold: true }
         Txt {
+            id: headingDetail
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
+            visible: heading.detail !== "" && headingTitle.implicitWidth + headingDetail.implicitWidth + 12 <= heading.width
             text: heading.detail
             color: Colors.muted
             font.pixelSize: 11
@@ -454,6 +457,8 @@ Item {
                     id: archive
                     readonly property string kept: Burn.historyDays + (Burn.historyDays > 1 ? " jours conservés" : " jour conservé")
                     anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width - backup.width - 12   // fenêtre étroite : élidé, jamais sous le bouton
+                    elide: Text.ElideRight
                     text: "\uf1c0   Historique journalier · " + archive.kept + " sur ce PC"  // database
                     color: Colors.muted
                     Accessible.name: "Historique journalier : " + archive.kept + " sur ce PC"
@@ -643,9 +648,16 @@ Item {
                     height: Math.max(eco.implicitHeight, mix.implicitHeight)
                     Heading { width: parent.width; title: "Économie du forfait"; detail: "30 derniers jours" }
                     Row {
+                        width: parent.width
                         spacing: 10
                         Txt { id: mult; text: "×" + (eco.e?.valueMultiple ?? 0).toFixed(2); font.pixelSize: 36; font.bold: true }
-                        Txt { anchors.baseline: mult.baseline; text: "valeur d'usage / prix du forfait"; color: Colors.muted }
+                        Txt {
+                            anchors.baseline: mult.baseline
+                            width: parent.width - mult.width - parent.spacing   // carte étroite : élidé, pas sur la voisine
+                            elide: Text.ElideRight
+                            text: "valeur d'usage / prix du forfait"
+                            color: Colors.muted
+                        }
                     }
                     Gauge {
                         width: parent.width
