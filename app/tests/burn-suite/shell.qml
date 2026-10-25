@@ -121,7 +121,7 @@ Scope {
                 eq(ps.state, "unknown", "claude avant le 1er rapport");
                 eq(ps.label, "Inconnu", "label unknown");
                 eq(ps.at, 0, "unknown : aucun relevé");
-                mode.setText("empty\n");   // 1er summary du minuteur : maison vide
+                mode.setText("fail\n");   // 1er summary du minuteur : en échec
                 step = 79;
                 next();
                 return;
@@ -671,9 +671,20 @@ Scope {
             eq(last().msg, "n24", "le plus récent en dernier");
             finish();
             break;
-        case 80:   // corrupt : 1er summary du minuteur (rien n'a tourné), maison vide
-            if (Burn.loading || !Burn.summary) return;
+        case 80:   // corrupt : 1er summary du minuteur (rien n'a tourné) en échec, toujours aucun rapport
+            if (Burn.loading || Burn.error === "") return;
             check(Date.now() - burnAt >= 2900, "1er refresh à ~3 s (" + (Date.now() - burnAt) + " ms)");
+            eq(Burn.summary, null, "aucun summary");
+            ps = Burn.providerState("claude");
+            eq(ps.state, "unavailable", "claude : rapport en échec");
+            eq(ps.label, "Rapport en échec", "label du rapport en échec");
+            eq(ps.detail, "agent-burn a échoué (code 3)", "detail = erreur du CLI");
+            eq(ps.at, 0, "rapport en échec : aucun relevé");
+            refreshWith("empty");   // maison vide
+            next();
+            break;
+        case 81:   // maison vide
+            if (!refreshed()) return;
             eq(Burn.dataState, "live", "summary en direct");
             ps = Burn.providerState("claude");
             eq(ps.state, "none", "claude : ni usage, ni abonnement, ni compte");
@@ -682,7 +693,7 @@ Scope {
             refreshWith("noauth");
             next();
             break;
-        case 81:   // usage Claude sans compte (non connecté ou hors ligne), Codex avec limites
+        case 82:   // usage Claude sans compte (non connecté ou hors ligne), Codex avec limites
             if (!refreshed()) return;
             ps = Burn.providerState("claude");
             eq(ps.state, "local", "claude : usage local");
@@ -691,7 +702,7 @@ Scope {
             refreshWith("installed");
             next();
             break;
-        case 82:   // connecté, aucun log : compte sans usage
+        case 83:   // connecté, aucun log : compte sans usage
             if (!refreshed()) return;
             eq(Burn.providerState("claude").state, "live", "claude : compte sans usage → en direct");
             eq(Burn.providerState("codex").state, "none", "codex connu de l'archive seule → non détecté");

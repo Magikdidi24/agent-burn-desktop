@@ -188,7 +188,8 @@ Singleton {
             return r;
         }
         if (cliMissing) return set("unavailable", "CLI introuvable", cliHint);
-        if (!summary) return set("unknown", "Inconnu", "Pas encore de rapport du CLI agent-burn.");
+        if (!summary) return error ? set("unavailable", "Rapport en échec", error)
+            : set("unknown", "Inconnu", "Pas encore de rapport du CLI agent-burn.");
         r.at = a?.observedAtMs || updatedAt;
         // Aussi pour un jeton expiré sans réseau (sortie de veille) : la cause n'est pas forcément la connexion.
         if (claude && signInExpired)
