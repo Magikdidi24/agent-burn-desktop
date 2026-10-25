@@ -147,7 +147,7 @@ def run(args):
     from PySide6.QtQuick import QQuickWindow
     from PySide6.QtWidgets import QApplication, QFileIconProvider
 
-    from agentburn import diagnostics, logs, paths, runtime, settings, tray
+    from agentburn import diagnostics, logs, paths, runtime, settings, shim, tray
 
     mode = "selftest" if args.selftest else args.show or "tray"
     QCoreApplication.setApplicationName("AgentBurn")
@@ -303,6 +303,10 @@ def run(args):
                                               QMetaObject.invokeMethod(root, "openDashboard")))
     log.info("démarrage : %s", "; ".join(f"{k} {v}" for k, v in desktop.facts()))
     code = app.exec()
+    # CLI en plein run (il réécrit peut-être un jeton Claude renouvelé) : sa fin attendue, 5 s au plus, avant
+    # que la destruction du moteur ne le tue.
+    # shortcut: getattr tant que shim.wait_for_runs n'est pas dans cette branche ; appel direct ensuite.
+    getattr(shim, "wait_for_runs", lambda _ms: None)(5000)
     del engine
     return code
 
