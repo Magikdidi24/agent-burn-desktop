@@ -107,12 +107,12 @@ if ! fonts_ok; then
 fi
 
 step "Python : venv, PySide6, PyInstaller"
-V=$W/venv
-# Recréé quand requirements.txt change : un paquet retiré resterait sinon dans le venv (et dans le bundle).
-if ! cmp -s app/requirements.txt "$V/requirements.txt"; then
+V=$W/venv PYI=pyinstaller==6.22.3
+# Recréé quand requirements.txt ou PyInstaller change : un paquet retiré resterait sinon dans le venv (et le bundle).
+if [ "$(cat "$V/stamp" 2>/dev/null)" != "$(cat app/requirements.txt; echo $PYI)" ]; then
     rm -rf "$V" && python3 -m venv "$V"
-    "$V/bin/pip" install -q --disable-pip-version-check --root-user-action=ignore -r app/requirements.txt pyinstaller==6.22.3
-    cp app/requirements.txt "$V/requirements.txt"
+    "$V/bin/pip" install -q --disable-pip-version-check --root-user-action=ignore -r app/requirements.txt $PYI
+    { cat app/requirements.txt; echo $PYI; } >"$V/stamp"
 fi
 
 step "Icônes, licences, build-info.json"
@@ -148,7 +148,8 @@ B=$W/dist/agent-burn-desktop
 mkdir -p "$B/licenses/debian"
 for f in "$B"/lib*.so*; do
     [ -L "$f" ] && continue
-    pkg=$(dpkg -S "*/${f##*/}" 2>/dev/null | head -1 | cut -d: -f1) || continue   # libpython : LICENSE-Python.txt
+    pkg=$(dpkg -S "*/${f##*/}" 2>/dev/null) || continue   # libpython, hors dpkg : LICENSE-Python.txt
+    pkg=${pkg%%:*}
     cp "/usr/share/doc/$pkg/copyright" "$B/licenses/debian/$pkg.copyright"
 done
 # Toute bibliothèque demandée par le bundle sans y être doit figurer dans les Requires du .rpm (linux/nfpm.yaml) :
