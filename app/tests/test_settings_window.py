@@ -223,7 +223,7 @@ class SettingsWindow(unittest.TestCase):
         rows = {f.property("label"): f for f in self.items("QQuickRowLayout") if f.property("label")}
         for label in ("Données", "Réglages", "Journaux", "Cache"):
             value = next(i for i in rows[label].childItems() if i.property("text") == rows[label].property("value"))
-            self.assertEqual(value.property("wrapMode"), 3, label)   # Text.WrapAnywhere
+            self.assertTrue(js(value, "wrapMode === Text.WrapAnywhere"), label)
 
     def test_theme_light_drives_colors(self):
         self.cfg.theme = "light"
