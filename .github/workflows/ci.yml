@@ -204,15 +204,17 @@ jobs:
         with:
           persist-credentials: false
 
+      # Chemin relatif à l'espace de travail : dans un job « container », ${{ runner.temp }} serait le chemin de
+      # l'hôte et $RUNNER_TEMP celui du conteneur.
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: agent-burn-desktop-linux
-          path: ${{ runner.temp }}/dist
+          path: dist-in
 
       - name: Installation et selftest
         run: |
-          chmod +x "$RUNNER_TEMP"/dist/*.AppImage   # un artefact ne garde pas le bit exécutable
-          bash desktop/agent-burn/linux/smoke.sh "$RUNNER_TEMP/dist"
+          chmod +x dist-in/*.AppImage   # un artefact ne garde pas le bit exécutable
+          bash desktop/agent-burn/linux/smoke.sh "$PWD/dist-in"
 
   windows:
     name: ${{ matrix.arch == 'arm64' && 'Windows ARM64 (expérimental)' || 'Windows x64' }}
