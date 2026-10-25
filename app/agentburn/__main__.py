@@ -106,7 +106,7 @@ def register(qml, data, cfg, desktop):
 
 
 def run(args):
-    from PySide6.QtCore import QCoreApplication, QFileInfo, QMetaObject, QPoint, Qt, QtMsgType, QTimer, QUrl
+    from PySide6.QtCore import QCoreApplication, QFileInfo, QLockFile, QMetaObject, QPoint, Qt, QtMsgType, QTimer, QUrl
     from PySide6.QtGui import QFontDatabase, QGuiApplication, QIcon
     from PySide6.QtNetwork import QLocalServer, QLocalSocket
     from PySide6.QtQml import QQmlApplicationEngine
@@ -154,11 +154,24 @@ def run(args):
         if sys.platform == "win32":
             from agentburn import platform_win
             platform_win.allow_foreground()
+        # Verrou d'abord : deux lancements simultanés sondaient chacun avant le listen() de l'autre, et
+        # listen() n'est pas exclusif sous Windows (deux serveurs sur un même pipe).
+        lock_file = Path(name + ".lock") if sys.platform != "win32" else paths.cache_dir() / f"{name}.lock"
+        lock_file.parent.mkdir(parents=True, exist_ok=True)
+        lock = QLockFile(str(lock_file))   # tenu jusqu'à la sortie
+        lock.setStaleLockTime(0)   # périmé seulement si son process est mort
+        # Verrou impossible à poser (dossier en lecture seule…) : démarrage quand même, comme sans verrou.
+        locked = lock.tryLock(0) or lock.error() != QLockFile.LockError.LockFailedError
         probe = QLocalSocket()
-        probe.connectToServer(name)
-        if probe.waitForConnected(1000):   # déjà lancée : elle ouvre son dashboard, on s'arrête là
-            probe.disconnectFromServer()
-            log.info("déjà lancée : dashboard de l'instance en cours ouvert")
+        for attempt in range(1 if locked else 30):   # perdant : le serveur du gagnant arrive dans l'instant
+            time.sleep(0.1 if attempt else 0)
+            probe.connectToServer(name)
+            if probe.waitForConnected(1000):   # déjà lancée : elle ouvre son dashboard, on s'arrête là
+                probe.disconnectFromServer()
+                log.info("déjà lancée : dashboard de l'instance en cours ouvert")
+                return 0
+        if not locked:
+            log.warning("déjà lancée (verrou %s) mais injoignable : arrêt", lock_file)
             return 0
         QLocalServer.removeServer(name)   # socket laissé par une instance plantée (Unix)
         server = QLocalServer()

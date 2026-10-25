@@ -19,8 +19,9 @@ APP = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(APP))
 FIXTURES = APP.parent / "tests" / "fixtures"
 
-from PySide6.QtCore import QCoreApplication, QEventLoop, QPoint, QRect, QSize, Qt, QUrl  # noqa: E402
+from PySide6.QtCore import QCoreApplication, QEventLoop, QLockFile, QPoint, QRect, QSize, Qt, QUrl  # noqa: E402
 from PySide6.QtGui import QColor, QGuiApplication  # noqa: E402
+from PySide6.QtNetwork import QLocalServer  # noqa: E402
 from PySide6.QtQml import QQmlComponent, QQmlEngine, QQmlExpression, qmlRegisterSingletonInstance  # noqa: E402
 from PySide6.QtQuick import QQuickItem, QQuickWindow  # noqa: E402,F401 (QQuickWindow : type des fenêtres QML côté Python)
 from PySide6.QtWidgets import QApplication  # noqa: E402
@@ -147,6 +148,35 @@ class Startup(unittest.TestCase):
                     os.environ["QSG_RENDER_LOOP"] = preset
                 self.assertEqual(appmain.main(), 0)
                 self.assertEqual(os.environ.get("QSG_RENDER_LOOP"), loop, platform)
+
+
+class SingleInstance(unittest.TestCase):
+    @unittest.skipIf(sys.platform == "win32", "pipe de la session : pas isolable dans un test")
+    def test_launch_losing_the_lock_waits_for_the_winner_then_exits(self):
+        # Deux lancements au même instant : le gagnant tient le verrou mais n'écoute pas encore ; le perdant
+        # ne devient pas une 2e instance (2e icône, CLI en double), il passe la main dès que le serveur écoute.
+        gui()
+        with tempfile.TemporaryDirectory() as tmp:
+            rt = Path(tmp) / "rt"
+            rt.mkdir(mode=0o700)
+            name = str(rt / "AgentBurn.sock")
+            lock = QLockFile(name + ".lock")
+            self.assertTrue(lock.tryLock(0))
+            env = {**os.environ, "XDG_RUNTIME_DIR": str(rt), "QT_QPA_PLATFORM": "offscreen", "QT_QPA_PLATFORMTHEME": "none",
+                   "AGENT_BURN_DATA": tmp,
+                   "AGENT_BURN_FAKE_DIR": str(FIXTURES), "AGENT_BURN_BIN": str(APP / "tests" / "fake-agent-burn"),
+                   **{v: f"{tmp}/{v}" for v in ("XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME")}}
+            loser = subprocess.Popen([sys.executable, "-m", "agentburn"], cwd=APP, env=env,
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self.addCleanup(lambda: loser.poll() is None and (loser.kill(), loser.wait()))
+            wait_for(lambda: False, 1.5)   # le perdant a déjà sondé une fois, en vain
+            server, got = QLocalServer(), []
+            server.newConnection.connect(lambda: got.append(server.nextPendingConnection()))
+            self.assertTrue(server.listen(name), server.errorString())
+            self.assertTrue(wait_for(lambda: loser.poll() is not None, 20), "toujours lancé : 2e instance")
+            self.assertEqual(loser.returncode, 0)
+            self.assertTrue(wait_for(lambda: len(got) == 1, 2))
+            server.close()
 
 
 SCREEN = QRect(0, 0, 1920, 1080)
