@@ -1,6 +1,6 @@
 # Tests du shim Quickshell de l'app de bureau : environnement des process lancés (fuites du bundle gelé,
 # réglages du CLI hérités, HOME sous Windows), stderr lu avant exited, dossier courant, journal des runs,
-# running déclaré avant command, xdg-open détaché.
+# running déclaré avant command, attente des runs à la fermeture, xdg-open détaché.
 #   cd desktop/agent-burn/app && python -m unittest discover -s tests -v
 import json
 import os
@@ -149,14 +149,24 @@ def create(test, qml):
     return p
 
 
-class ProcessRun(unittest.TestCase):
-    def run_child(self, command):
+def sleeper(seconds):
+    return [sys.executable, "-I", "-c", f"import time; time.sleep({seconds})"]
+
+
+class Runs(unittest.TestCase):   # sans test : base des classes qui lancent un run
+    def start_child(self, command):
         p = create(self, QML)
         p.setProperty("command", command)
         p.setProperty("running", True)
+        return p
+
+    def run_child(self, command):
+        p = self.start_child(command)
         self.assertTrue(wait_for(lambda: not p.property("running")), "run sans fin")
         return p
 
+
+class ProcessRun(Runs):
     def test_stderr_working_dir_environment_and_log(self):
         with mock.patch.dict(os.environ, {"AGENT_BURN_FORCE_REFRESH": "1", "LOG_LEVEL": "5", "AB_DROP": "x"}), \
                 self.assertLogs("agentburn.cli", "INFO") as logs:
@@ -216,6 +226,34 @@ class DeclaredRunning(unittest.TestCase):
         p.setProperty("running", False)
         wait_for(lambda: False, 0.5)
         self.assertEqual(p.property("starts"), 0)
+
+
+class WaitForRuns(Runs):
+    def setUp(self):
+        self.addCleanup(setattr, shim, "_closing", False)   # fermeture simulée : runs de nouveau permis ensuite
+
+    def test_waits_for_the_running_cli(self):
+        p = self.start_child(sleeper(1))
+        t0 = time.monotonic()
+        self.assertTrue(shim.wait_for_runs(10000))
+        self.assertLess(time.monotonic() - t0, 9)
+        self.assertEqual(p.property("code"), 0)   # exited reçu pendant l'attente, sans boucle d'événements
+        self.assertFalse(p.property("running"))
+
+    def test_bounded_and_no_run_started_afterwards(self):
+        p = self.start_child(sleeper(30))
+
+        def stop():
+            with self.assertLogs("agentburn.cli", "WARNING"):   # arrêt forcé, journalisé
+                p.signal(9)
+                self.assertTrue(wait_for(lambda: not p.property("running")))
+        self.addCleanup(stop)
+        t0 = time.monotonic()
+        self.assertFalse(shim.wait_for_runs(300))
+        self.assertLess(time.monotonic() - t0, 5)
+        self.assertTrue(p.property("running"))
+        q = self.start_child(sleeper(0))   # app en cours de fermeture : jamais lancé, il serait tué
+        self.assertFalse(wait_for(lambda: q.property("running") or q.property("code") != -1, 0.5))
 
 
 class Detached(unittest.TestCase):

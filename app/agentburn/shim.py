@@ -3,7 +3,8 @@
 # Ordre des signaux de Process relevé sous qs : streamFinished → exited (running déjà faux) →
 # runningChanged ; binaire absent : un seul runningChanged, sans started.
 # En plus de qs : enfants lancés dans le dossier de données avec child_environment(), chaque run
-# journalisé sur le logger « agentburn.cli » (handlers posés par l'app, fin du stderr en DEBUG).
+# journalisé sur le logger « agentburn.cli » (handlers posés par l'app, fin du stderr en DEBUG),
+# runs en cours attendus à la fermeture (wait_for_runs).
 import logging
 import os
 import sys
@@ -17,6 +18,8 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtQml import ListProperty, QJSValue, qmlRegisterSingletonInstance, qmlRegisterType
 
 log = logging.getLogger("agentburn.cli")
+_runs = set()   # QProcess en cours, attendus par wait_for_runs()
+_closing = False   # wait_for_runs() appelé : l'app ferme, plus aucun run lancé
 
 # Réglages du CLI qui changent son JSON ou son stderr : seul l'environment explicite de Burn.qml les pose.
 _CLI_VARS = ("AGENT_BURN_QUOTA_ONLY", "AGENT_BURN_FORCE_REFRESH", "LOG_LEVEL")
@@ -141,7 +144,7 @@ class Process(QObject):
             if self._process:
                 self._process.terminate()
             return
-        if self._process or not self._command:
+        if self._process or not self._command or _closing:   # app qui ferme : un run lancé serait tué
             return
         p = self._process = QProcess(self)
         env = child_environment()   # + environnement demandé par le QML (null = retiré)
@@ -163,6 +166,7 @@ class Process(QObject):
         p.finished.connect(relay(self._finished))
         p.errorOccurred.connect(relay(self._error))
         self._since = time.monotonic()
+        _runs.add(p)
         p.start(self._command[0], self._command[1:])
 
     running = Property(bool, lambda self: self._process is not None, _set_running, notify=runningChanged)
@@ -193,6 +197,7 @@ class Process(QObject):
 
     def _finished(self, code, status):
         p, self._process = self._process, None
+        _runs.discard(p)
         p.deleteLater()
         out = bytes(p.readAllStandardOutput())
         err = bytes(p.readAllStandardError()).decode("utf-8", "replace")
@@ -216,6 +221,7 @@ class Process(QObject):
     def _error(self, error):
         if error == QProcess.ProcessError.FailedToStart:
             log.warning("%s : lancement impossible (%s)", " ".join(self._command), self._process.errorString())
+            _runs.discard(self._process)
             self._process.deleteLater()
             self._process = None
             self.runningChanged.emit()
@@ -306,6 +312,18 @@ class IdleMonitor(QObject):
 
 
 _global = None   # instance du singleton « Quickshell », gardée en vie
+
+
+def wait_for_runs(timeout_ms):
+    """Fermeture de l'app, avant de détruire le moteur QML : attend au plus timeout_ms la fin des runs du CLI
+    en cours (tué, il peut perdre le jeton Claude qu'il vient de renouveler), puis n'en lance plus aucun, même
+    depuis leur exited. True si tous ont fini."""
+    global _closing
+    _closing = True
+    end = time.monotonic() + timeout_ms / 1000
+    for p in [p for p in _runs if shiboken6.isValid(p)]:
+        p.waitForFinished(max(0, int((end - time.monotonic()) * 1000)))
+    return not any(shiboken6.isValid(p) for p in _runs)
 
 
 def register(qml_dir, data_dir):
