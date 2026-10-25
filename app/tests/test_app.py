@@ -62,6 +62,13 @@ class FakeCli(unittest.TestCase):
     def test_harness_without_fixture_fails(self):
         self.assertNotEqual(fake("harness", "codex", "--json").returncode, 0)
 
+    def test_harness_agent_other_than_claude_or_codex_refused(self):
+        # Le nom de fichier vient d'argv : « ../summary-live » servirait un autre JSON.
+        for args in (("harness",), ("harness", "../summary-live"), ("harness", "gemini", "--json")):
+            r = fake(*args)
+            self.assertEqual(r.returncode, 2, args)
+            self.assertEqual(r.stdout, b"", args)
+
 
 SCREEN = QRect(0, 0, 1920, 1080)
 CARD = QSize(440, 600)

@@ -25,7 +25,9 @@ def fake_cli(args):
         out.write(b"agent-burn (fixtures)\n")
         out.flush()
         return 0
-    path = Path(src) / ("summary-live.json" if args[0] == "summary" else f"harness-{args[1] if len(args) > 1 else ''}.json")
+    if args[0] == "harness" and (len(args) < 2 or args[1] not in ("claude", "codex")):
+        return 2   # comme le vrai CLI ; et jamais un chemin de fixture tiré d'argv
+    path = Path(src) / ("summary-live.json" if args[0] == "summary" else f"harness-{args[1]}.json")
     if not path.is_file():
         return 2
     shift = datetime.date.today() - datetime.date(2026, 10, 23)   # jour de capture des fixtures
