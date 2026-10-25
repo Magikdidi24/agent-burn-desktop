@@ -22,6 +22,23 @@ Item {
     readonly property bool hasNow: valid && used >= 0
     readonly property int fs: compact ? 10 : 11
 
+    // Lecteurs d'écran (Burn.accessibleText, app de bureau) : le graphe en une phrase. Posé en JS comme les Txt
+    // des vues : la barre Quickshell n'a aucun objet Accessible de plus.
+    readonly property bool exposed: Burn.accessibleText === true
+    onExposedChanged: if (exposed) {
+        Accessible.role = Accessible.Chart;
+        Accessible.name = Qt.binding(() => root.summary());
+    }
+    // Restant maintenant et prévu au reset ; sans fenêtre, le message affiché à sa place.
+    function summary() {
+        if (!valid) return empty.text;
+        const reset = new Date(endMs).toLocaleString(Qt.locale("fr_FR"), "ddd d MMM H'h'");
+        return "Quota jusqu'au reset (" + reset + ") : "
+            + (hasNow ? Math.max(0, Math.round(100 - used)) + " % restant" : "relevé inconnu")
+            + (projected < 0 ? "" : projected > 100 ? ", épuisé avant le reset au rythme actuel"
+               : ", " + Math.round(100 - projected) + " % au reset au rythme actuel");
+    }
+
     // Tracés en pixels de `plot` : y part du haut et vaut le % consommé (100 % restant en haut).
     // Date.now() est relu à chaque nouvelle donnée : « Maintenant » suit la dernière mesure.
     readonly property var geo: {
@@ -53,6 +70,7 @@ Item {
     FontMetrics { id: fm; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: root.fs }
 
     Text {
+        id: empty
         anchors.centerIn: parent
         visible: !root.valid
         text: "Pas encore de fenêtre de quota"

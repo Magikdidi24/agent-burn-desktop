@@ -16,6 +16,24 @@ Item {
     readonly property int fs: compact ? 10 : 11
     readonly property var fr: Qt.locale("fr_FR")
 
+    // Lecteurs d'écran (Burn.accessibleText, app de bureau) : le graphe en une phrase. Posé en JS comme les Txt
+    // des vues : la barre Quickshell n'a aucun objet Accessible de plus.
+    readonly property bool exposed: Burn.accessibleText === true
+    onExposedChanged: if (exposed) {
+        Accessible.role = Accessible.Chart;
+        Accessible.name = Qt.binding(() => root.summary());
+    }
+    // Période, total et jour le plus cher ; sans graphe, le message affiché à sa place.
+    function summary() {
+        if (!chart.ok) return empty.text;
+        const known = points.filter(p => p.value !== null), d = s => day(s).toLocaleString(fr, "d MMM");
+        const peak = known.reduce((a, p) => p.value > a.value ? p : a);
+        if (points.length === 1) return day(peak.date).toLocaleString(fr, "ddd d MMM") + " : " + fmt(peak.value);
+        return "Du " + d(points[0].date) + " au " + d(points[points.length - 1].date) + " : "
+            + fmt(known.reduce((s, p) => s + p.value, 0)) + " au total, pic de " + fmt(peak.value)
+            + " le " + day(peak.date).toLocaleString(fr, "ddd d MMM");
+    }
+
     function day(s) { const p = s.split("-"); return new Date(p[0], p[1] - 1, p[2]); }
     // Points des n derniers jours (Burn.lastDays) d'une série Burn.dailySeries ; jour à tokens sans prix : null.
     function lastDays(series, n) {
@@ -60,6 +78,7 @@ Item {
     FontMetrics { id: fm; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: root.fs }
 
     Text {
+        id: empty
         anchors.centerIn: parent
         visible: !root.chart.ok
         // Tokens sans aucun prix (hors ligne) : des jours d'usage, pas un graphe vide.
