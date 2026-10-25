@@ -1,0 +1,133 @@
+{
+  "agents": [
+    {
+      "agent": "claude",
+      "daily": [
+        {
+          "cost": 0,
+          "date": "2026-10-14",
+          "tokens": 150066
+        },
+        {
+          "cost": 0,
+          "date": "2026-10-20",
+          "tokens": 150048
+        },
+        {
+          "cost": 0,
+          "date": "2026-10-21",
+          "tokens": 20800
+        },
+        {
+          "cost": 0,
+          "date": "2026-10-22",
+          "tokens": 150030
+        },
+        {
+          "cost": 0,
+          "date": "2026-10-23",
+          "tokens": 171962
+        }
+      ],
+      "models": [
+        {
+          "model": "claude-opus-5-5",
+          "percentage": 0,
+          "totalCost": 0,
+          "totalTokens": 241644
+        },
+        {
+          "model": "claude-haiku-5-5",
+          "percentage": 0,
+          "totalCost": 0,
+          "totalTokens": 201210
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "percentage": 0,
+          "totalCost": 0,
+          "totalTokens": 200052
+        }
+      ],
+      "tokenBreakdown": {
+        "cacheRead": 581000,
+        "cacheWrite": 36000,
+        "input": 15578,
+        "output": 10328
+      },
+      "totalCost": 0,
+      "totalTokens": 642906
+    }
+  ],
+  "claudeAccountStatus": "signInExpired",
+  "daily": [
+    {
+      "cost": 0,
+      "date": "2026-10-14",
+      "tokens": 150066
+    },
+    {
+      "cost": 0,
+      "date": "2026-10-20",
+      "tokens": 150048
+    },
+    {
+      "cost": 0,
+      "date": "2026-10-21",
+      "tokens": 20800
+    },
+    {
+      "cost": 0,
+      "date": "2026-10-22",
+      "tokens": 150030
+    },
+    {
+      "cost": 0,
+      "date": "2026-10-23",
+      "tokens": 171962
+    }
+  ],
+  "models": [
+    {
+      "model": "claude-opus-5-5",
+      "percentage": 0,
+      "totalCost": 0,
+      "totalTokens": 241644
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "percentage": 0,
+      "totalCost": 0,
+      "totalTokens": 201210
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "percentage": 0,
+      "totalCost": 0,
+      "totalTokens": 200052
+    }
+  ],
+  "subscription": {
+    "agents": [
+      {
+        "agent": "claude",
+        "estimate": null,
+        "liveLimits": false,
+        "periodUsage": 0,
+        "plan": null,
+        "pricePerMonth": null,
+        "resetCreditsAvailable": null,
+        "shortWindow": null,
+        "window": null
+      }
+    ],
+    "period": {
+      "from": "2026-10-14",
+      "to": "2026-10-23"
+    }
+  },
+  "totals": {
+    "totalCost": 0,
+    "totalTokens": 642906
+  }
+}

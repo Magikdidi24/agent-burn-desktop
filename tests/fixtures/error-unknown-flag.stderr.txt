@@ -1,0 +1,2 @@
+Unknown summary option '--frobnicate'
+Run 'agent-burn --help' for usage.

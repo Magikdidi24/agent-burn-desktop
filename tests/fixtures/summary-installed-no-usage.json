@@ -1,0 +1,25 @@
+{
+  "agents": [],
+  "claudeAccount": {
+    "extraEnabled": null,
+    "extraLimitUSD": null,
+    "extraUsedPercent": null,
+    "extraUsedUSD": null,
+    "observedAtMs": 1792893787192,
+    "scoped": [],
+    "sessionResetsAtMs": 1792900987000,
+    "sessionUsedPercent": 5.0,
+    "weeklyResetsAtMs": 1793239387000,
+    "weeklyUsedPercent": 9.0
+  },
+  "daily": [],
+  "models": [],
+  "subscription": {
+    "agents": [],
+    "period": null
+  },
+  "totals": {
+    "totalCost": 0,
+    "totalTokens": 0
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "agents": [
+    {
+      "agent": "codex",
+      "daily": [
+        {
+          "cost": 0.23251500000000003,
+          "date": "2026-10-13",
+          "tokens": 64503
+        },
+        {
+          "cost": 0.23251500000000003,
+          "date": "2026-10-14",
+          "tokens": 64503
+        }
+      ],
+      "models": [
+        {
+          "model": "gpt-5.5",
+          "percentage": 100,
+          "totalCost": 0.46503000000000005,
+          "totalTokens": 129006
+        }
+      ],
+      "tokenBreakdown": {
+        "cacheRead": 90000,
+        "cacheWrite": 0,
+        "input": 30006,
+        "output": 9000
+      },
+      "totalCost": 0.46503000000000005,
+      "totalTokens": 129006
+    }
+  ],
+  "daily": [
+    {
+      "cost": 0.23251500000000003,
+      "date": "2026-10-13",
+      "tokens": 64503
+    },
+    {
+      "cost": 0.23251500000000003,
+      "date": "2026-10-14",
+      "tokens": 64503
+    }
+  ],
+  "models": [
+    {
+      "model": "gpt-5.5",
+      "percentage": 100,
+      "totalCost": 0.46503000000000005,
+      "totalTokens": 129006
+    }
+  ],
+  "subscription": {
+    "agents": [
+      {
+        "agent": "codex",
+        "estimate": {
+          "fullQuotaValue": 0.511021978021978,
+          "monthlyValue": 2.2220330651491365,
+          "projectedUsePercent": 57.04068388783513,
+          "valueMultiple": 0.11110165325745683
+        },
+        "liveLimits": true,
+        "periodUsage": 0.46503000000000005,
+        "plan": "Plus",
+        "pricePerMonth": 20,
+        "resetCreditsAvailable": null,
+        "shortWindow": {
+          "label": "5h",
+          "usedPercent": 80
+        },
+        "window": {
+          "apiEquivalentSpent": 0.46503000000000005,
+          "elapsedMinutes": 16081.153616666666,
+          "label": "weekly",
+          "usedPercent": 91
+        }
+      }
+    ],
+    "period": {
+      "from": "2026-10-13",
+      "to": "2026-10-14"
+    }
+  },
+  "totals": {
+    "totalCost": 0.46503000000000005,
+    "totalTokens": 129006
+  }
+}
