@@ -276,6 +276,8 @@ pwsh -File build.ps1 -SkipCli      # réutilise build\cli tel quel (itérations 
   Il échoue sur la moindre erreur ou capture ratée (voir `dist\selftest\selftest.json` et `stderr.txt`, en
   UTF-8 comme le journal).
 - Relançable : venv, polices et CLI déjà faits sont réutilisés ; bundle, zip et installeur sont écrasés.
+- Le journal marque chaque étape avec le temps écoulé (`== [Ns] …`, comme `build.sh`) ; d'Inno Setup, il garde
+  la version du compilateur, ses avertissements et la durée de compilation.
 
 Sorties dans `dist\` : `AgentBurn\` (bundle), `AgentBurn-portable-<ver>-<arch>.zip`,
 `AgentBurn-Setup-<ver>-<arch>.exe`, `selftest\`. [`installer.iss`](../installer.iss) ne se compile que par

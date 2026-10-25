@@ -11,6 +11,9 @@ $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true  # un exe natif en échec arrête le script
 $ProgressPreference = 'SilentlyContinue'          # la barre de progression ralentit les téléchargements
 Set-Location $PSScriptRoot
+# Repères de durée comme linux/build.sh (« == [Ns] étape ») : chaque étape du log CI a son coût.
+$sw = [Diagnostics.Stopwatch]::StartNew()
+function Step($what) { Write-Host "`n== [$([int]$sw.Elapsed.TotalSeconds)s] $what" }
 
 # Révision du CLI : cli.env, source unique (AB_REV et AB_VER changent ensemble).
 $pin = Get-Content -Raw cli.env
@@ -21,6 +24,7 @@ $ver = [regex]::Match((Get-Content -Raw app/agentburn/__init__.py), '__version__
 if (-not ($rev -and $abVer -and $ver)) { throw 'AB_REV / AB_VER (cli.env) ou __version__ X.Y.Z (app) introuvable' }
 $target = @{ x64 = 'x86_64-pc-windows-msvc'; arm64 = 'aarch64-pc-windows-msvc' }[$Arch]
 
+Step 'Python : venv, PySide6, PyInstaller'
 # Python : venv local, dépendances du verrou haché (versions et sha256 de tout l'arbre, PyInstaller compris).
 $py = "$PSScriptRoot/.venv/Scripts/python.exe"
 if (-not (Test-Path $py)) { python -m venv .venv }
@@ -30,6 +34,7 @@ if ($pyPlatform -ne @{ x64 = 'win-amd64'; arm64 = 'win-arm64' }[$Arch]) {
 }
 & $py -m pip install -q --disable-pip-version-check --require-hashes -r app/requirements.lock
 
+Step 'Polices JetBrainsMono Nerd Font v3.4.0'
 # Polices : JetBrainsMono Nerd Font v3.4.0 comme linux/build.sh (glyphes du QML validés sur cette version), et sa
 # licence. Sommes relevées le 2026-10-25 : un fichier de release peut être remplacé après coup.
 $fonts = @{
@@ -58,6 +63,7 @@ if ($fonts.Keys | Where-Object { -not (Test-Sha256 "app/fonts/$_" $fonts[$_]) })
     foreach ($f in $fonts.Keys) { if (-not (Test-Sha256 "app/fonts/$f" $fonts[$f])) { throw "app/fonts/$f : somme sha256 inattendue" } }
 }
 
+Step "CLI $abVer ($rev)"
 # CLI agent-burn : compilé depuis une copie superficielle de l'amont à la révision épinglée, seulement si elle ou la
 # cible a changé. Témoin build\cli\rev plutôt que --version : l'amont corrige le CLI sans changer sa version. La copie
 # fournit aussi sa licence et son Cargo.lock (notices tierces), gardées dans build\cli avec l'exe (cache de la CI).
@@ -100,6 +106,7 @@ if (-not ((Test-Path $cliFiles) -notcontains $false -and (Get-Content $stamp) -m
     throw "build\cli incomplet ou compilé pour une autre cible que $target : relance sans -SkipCli (Git et Rust requis)"
 }
 
+Step 'Licences, build-info.json, ressource de version'
 # Fichiers ajoutés à la racine du bundle (build\bundle-extra, repris par agentburn.spec) : licences et build-info.json.
 # Recréés à chaque build : rien d'un build précédent ne traîne.
 $extra = "$PSScriptRoot/build/bundle-extra"
@@ -151,6 +158,7 @@ VSVersionInfo(
     VarFileInfo([VarStruct('Translation', [0x040C, 1200])])])
 "@ | Set-Content build/version_info.txt
 
+Step 'Bundle PyInstaller'
 # Bundle onedir → dist\AgentBurn
 & $py -m PyInstaller --noconfirm agentburn.spec
 # Contrat avec agentburn.spec : sans lui, un bundle sans licences ni version partirait quand même.
@@ -162,6 +170,7 @@ if ((Get-Item dist/AgentBurn/AgentBurn.exe).VersionInfo.ProductVersion -ne $ver)
     throw "agentburn.spec n'a pas repris build\version_info.txt : AgentBurn.exe sans version $ver"
 }
 
+Step 'Selftest du bundle gelé'
 # Selftest du bundle gelé : l'exe sert lui-même les fixtures (faux CLI) et ses données vont dans build\,
 # jamais dans l'historique réel (%APPDATA%\AgentBurn).
 $exe = "$PSScriptRoot/dist/AgentBurn/AgentBurn.exe"
@@ -184,10 +193,15 @@ try {
 if ($p.ExitCode -ne 0) { throw "Selftest en échec (code $($p.ExitCode)) : voir dist\selftest\selftest.json et stderr.txt" }
 
 # Zip portable puis installeur Inno Setup (sortie : installer.iss → OutputDir=dist). Noms attendus par la CI.
+Step 'Zip portable'
 Compress-Archive -Path dist/AgentBurn -DestinationPath "dist/AgentBurn-portable-$ver-$Arch.zip" -Force
+Step 'Installeur Inno Setup'
 $iscc = (Get-Command iscc -ErrorAction Ignore).Source
 if (-not $iscc) { $iscc = 'C:/Program Files (x86)/Inno Setup 6/ISCC.exe' }
 if (-not (Test-Path $iscc)) { throw 'Inno Setup 6 introuvable (https://jrsoftware.org/isdl.php)' }
-& $iscc /Q "/DAppVersion=$ver" "/DArch=$Arch" installer.iss
+# Pas /Q, qui tait aussi les avertissements : on en garde la version du compilateur, les avertissements et la
+# durée, sans la liste des fichiers compressés (erreurs sur stderr, code ≠ 0 fatal).
+& $iscc "/DAppVersion=$ver" "/DArch=$Arch" installer.iss |
+    Where-Object { $_ -match '^(Warning: |Compiler engine version|Successful compile)' }
 
-Write-Host "OK : dist\AgentBurn-Setup-$ver-$Arch.exe, dist\AgentBurn-portable-$ver-$Arch.zip, dist\selftest\"
+Step "OK : dist\AgentBurn-Setup-$ver-$Arch.exe, dist\AgentBurn-portable-$ver-$Arch.zip, dist\selftest\"
