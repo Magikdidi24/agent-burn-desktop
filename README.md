@@ -194,6 +194,10 @@ La suite (icône, aperçu, dashboard, réglages, dépannage, désinstallation) :
 - **Agent Burn (cette app)** : MIT, [LICENSE](LICENSE).
 - **CLI `agent-burn`** (embarqué) : MIT, © ryoppippi et Melvynx. Les licences des crates Rust liées dans le
   binaire, texte compris, sont dans `THIRD-PARTY-NOTICES.txt`.
+- **Logos des agents** (`shared/assets/burn/`) **et icône de l'app** (`assets/`) : repris de
+  [agent-burn](https://github.com/Melvynx/agent-burn) de Melvynx, sous la même licence MIT que le CLI
+  (© ryoppippi et Melvynx, texte dans `LICENSE-agent-burn.txt`). Les logos sont des marques de leurs
+  propriétaires respectifs ; ils ne servent qu'à désigner chaque agent.
 - **Qt 6, PySide6, Shiboken6** : LGPL-3.0, utilisés sans modification. Ce sont des bibliothèques partagées
   séparées (dossier `PySide6/` de l'app ; sous Linux, aussi les liens `lib*.so.6` à sa racine) : on peut les
   remplacer par une version modifiée compatible sans recompiler l'app (LGPL-3.0, section 4 d) 1)). Notice et
