@@ -44,8 +44,6 @@ jobs:
     timeout-minutes: 15
     env:
       QT_QPA_PLATFORM: offscreen
-      # Plateforme offscreen sans zone de notification : avertissements de connexion internes à Qt, du bruit ici.
-      QT_LOGGING_RULES: qt.core.qobject.connect=false
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -73,7 +71,7 @@ jobs:
 
       - name: Tests unitaires
         working-directory: app
-        run: dbus-run-session -- python -m unittest discover -s tests -v
+        run: dbus-run-session -- python -X faulthandler -m unittest discover -s tests -v
 
       # Générateur des notices des crates du CLI, livrées dans chaque paquet.
       - name: Outils de licence
@@ -270,7 +268,7 @@ jobs:
         timeout-minutes: 5   # ~20 s : une fenêtre Qt bloquée ne tient pas le job 45 min
         env:
           PYTHONIOENCODING: utf-8
-        run: ../.venv/Scripts/python.exe -m unittest discover -s tests -v
+        run: ../.venv/Scripts/python.exe -X faulthandler -m unittest discover -s tests -v
 
       - name: Révision du CLI (cli.env)
         id: rev
