@@ -310,12 +310,13 @@ des bibliothèques qu'il lie.
    (chiffres seulement : ressources de version Windows).
 2. Commit, push, et attendre un run vert de la CI sur ce commit.
 3. Tag : `git tag desktop-v<ver> && git push origin desktop-v<ver>`.
-4. La CI refait tout, puis le job « Release (brouillon) » crée une release **brouillon** « Agent Burn <ver> (app
+4. La CI refait tout, CLI compris : sur un tag, il est toujours compilé depuis les sources de l'amont, jamais
+   repris du cache. Puis le job « Release (brouillon) » crée une release **brouillon** « Agent Burn <ver> (app
    de bureau) » : paquets Linux (AppImage, `.deb`, `.rpm`, archive), installeur et zip Windows x64, un
    `SHA256SUMS`. ARM64 n'y est jamais. Il refuse un tag `desktop-vX.Y.Z` dont le `.deb` et l'installeur x64 ne
    sont pas en version X.Y.Z (`__version__` différente) : erreur, aucune release.
 5. Avant de publier, à la main :
-   - `sha256sum -c SHA256SUMS` sur les fichiers téléchargés ;
+   - `sha256sum -c --ignore-missing SHA256SUMS` sur les fichiers téléchargés ;
    - installer sur un vrai Windows : SmartScreen, icône, aperçu contre l'icône, Paramètres → Diagnostic (versions
      de l'app, du CLI, du CLI prévu) ;
    - installer un paquet sur un vrai bureau Linux (KDE, ou GNOME avec AppIndicator) ;
@@ -348,7 +349,7 @@ branche, du même tag ou de la même pull request ; un push et la pull request d
 | Release (brouillon) | `ubuntu-24.04` | tags `desktop-v*` seulement, après les paquets et Windows : refus d'un tag dont la version n'est pas celle des paquets, `SHA256SUMS`, `gh release create --draft --verify-tag` | release brouillon |
 
 - Caches : CLI par `AB_REV` (et par architecture sous Windows) avec le registre cargo, sauvé dès la compilation
-  même si la suite échoue ; polices extraites (`app/fonts`, revérifiées par sha256 à chaque build) ; pip des
+  même si la suite échoue, jamais repris par un tag de release ; polices extraites (`app/fonts`, revérifiées par sha256 à chaque build) ; pip des
   jobs Tests et Windows (setup-python), indexé par le verrou. Pas de cache de
   la chaîne Rust : rustup installe celle de l'amont à chaque compilation du CLI (15 s environ), et un cache par
   révision ne serait jamais relu. Un cache n'est vu que de sa branche et de `main` : fusionner le workflow dans

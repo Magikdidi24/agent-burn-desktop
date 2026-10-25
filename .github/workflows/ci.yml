@@ -147,8 +147,9 @@ jobs:
         env:
           CLI_HIT: ${{ steps.cli.outputs.cache-hit }}
         run: |
-          # Restauré par restore-keys : CLI d'une autre révision, seul le registre cargo resservira.
-          if [ "$CLI_HIT" = true ]; then export SKIP_CLI=1; else rm -rf build/cli-linux; fi
+          # Restauré par restore-keys (CLI d'une autre révision) ou tag de release (CLI toujours compilé depuis les
+          # sources, jamais repris d'un cache) : seul le registre cargo resservira.
+          if [ "$CLI_HIT" = true ] && [[ "$GITHUB_REF" != refs/tags/* ]]; then export SKIP_CLI=1; else rm -rf build/cli-linux; fi
           bash linux/build.sh
 
       # Dès que le CLI est compilé, même si la suite échoue : le prochain essai ne le recompile pas.
@@ -285,9 +286,10 @@ jobs:
         env:
           CLI_HIT: ${{ steps.cli.outputs.cache-hit }}
         run: |
-          if ($env:CLI_HIT -eq 'true') { pwsh -File build.ps1 -Arch $env:ARCH -SkipCli }
+          if ($env:CLI_HIT -eq 'true' -and $env:GITHUB_REF -notlike 'refs/tags/*') { pwsh -File build.ps1 -Arch $env:ARCH -SkipCli }
           else {
-              # Restauré par restore-keys : CLI d'une autre révision, seul le registre cargo resservira.
+              # Restauré par restore-keys (CLI d'une autre révision) ou tag de release (CLI toujours compilé depuis
+              # les sources) : seul le registre cargo resservira.
               Remove-Item build/cli -Recurse -Force -ErrorAction Ignore
               pwsh -File build.ps1 -Arch $env:ARCH
           }
@@ -356,5 +358,5 @@ jobs:
           (cd release && sha256sum -- * > SHA256SUMS && cat SHA256SUMS)
           gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
             --title "Agent Burn $v (app de bureau)" \
-            --notes "Brouillon créé par la CI : $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. Vérification : sha256sum -c SHA256SUMS" \
+            --notes "Brouillon créé par la CI : $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. Vérification : sha256sum -c --ignore-missing SHA256SUMS" \
             -- release/*
