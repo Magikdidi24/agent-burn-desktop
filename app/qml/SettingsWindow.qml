@@ -5,7 +5,7 @@ import QtQuick.Layouts
 import AgentBurn
 
 // Fenêtre « Paramètres » de l'app de bureau : réglages, état des fournisseurs, diagnostic, à propos.
-// Contrôles Qt Quick (Tab, flèches, Espace, lecteurs d'écran) aux couleurs de Colors : lisible en clair
+// Contrôles Qt Quick (Tab, flèches, Espace ou Entrée, lecteurs d'écran) aux couleurs de Colors : lisible en clair
 // et en sombre. Échap la ferme ; ouverte par le menu de l'icône (Main.openSettings).
 ApplicationWindow {
     id: win
