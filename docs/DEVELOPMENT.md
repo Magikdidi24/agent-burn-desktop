@@ -174,7 +174,7 @@ Images de la CI : `ubuntu:22.04`, `ubuntu:24.04`, `debian:12`, `debian:13`, `fed
 [`linux/smoke.sh`](../linux/smoke.sh) vérifie `SHA256SUMS`, installe le paquet natif sans ses recommandations
 (Arch : l'archive dans `/opt` et `/usr/local`), contrôle le `PATH`, le lanceur, les icônes, AppStream, le fichier
 `/usr/share/doc/agent-burn-desktop/copyright` (Debian, Ubuntu) et `--version` du CLI embarqué, résout chaque
-bibliothèque du bundle avec `ldd`, lance le selftest de l'app installée (rendu logiciel, puis OpenGL Mesa sous
+bibliothèque du bundle avec `ldd` (`find` installé sous openSUSE, dont l'image ne l'a pas ; échec sans lui), lance le selftest de l'app installée (rendu logiciel, puis OpenGL Mesa sous
 Xvfb), désinstalle et vérifie qu'il ne reste aucun fichier. Sous Arch, il essaie aussi l'AppImage
 (`APPIMAGE_EXTRACT_AND_RUN=1`). Journaux et captures : `dist/linux/smoke-<distro>-<version>/` (dans la CI,
 artefact `smoke-<n>` en cas d'échec).

@@ -45,6 +45,7 @@ case " $ID ${ID_LIKE:-} " in
     PREFIX=/usr
     ;;
 *" suse "*)
+    zypper -n -q install --no-recommends findutils >/dev/null   # find absent de l'image : vérification ldd
     pkg_install() { zypper -n -q install --no-recommends --allow-unsigned-rpm "$DIST/agent-burn-desktop-$VER-1.x86_64.rpm"; }
     extras() { zypper -n -q install --no-recommends xvfb-run xauth Mesa-dri Mesa-libGL1 Mesa-libEGL1 dejavu-fonts; }
     pkg_files() { rpm -ql agent-burn-desktop; }
@@ -104,10 +105,11 @@ done
 ok "PATH ($exe), lanceur, icônes, AppStream, CLI embarqué ($ABVER)"
 # Le selftest ne charge pas tous les plugins (Wayland, EGL…) : ldd vérifie que les dépendances du paquet
 # fournissent tout ce que le bundle demande (LD_LIBRARY_PATH = celui que pose le lanceur PyInstaller).
+command -v find >/dev/null || die "find absent : vérification ldd impossible"   # sinon « ok » sans rien vérifier
 missing=$(find /opt/agent-burn-desktop -type f -name '*.so*' -exec env LD_LIBRARY_PATH=/opt/agent-burn-desktop ldd {} + \
     2>/dev/null | grep 'not found' | sort -u || true)
 [ -z "$missing" ] || die "bibliothèques introuvables avec les seules dépendances du paquet : ${missing//$'\n'/ }"
-ok "toutes les bibliothèques du bundle se résolvent"
+ok "toutes les bibliothèques du bundle se résolvent ($(find /opt/agent-burn-desktop -type f -name '*.so*' | wc -l) fichiers)"
 
 step "Selftest de l'app installée (dépendances du paquet seules : rendu logiciel)"
 selftest software "$exe" "${SOFT[@]}"
