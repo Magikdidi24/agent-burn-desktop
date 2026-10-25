@@ -121,7 +121,7 @@ dossiers XDG jetables laissent les données de la vraie barre intactes) :
 S=$PWD/tests/burn-suite
 R=$(mktemp -d /tmp/abq.XXXX)   # chemin court : le socket IPC de qs ($R/quickshell/by-id/<id>/ipc.sock) a 108 octets au plus
 mkdir -p $R/suite $R/fake $R/data $R/state $R/cache $R/config
-cp $S/shell.qml $R/suite/ && cp -L $S/Burn.qml $R/suite/
+cp $S/shell.qml ../shared/Burn.qml $R/suite/   # Burn.qml de shared/, pas le lien de burn-suite
 python3 -I $S/fake/gen.py $R/fake
 env -u DISPLAY -u WAYLAND_DISPLAY QT_QPA_PLATFORM=offscreen XDG_RUNTIME_DIR=$R XDG_DATA_HOME=$R/data \
     XDG_STATE_HOME=$R/state XDG_CACHE_HOME=$R/cache XDG_CONFIG_HOME=$R/config AGENT_BURN_BIN=$R/fake/agent-burn \

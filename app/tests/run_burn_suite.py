@@ -32,12 +32,13 @@ app = QGuiApplication(sys.argv)
 subprocess.run([sys.executable, "-I", str(here / "burn-suite" / "fake" / "gen.py"), str(tmp / "fake")], check=True)
 os.environ["AGENT_BURN_BIN"] = str(tmp / "fake" / "agent-burn")
 
-# Dossier QML de l'app, plus le shell.qml de la suite.
+# Dossier QML de l'app, plus le shell.qml de la suite. Burn.qml : celui de shared/, jamais par le lien de burn-suite
+# (simple fichier texte dans un checkout Windows sans liens symboliques) ; celui d'un autre dossier (mutant) le remplace.
 qml = tmp / "qml"
 shutil.copytree(runtime.assemble(), qml)
 shutil.copyfile(suite / "shell.qml", qml / "shell.qml")
-if (suite / "Burn.qml").is_file():
-    shutil.copyfile(suite / "Burn.qml", qml / "Burn.qml")
+mutant = suite != here / "burn-suite" and (suite / "Burn.qml").is_file()
+shutil.copyfile(suite / "Burn.qml" if mutant else here.parents[1] / "shared" / "Burn.qml", qml / "Burn.qml")
 
 # `qs ipc call <cible> <fonction>` : un faux qs note l'appel, puis on appelle la fonction déclarée
 # dans l'IpcHandler de cette cible, comme le ferait qs.

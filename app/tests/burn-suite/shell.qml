@@ -4,9 +4,8 @@ import QtQuick
 
 // Test headless de Burn.qml (aucune fenêtre), sous qs et sous le shim de l'app de bureau : mêmes résultats
 // attendus. Fixtures de tests/fixtures (racine du dépôt) servies par un faux CLI (fake/). Depuis ce dossier :
-//   qs   : d=$(mktemp -d) && python3 -I fake/gen.py "$d" && AGENT_BURN_BIN="$d/agent-burn" timeout 25 qs -p "$PWD"
-//          (XDG_* vers un dossier jetable, XDG_RUNTIME_DIR court pour l'IPC ; qs sort en 0 même en échec :
-//          lire la ligne RESULT)
+//   qs   : sur une copie de ce fichier et de shared/Burn.qml, XDG_* jetables : docs/DEVELOPMENT.md, « Suite du
+//          cœur » (qs sort en 0 même en échec : lire la ligne RESULT)
 //   shim : python ../run_burn_suite.py   (python du venv PySide6 ; code 1 si un test échoue)
 // BURN_TEST=corrupt : fichiers persistés illisibles → copie .bak, puis états des agents sans compte.
 // BURN_TEST=timeout : CLI bloqué → summary et relevé léger tués par le chien de garde, délai abaissé à 10 s.
