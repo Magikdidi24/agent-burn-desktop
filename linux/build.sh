@@ -195,9 +195,14 @@ selftest software QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software
 selftest opengl xvfb-run -a -s '-screen 0 1920x1080x24 -nolisten tcp' env QT_QPA_PLATFORM=xcb
 
 step "Paquets"
+# Licence du .rpm : expression SPDX de tout le contenu, d'après les notices du bundle (crates du CLI, composants de
+# Qt) et, pour le reste : app et CLI, Qt et PySide6, Python, police, libbz2 et libxcb-* (licenses/debian/).
+PKG_LICENSE=$("$V/bin/python" tools/package_license.py "$B/licenses" Linux \
+    "$APP_LICENSE" LGPL-3.0-only PSF-2.0 OFL-1.1 bzip2-1.0.6 X11)
 render() {
     # shortcut: date de release = jour du build ; à remplacer par celle du tag quand il y aura des releases
-    sed -e "s|@VERSION@|$VER|g" -e "s|@DATE@|$(date -u +%F)|g" -e "s|@APP_LICENSE@|$APP_LICENSE|g" -e "s|@GLIBC@|$GLIBC|g" "$1"
+    sed -e "s|@VERSION@|$VER|g" -e "s|@DATE@|$(date -u +%F)|g" -e "s|@APP_LICENSE@|$APP_LICENSE|g" -e "s|@GLIBC@|$GLIBC|g" \
+        -e "s|@PKG_LICENSE@|$PKG_LICENSE|g" "$1"
 }
 render "linux/$APPID.metainfo.xml" >"$W/$APPID.metainfo.xml"
 desktop-file-validate "linux/$APPID.desktop"

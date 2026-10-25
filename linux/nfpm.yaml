@@ -12,7 +12,8 @@ priority: optional
 maintainer: Berthelot Samuel <samuel.berthelot11@gmail.com>
 vendor: Berthelot Samuel
 homepage: https://github.com/Magikdidi24/agent-burn-desktop
-license: "@APP_LICENSE@"
+# Expression SPDX de tout le contenu (champ License du .rpm ; le .deb n'en a pas : /usr/share/doc/…/copyright).
+license: "@PKG_LICENSE@"
 description: |-
   Consommation de Claude Code et limites d'abonnement en direct
   Icône de la zone de notification, popover et tableau de bord sur le CLI agent-burn
