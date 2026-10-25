@@ -212,6 +212,15 @@ R=$W/pkgroot
 rm -rf "$R" && mkdir -p "$R/opt" "$R/usr/share"
 cp -al "$B" "$R/opt/agent-burn-desktop"
 share "$R/usr/share"
+# .deb : fichier copyright de la Policy Debian (le .rpm n'en a pas) ; les autres textes restent dans licenses/.
+mkdir -p "$R/usr/share/doc/agent-burn-desktop"
+{
+    echo "Agent Burn (app de bureau) $VER : licence MIT, texte ci-dessous."
+    echo "Composants embarqués dans /opt/agent-burn-desktop (CLI agent-burn, Qt et PySide6, Python, police, bibliothèques) :"
+    echo "licences et notices dans /opt/agent-burn-desktop/licenses/."
+    echo
+    cat LICENSE
+} >"$R/usr/share/doc/agent-burn-desktop/copyright"
 render linux/nfpm.yaml >"$W/nfpm.yaml"
 (cd "$R" && "$T/nfpm" pkg -f "$W/nfpm.yaml" -p deb -t "$OUT/agent-burn-desktop_${VER}_amd64.deb")
 (cd "$R" && "$T/nfpm" pkg -f "$W/nfpm.yaml" -p rpm -t "$OUT/agent-burn-desktop-$VER-1.x86_64.rpm")

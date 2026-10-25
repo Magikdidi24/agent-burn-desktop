@@ -36,6 +36,7 @@ case " $ID ${ID_LIKE:-} " in
     pkg_files() { dpkg -L agent-burn-desktop; }
     pkg_remove() { apt-get purge -y -qq agent-burn-desktop; }
     PREFIX=/usr
+    COPYRIGHT=/usr/share/doc/agent-burn-desktop/copyright   # Policy Debian
     ;;
 *" fedora "*)
     pkg_install() { dnf install -y -q --setopt=install_weak_deps=False "$DIST/agent-burn-desktop-$VER-1.x86_64.rpm"; }
@@ -99,6 +100,7 @@ for n in 16 22 24 32 48 64 128 256; do
     [ -f "$PREFIX/share/icons/hicolor/${n}x$n/apps/$icon.png" ] || die "icône $icon ${n}px absente"
 done
 [ -f "$PREFIX/share/metainfo/$APPID.metainfo.xml" ] || die "AppStream $APPID.metainfo.xml absent"
+[ -z "${COPYRIGHT:-}" ] || grep -q 'licence MIT' "$COPYRIGHT" || die "$COPYRIGHT absent ou sans la licence"
 [ "$(/opt/agent-burn-desktop/bin/agent-burn --version)" = "$ABVER" ] || die "CLI embarqué : --version ≠ « $ABVER »"
 ok "PATH ($exe), lanceur, icônes, AppStream, CLI embarqué ($ABVER)"
 # Le selftest ne charge pas tous les plugins (Wayland, EGL…) : ldd vérifie que les dépendances du paquet

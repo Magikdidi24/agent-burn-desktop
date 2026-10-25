@@ -30,6 +30,11 @@ contents:
     dst: /usr/share/metainfo/io.github.magikdidi24.AgentBurn.metainfo.xml
   - src: ./usr/share/icons/hicolor/*/apps/io.github.magikdidi24.AgentBurn.png
     dst: /usr/share/icons/hicolor
+  - src: ./usr/share/doc/agent-burn-desktop/copyright
+    dst: /usr/share/doc/agent-burn-desktop/copyright
+    packager: deb
+    file_info:
+      mode: 0644
 deb:
   compression: xz
 rpm:
