@@ -29,9 +29,16 @@ SECRETS = {
     "e-mail": "connecté en tant que jean.dupont+test@example.co.uk",
     "hex long": "clé 0123456789abcdef0123456789ABCDEF fin",
     "base64 long": "blob QWxhZGRpbjpvcGVuIHNlc2FtZQ0123456789xyz== fin",
+    # Juste après « = » : variable d'environnement, code OAuth d'une URL, clé=valeur.
+    "clé d'API après =": "OPENAI_API_KEY=sk-proj-Ab12Cd34Ef56Gh78Ij90Kl12Mn34Op56Qr78St90Uv12Wx34",
+    "code OAuth d'une URL": "https://x/y?code=Zq81Rt5vWx0yAb2cDe4fGh6iJk8lMn0oPq2rSt4u&state=1",
+    "hex après =": "key=fedcba9876543210fedcba9876543210ab01",
+    # Erreur du CLI en Debug Rust : JSON aux guillemets échappés.
+    "accessToken JSON échappé": 'Error: CliError("bad body: {\\"accessToken\\":\\"opaque.tok/en+with=chars\\"}")',
 }
 HIDDEN = {"sk-ant-oat01", "abc.DEF", "eyJhbGci", "ya29", "rt_Q2Fz", "idt.123", "jean.dupont", "example.co.uk",
-          "0123456789abcdef0123456789ABCDEF", "QWxhZGRpbjpvcGVuIHNlc2FtZQ0123456789xyz"}
+          "0123456789abcdef0123456789ABCDEF", "QWxhZGRpbjpvcGVuIHNlc2FtZQ0123456789xyz", "sk-proj-Ab12", "Zq81Rt5v",
+          "fedcba98", "opaque.tok"}
 
 
 class Redaction(unittest.TestCase):
@@ -47,7 +54,7 @@ class Redaction(unittest.TestCase):
                      "/home/sam/.local/share/agent-burn-desktop/agent-burn-cli.json : code 0, 1.20 s, 4288 octets",
                      r"C:\Users\sam\AppData\Local\AgentBurn\logs", "révision 9ce6d8e1f9ae", "qml-f22edf61ad55",
                      "agent-burn a échoué (code 1) : Error: CliError(\"home directory is not set\")",
-                     "unmotassezlongsanschiffrepourpasseravecuneregle"):
+                     "unmotassezlongsanschiffrepourpasseravecuneregle", "QT_QPA_PLATFORMTHEME=xdgdesktopportal"):
             self.assertEqual(logs.redact(text), text)
         self.assertEqual(logs.redact(logs.redact(SECRETS["JWT"])), logs.redact(SECRETS["JWT"]))
 

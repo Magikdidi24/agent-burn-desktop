@@ -16,13 +16,15 @@ _B64 = r"A-Za-z0-9+_\-"
 # shortcut: un base64 contenant « / » est coupé en morceaux, chacun masqué seulement s'il fait ≥ 32 car. ;
 # ajouter « / » à _B64 si un tel secret apparaît (les chemins de plus de 32 car. seraient alors masqués).
 _SECRETS = (
-    (re.compile(r"(?i)((?:access|refresh|id)[_-]?token[\"']?\s*[:=]\s*[\"']?)[^\s\"',;}&]+"), r"\1" + MASK),
+    # Aussi dans un JSON échappé (\"accessToken\":\"…\" d'une erreur du CLI en Debug Rust).
+    (re.compile(r"(?i)((?:access|refresh|id)[_-]?token\\?[\"']?\s*[:=]\s*\\?[\"']?)[^\s\"'\\,;}&]+"), r"\1" + MASK),
     (re.compile(r"(?i)(bearer\s+)[A-Za-z0-9._~+/=\-]+"), r"\1" + MASK),
     (re.compile(r"sk-ant-[A-Za-z0-9_\-]+"), MASK),
     (re.compile(r"eyJ[A-Za-z0-9_\-]{8,}(?:\.[A-Za-z0-9_\-]*){0,2}"), MASK),   # JWT
     (re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}"), MASK),   # e-mail
-    # hex ou base64 de 32 car. et plus, chiffres et lettres mêlés (un mot long n'est pas un secret)
-    (re.compile(rf"(?<![{_B64}=])(?=[{_B64}]*[0-9])(?=[{_B64}]*[A-Za-z])[{_B64}]{{32,}}={{0,2}}"), MASK),
+    # hex ou base64 de 32 car. et plus, chiffres et lettres mêlés (un mot long n'est pas un secret), aussi
+    # juste après « = » (CLE=valeur, ?code= d'une URL)
+    (re.compile(rf"(?<![{_B64}])(?=[{_B64}]*[0-9])(?=[{_B64}]*[A-Za-z])[{_B64}]{{32,}}={{0,2}}"), MASK),
 )
 _LEVELS = {QtMsgType.QtDebugMsg: logging.DEBUG, QtMsgType.QtInfoMsg: logging.INFO, QtMsgType.QtWarningMsg: logging.WARNING,
            QtMsgType.QtCriticalMsg: logging.ERROR, QtMsgType.QtFatalMsg: logging.CRITICAL}
