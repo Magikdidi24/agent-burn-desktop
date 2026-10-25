@@ -181,6 +181,18 @@ class SettingsWindow(unittest.TestCase):
         self.assertFalse(switch.isEnabled())
         self.assertLess(switch.opacity(), 1)
 
+    def test_reset_asks_for_a_second_press(self):
+        self.cfg.theme = "dark"
+        self.open("diagnostic")
+        reset = next(i for i in self.items("QQuickButton") if i.property("text") == "Réinitialiser les paramètres")
+        reset.forceActiveFocus(Qt.FocusReason.TabFocusReason)
+        QTest.keyClick(self.win, Qt.Key.Key_Space)
+        self.assertEqual(self.cfg.theme, "dark")   # rien d'effacé au premier appui
+        self.assertEqual(reset.property("text"), "Confirmer la réinitialisation")
+        QTest.keyClick(self.win, Qt.Key.Key_Space)
+        self.assertEqual(self.cfg.theme, "system")
+        self.assertEqual(reset.property("text"), "Réinitialiser les paramètres")
+
     def test_theme_light_drives_colors(self):
         self.cfg.theme = "light"
         self.assertFalse(js(self.root, "Colors.dark"))

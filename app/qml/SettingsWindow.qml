@@ -412,9 +412,18 @@ ApplicationWindow {
                         }
                     }
                 }
+                // En deux temps : un appui de trop (Espace sur le dernier arrêt de Tab) n'efface rien.
                 Button {
-                    text: "Réinitialiser les paramètres"
-                    onClicked: Settings.reset()
+                    text: confirm.running ? "Confirmer la réinitialisation" : "Réinitialiser les paramètres"
+                    onClicked: {
+                        if (confirm.running) {
+                            confirm.stop();
+                            Settings.reset();
+                        } else {
+                            confirm.start();
+                        }
+                    }
+                    Timer { id: confirm; interval: 5000 }
                 }
             }
 
