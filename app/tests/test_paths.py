@@ -13,8 +13,9 @@ from PySide6.QtCore import QCoreApplication, QStandardPaths  # noqa: E402
 
 from agentburn import paths  # noqa: E402
 
-WIN = {"APPDATA": "/w/Roaming", "LOCALAPPDATA": "/w/Local", "XDG_DATA_HOME": "/x/data", "XDG_CONFIG_HOME": "/x/config",
-       "XDG_STATE_HOME": "/x/state", "XDG_CACHE_HOME": "/x/cache"}
+X = Path(os.path.abspath("/x"))   # absolu pour l'hôte : sous Windows, « /x » sans lecteur ne l'est plus (Python 3.13)
+WIN = {"APPDATA": "/w/Roaming", "LOCALAPPDATA": "/w/Local", "XDG_DATA_HOME": str(X / "data"),
+       "XDG_CONFIG_HOME": str(X / "config"), "XDG_STATE_HOME": str(X / "state"), "XDG_CACHE_HOME": str(X / "cache")}
 
 
 
@@ -41,10 +42,10 @@ class Paths(unittest.TestCase):
 
     def test_linux_xdg_dirs_apart_from_the_cli(self):
         self.run_as("linux", WIN)
-        self.assertEqual(paths.data_dir(), Path("/x/data/agent-burn-desktop"))
-        self.assertEqual(paths.settings_file(), Path("/x/config/agent-burn-desktop/settings.json"))
-        self.assertEqual(paths.log_dir(), Path("/x/state/agent-burn-desktop/logs"))
-        self.assertEqual(paths.cache_dir(), Path("/x/cache/agent-burn-desktop"))
+        self.assertEqual(paths.data_dir(), X / "data" / "agent-burn-desktop")
+        self.assertEqual(paths.settings_file(), X / "config" / "agent-burn-desktop" / "settings.json")
+        self.assertEqual(paths.log_dir(), X / "state" / "agent-burn-desktop" / "logs")
+        self.assertEqual(paths.cache_dir(), X / "cache" / "agent-burn-desktop")
 
     @unittest.skipIf(sys.platform == "win32", "Path.home() lit USERPROFILE sous Windows")
     def test_linux_defaults_without_xdg_or_with_relative_values(self):
