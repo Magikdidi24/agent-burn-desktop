@@ -936,7 +936,7 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter
                                 visible: search.text === ""
                                 text: "Filtrer les modèles"
-                                color: Colors.withAlpha(Colors.muted, 0.8)
+                                color: Colors.muted
                             }
                         }
                     }
