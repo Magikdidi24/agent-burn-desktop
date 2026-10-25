@@ -144,19 +144,43 @@ class TrayIcon(unittest.TestCase):
             self.assertIs(t.icon.contextMenu(), t.menu)
             self.assertTrue(t.docked)
             self.assertTrue(desktop.trayAvailable)
-            self.assertFalse(t.timer.isActive())
+            self.assertTrue(t.timer.isActive())   # suivie encore : un hôte peut disparaître
             desktop.setTrayAvailable(False)
 
-    def test_recheck_gives_up_after_two_minutes(self):
+    def test_recheck_keeps_waiting_for_a_late_tray(self):
+        # Panneau ou extension AppIndicator activés après 2 min : l'icône s'y enregistre, l'app doit le savoir.
+        desktop = qml_env()["desktop"]
         with mock.patch.object(QSystemTrayIcon, "isSystemTrayAvailable", return_value=False):
             t = self.make()
             t.timer.start()
-            for _ in range(23):
+            for _ in range(40):   # 200 s
                 t.recheck()
             self.assertTrue(t.timer.isActive())
-            t.recheck()   # 24 × 5 s
-            self.assertFalse(t.timer.isActive())
             self.assertFalse(t.docked)
+        with mock.patch.object(QSystemTrayIcon, "isSystemTrayAvailable", return_value=True):
+            t.recheck()
+        self.assertTrue(t.docked)
+        self.assertTrue(desktop.trayAvailable)
+        desktop.setTrayAvailable(False)
+
+    def test_vanished_host_tracked_then_icon_redocked_on_xcb(self):
+        # Panneau arrêté : fermer la dernière fenêtre quitte (pas de process invisible) ; revenu, l'icône aussi.
+        desktop = qml_env()["desktop"]
+        with mock.patch.object(QSystemTrayIcon, "isSystemTrayAvailable", return_value=True):
+            t = self.make()
+        self.assertTrue(desktop.trayAvailable)
+        first = t.icon
+        with mock.patch.object(QSystemTrayIcon, "isSystemTrayAvailable", return_value=False):
+            t.recheck()
+        self.assertFalse(t.docked)
+        self.assertFalse(desktop.trayAvailable)
+        with mock.patch.object(QSystemTrayIcon, "isSystemTrayAvailable", return_value=True), \
+                mock.patch.object(tray.QGuiApplication, "platformName", return_value="xcb"):
+            t.recheck()
+        self.assertTrue(t.docked)
+        self.assertTrue(desktop.trayAvailable)
+        self.assertIsNot(t.icon, first)
+        desktop.setTrayAvailable(False)
 
     def test_wayland_popover_left_to_the_compositor(self):
         self.pop.setPosition(QPoint(7, 9))

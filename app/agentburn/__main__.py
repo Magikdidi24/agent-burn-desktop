@@ -232,7 +232,7 @@ def run(args):
     if mode == "tray":
         icon = tray.Tray(root, cfg, desktop)  # noqa: F841 (gardée en vie jusqu'à la sortie)
         if not icon.docked:   # pas (encore) de zone de notification : le dashboard en attendant
-            log.warning("pas de zone de notification (%s) : dashboard ouvert, nouvel essai pendant 2 min",
+            log.warning("pas de zone de notification (%s) : dashboard ouvert, revérifiée toutes les 5 s",
                         QGuiApplication.platformName())
             QMetaObject.invokeMethod(root, "openDashboard")
 

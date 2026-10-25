@@ -1,6 +1,7 @@
 # Icône de la zone de notification : % restant de la limite la plus serrée sur une pastille teintée
 # selon le rythme (le pill de la barre Linux) ; clic = aperçu ou dashboard (réglage), double-clic =
 # dashboard, clic du milieu = rafraîchir, clic droit = menu avec l'état en tête.
+import logging
 import time
 
 from PySide6.QtCore import QMetaObject, QObject, QPoint, QRect, QRectF, QSize, Qt, QTimer, Q_ARG
@@ -12,6 +13,7 @@ GAP = 16   # carte ↔ barre des tâches ; = marge d'ombre (pad) de PopoverWindo
 # dessinée à sa taille, jamais mise à l'échelle.
 SIZES = (16, 20, 24, 28, 32, 40, 48, 64)
 LINES = 3   # lignes d'état en tête du menu (Main.menuLines)
+log = logging.getLogger("agentburn.tray")
 
 
 def place(icon, screen, avail, card):
@@ -100,8 +102,9 @@ def open_popover(pop, icon):
 
 
 class Tray(QObject):
-    """Icône et son menu. Créée même sans zone de notification : revérifiée toutes les 5 s pendant 2 min
-    (panneau lancé après l'app à l'ouverture de session), l'icône recréée sous xcb dès qu'un hôte apparaît."""
+    """Icône et son menu. Créée même sans zone de notification ; celle-ci est revérifiée toutes les 5 s : hôte
+    apparu après l'app (panneau lancé plus tard, extension AppIndicator activée), disparu ou revenu (panneau
+    redémarré). L'icône est recréée sous xcb quand un hôte apparaît."""
 
     def __init__(self, root, settings, desktop):
         super().__init__()
@@ -138,10 +141,8 @@ class Tray(QObject):
         self.dock()
         self.docked = QSystemTrayIcon.isSystemTrayAvailable()
         desktop.setTrayAvailable(self.docked)
-        self.waited = 0
         self.timer = QTimer(self, interval=5000, timeout=self.recheck)
-        if not self.docked:
-            self.timer.start()
+        self.timer.start()
 
     def dock(self):
         """(Re)crée l'icône : sous xcb, une icône créée sans zone de notification reste sur XEmbed et ne
@@ -157,15 +158,14 @@ class Tray(QObject):
         self.icon.show()
 
     def recheck(self):
-        self.waited += 5
-        if QSystemTrayIcon.isSystemTrayAvailable():
-            self.timer.stop()
-            if QGuiApplication.platformName() == "xcb":   # Wayland : déjà enregistrée seule, rien à refaire
-                self.dock()
-            self.docked = True
-            self.desktop.setTrayAvailable(True)
-        elif self.waited >= 120:
-            self.timer.stop()
+        available = QSystemTrayIcon.isSystemTrayAvailable()
+        if available == self.docked:
+            return
+        log.info("zone de notification %s", "disponible" if available else "disparue")
+        if available and QGuiApplication.platformName() == "xcb":   # Wayland : réenregistrée seule, rien à refaire
+            self.dock()
+        self.docked = available
+        self.desktop.setTrayAvailable(available)   # absente : fermer la dernière fenêtre quitte l'app
 
     def paint(self):
         icon = QIcon()
