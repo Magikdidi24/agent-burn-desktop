@@ -25,7 +25,7 @@ from PySide6.QtQml import QQmlComponent, QQmlEngine, QQmlExpression, qmlRegister
 from PySide6.QtQuick import QQuickItem, QQuickWindow  # noqa: E402,F401 (QQuickWindow : type des fenêtres QML côté Python)
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
-from agentburn import diagnostics, paths, runtime, settings, shim  # noqa: E402
+from agentburn import __main__ as appmain, diagnostics, paths, runtime, settings, shim  # noqa: E402
 from agentburn.tray import open_popover, pixmap, place  # noqa: E402
 
 
@@ -134,6 +134,19 @@ class FakeCli(unittest.TestCase):
             r = fake(*args)
             self.assertEqual(r.returncode, 2, args)
             self.assertEqual(r.stdout, b"", args)
+
+
+class Startup(unittest.TestCase):
+    def test_basic_render_loop_on_linux_unless_chosen(self):
+        # Boucle à fil de Qt 6.12 : plantages dans QtWaylandClient à l'affichage d'une fenêtre.
+        for platform, preset, loop in (("linux", None, "basic"), ("linux", "threaded", "threaded"), ("win32", None, None)):
+            with mock.patch.dict(os.environ), mock.patch.object(sys, "platform", platform), \
+                    mock.patch.object(sys, "argv", ["agentburn"]), mock.patch.object(appmain, "run", return_value=0):
+                os.environ.pop("QSG_RENDER_LOOP", None)
+                if preset:
+                    os.environ["QSG_RENDER_LOOP"] = preset
+                self.assertEqual(appmain.main(), 0)
+                self.assertEqual(os.environ.get("QSG_RENDER_LOOP"), loop, platform)
 
 
 SCREEN = QRect(0, 0, 1920, 1080)

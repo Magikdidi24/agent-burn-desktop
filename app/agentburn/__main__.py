@@ -77,6 +77,10 @@ def main():
         if sys.platform != "win32":
             os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
         os.environ.setdefault("QT_QUICK_BACKEND", "rhi")
+    # Linux : boucle de rendu sans fil dédié. Celle à fil de Qt 6.12 plante dans QtWaylandClient
+    # (QWaylandWindow::beginFrame) pendant l'affichage d'une fenêtre ; l'app anime peu, rien n'y est perdu.
+    if sys.platform.startswith("linux"):
+        os.environ.setdefault("QSG_RENDER_LOOP", "basic")
     if "AGENT_BURN_BIN" not in os.environ:   # lu par Burn.qml au chargement
         exe = "agent-burn.exe" if sys.platform == "win32" else "agent-burn"   # bundle Linux : sans .exe
         os.environ["AGENT_BURN_BIN"] = (str(Path(sys.executable).parent / "bin" / exe) if FROZEN
