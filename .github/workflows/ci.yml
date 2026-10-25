@@ -44,6 +44,8 @@ jobs:
     timeout-minutes: 15
     env:
       QT_QPA_PLATFORM: offscreen
+      # Plateforme offscreen sans zone de notification : avertissements de connexion internes à Qt, du bruit ici.
+      QT_LOGGING_RULES: qt.core.qobject.connect=false
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
