@@ -217,6 +217,14 @@ class SettingsWindow(unittest.TestCase):
                 self.assertEqual(self.fields()["Affichage"], shown)
                 self.win.close()
 
+    def test_paths_wrap_anywhere(self):
+        # Chemin Windows : sa seule coupure entre mots suit « C: », laissé seul en bout de ligne.
+        self.open("diagnostic")
+        rows = {f.property("label"): f for f in self.items("QQuickRowLayout") if f.property("label")}
+        for label in ("Données", "Réglages", "Journaux", "Cache"):
+            value = next(i for i in rows[label].childItems() if i.property("text") == rows[label].property("value"))
+            self.assertEqual(value.property("wrapMode"), 3, label)   # Text.WrapAnywhere
+
     def test_theme_light_drives_colors(self):
         self.cfg.theme = "light"
         self.assertFalse(js(self.root, "Colors.dark"))

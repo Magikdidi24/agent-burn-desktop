@@ -135,11 +135,13 @@ ApplicationWindow {
         color: Colors.muted
         font.pixelSize: 11
     }
-    // Intitulé : valeur, coupée entre les mots, ou n'importe où pour un chemin long.
+    // Intitulé : valeur, coupée entre les mots ou n'importe où ; un chemin, n'importe où (sinon « C: » resterait
+    // seul en bout de ligne, sa seule coupure entre deux mots).
     component Field: RowLayout {
         id: field
         property string label
         property string value
+        property bool path
         Layout.fillWidth: true
         spacing: 12
         Txt {
@@ -149,7 +151,7 @@ ApplicationWindow {
             Layout.preferredWidth: 170
             Layout.alignment: Qt.AlignTop
         }
-        Txt { text: field.value; wrapMode: Text.WrapAtWordBoundaryOrAnywhere }
+        Txt { text: field.value; wrapMode: field.path ? Text.WrapAnywhere : Text.WrapAtWordBoundaryOrAnywhere }
     }
     component Section: GroupBox {
         Layout.fillWidth: true
@@ -324,7 +326,7 @@ ApplicationWindow {
                 }
                 Section {
                     title: "CLI agent-burn"
-                    Field { label: "Emplacement"; value: Burn.bin }
+                    Field { label: "Emplacement"; value: Burn.bin; path: true }
                     Field { label: "Version"; value: Desktop.cliVersion || "lecture…" }
                     Field {
                         label: "Rapport"
@@ -386,10 +388,10 @@ ApplicationWindow {
                 }
                 Section {
                     title: "Dossiers"
-                    Field { label: "Données"; value: Desktop.dataDir }
-                    Field { label: "Réglages"; value: Desktop.configDir }
-                    Field { label: "Journaux"; value: Desktop.logDir }
-                    Field { label: "Cache"; value: Desktop.cacheDir }
+                    Field { label: "Données"; value: Desktop.dataDir; path: true }
+                    Field { label: "Réglages"; value: Desktop.configDir; path: true }
+                    Field { label: "Journaux"; value: Desktop.logDir; path: true }
+                    Field { label: "Cache"; value: Desktop.cacheDir; path: true }
                     Flow {
                         Layout.fillWidth: true
                         spacing: 8
