@@ -78,6 +78,10 @@ jobs:
         working-directory: desktop/agent-burn/app
         run: dbus-run-session -- python -m unittest discover -s tests -v
 
+      # Générateur des notices des crates du CLI, livrées dans chaque paquet.
+      - name: Outils de licence
+        run: python -m unittest discover -s desktop/agent-burn/tools -v
+
       - name: Suite Burn.qml (shim)
         working-directory: desktop/agent-burn/app
         run: dbus-run-session -- python tests/run_burn_suite.py
