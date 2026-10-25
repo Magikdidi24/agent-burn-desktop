@@ -1,6 +1,6 @@
 # Tests du lancement à l'ouverture de session sous Linux (autostart XDG, XDG_CONFIG_HOME temporaire) :
 # écriture, lecture, Hidden=true et X-GNOME-Autostart-enabled=false, retrait de notre seul fichier,
-# guillemets de la clé Exec.
+# guillemets de la clé Exec, chemin inutilisable (saut de ligne, %, \) refusé.
 #   cd desktop/agent-burn/app && python -m unittest discover -s tests -v
 import os
 import sys
@@ -67,6 +67,15 @@ class Autostart(unittest.TestCase):
                 mock.patch.object(sys, "executable", "/tmp/.mount_AgentBxyz/usr/bin/AgentBurn"):
             pl.set_autostart(True)
         self.assertEqual(self.entry()["Exec"], '"/home/me/Applications/Agent Burn.AppImage"')
+
+    def test_unusable_path_refused_nothing_written(self):
+        # Dossier nommé pour injecter une 2e clé Exec ; % et \ cassent l'entrée sous GLib et systemd.
+        for exe in ("/opt/AgentBurn\nExec=sh -c 'touch PWNED'\nX=/AgentBurn", "/opt/a\tb/AgentBurn", "/x/100%/AgentBurn",
+                    "/x/a\\b/AgentBurn"):
+            with mock.patch.object(sys, "executable", exe), self.assertRaises(OSError, msg=repr(exe)):
+                pl.set_autostart(True)
+            self.assertFalse(self.file.exists(), repr(exe))
+            self.assertFalse(pl.autostart())
 
     def test_exec_quoting(self):
         # Spec : guillemets, \ devant " ` $ \ ; puis \ doublé (valeur string, relue avant les guillemets) et %

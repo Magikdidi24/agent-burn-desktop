@@ -36,6 +36,10 @@ def set_autostart(on):
         return
     # L'AppImage elle-même : l'exe gelé qu'elle contient est monté ailleurs à chaque lancement.
     exe = os.environ.get("APPIMAGE") or sys.executable
+    # Saut de ligne : clés ajoutées à l'entrée (un Exec choisi par le nom d'un dossier) ; % ou \ : entrée
+    # refusée par GLib ou systemd, alors même qu'elle paraîtrait active. Refus journalisé par Settings.
+    if re.search(r"[\x00-\x1f\x7f%\\]", exe):
+        raise OSError(f"{exe!r} : chemin inutilisable dans une entrée .desktop")
     f.parent.mkdir(parents=True, exist_ok=True)
     tmp = f.with_name(f.name + ".tmp")
     tmp.write_text("[Desktop Entry]\nType=Application\nName=Agent Burn\n"
