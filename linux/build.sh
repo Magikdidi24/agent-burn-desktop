@@ -126,7 +126,8 @@ rm -rf "$X" && mkdir -p "$X/licenses"
 cp "$CLI/LICENSE-agent-burn.txt" "$CLI/THIRD-PARTY-NOTICES.txt" tools/licenses/LGPL-3.0.txt tools/licenses/GPL-3.0.txt "$X/licenses/"
 cp LICENSE "$X/licenses/LICENSE-agent-burn-desktop.txt"
 cp app/fonts/OFL.txt "$X/licenses/LICENSE-JetBrainsMono-NerdFont.txt"
-COMMIT=$(git -C "$HERE" -c safe.directory='*' rev-parse HEAD 2>/dev/null || echo "${GITHUB_SHA:-unknown}")
+# Sans .git (checkout de la CI sans git) : commit de la CI, celui de tête d'une PR plutôt que son commit de fusion.
+COMMIT=$(git -C "$HERE" -c safe.directory='*' rev-parse HEAD 2>/dev/null || echo "${PR_HEAD_SHA:-${GITHUB_SHA:-unknown}}")
 "$V/bin/python" - "$X" "$VER" "$COMMIT" "$REV" "$ABVER" "$(cat "$CLI/target")" <<'EOF'
 import datetime, json, platform, sys, sysconfig
 from pathlib import Path

@@ -358,6 +358,8 @@ branche, du même tag ou de la même pull request ; un push et la pull request d
   `contents: read` (sauf la release), délai maximal sur chaque job, `pull_request` et jamais
   `pull_request_target` (une pull request de fork n'a ni secret ni droit d'écriture), runs groupés par numéro de
   pull request ou par ref complet (celle d'un fork ne peut pas annuler un run du dépôt).
+- `build-info.json` du build Linux : sur une pull request, le commit de tête de la PR (`PR_HEAD_SHA`), pas le
+  commit de fusion temporaire que la CI construit.
 - Pas dans la CI : la suite du cœur sous Quickshell, la suite du cœur sous Windows, un lint QML.
 - Durées du premier run complet : tests 3 min 40 (dont 2 min pour la suite « CLI bloqué », 20 s depuis),
   paquets Linux 2 min 30, Windows x64 10 min, chaque distro 1 min environ, soit 15 min de bout en bout ; plus 5 à
