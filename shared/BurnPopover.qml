@@ -35,10 +35,19 @@ Item {
     function stateTone(s) { return Burn.tone({ live: "good", stale: "warn", expired: "danger", unavailable: "danger" }[s] ?? ""); }
 
     component Txt: Text {
+        id: txt
+        property bool spoken: true   // false : déjà dit ailleurs (libellé d'un bouton, Accessible.name explicite)
         color: Colors.foreground
         font.family: "JetBrainsMono Nerd Font"
         font.pixelSize: 12
         textFormat: Text.PlainText
+        // Lecteurs d'écran : un Text n'est exposé qu'avec un rôle et un nom. Posés en JS et seulement avec
+        // Burn.accessibleText (app de bureau) : la barre Quickshell garde ses Text sans objet Accessible.
+        readonly property bool exposed: spoken && Burn.accessibleText === true
+        onExposedChanged: if (exposed && !Accessible.ignored) {
+            Accessible.role = Accessible.StaticText;
+            Accessible.name = Qt.binding(() => txt.text);
+        }
     }
     // Chiffre clé : intitulé, valeur en gros, détail.
     component Stat: Column {
@@ -84,6 +93,7 @@ Item {
             wrapMode: Text.WordWrap
             text: "\uf071  " + banner.text   // warning
             Accessible.name: banner.text
+            spoken: false
         }
     }
 
@@ -196,6 +206,7 @@ Item {
                             text: tabItem.modelData === "general" ? "Général" : Burn.agentName(tabItem.modelData)
                             color: tabItem.active ? Colors.background : tabItem.hovered ? Colors.foreground : Colors.muted
                             font.bold: tabItem.active
+                            spoken: false
                         }
                     }
                 }
@@ -270,6 +281,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Ouvrir le dashboard"
                 font.bold: true
+                spoken: false
             }
             Txt {
                 anchors.right: parent.right
@@ -604,6 +616,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             text: Burn.agentName(agentRow.modelData)
                             font.bold: true
+                            spoken: false
                         }
                         Row {
                             anchors.right: parent.right
@@ -615,6 +628,7 @@ Item {
                                 text: agentRow.tokensText
                                 color: Colors.muted
                                 font.pixelSize: 11
+                                spoken: false
                             }
                             Txt {
                                 anchors.verticalCenter: parent.verticalCenter
@@ -622,6 +636,7 @@ Item {
                                 horizontalAlignment: Text.AlignRight
                                 text: agentRow.costText
                                 font.bold: true
+                                spoken: false
                             }
                         }
                     }

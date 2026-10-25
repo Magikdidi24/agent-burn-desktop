@@ -134,10 +134,19 @@ Item {
     }
 
     component Txt: Text {
+        id: txt
+        property bool spoken: true   // false : déjà dit ailleurs (libellé d'un bouton, Accessible.name explicite)
         color: Colors.foreground
         font.family: "JetBrainsMono Nerd Font"
         font.pixelSize: 12
         textFormat: Text.PlainText
+        // Lecteurs d'écran : un Text n'est exposé qu'avec un rôle et un nom. Posés en JS et seulement avec
+        // Burn.accessibleText (app de bureau) : la barre Quickshell garde ses Text sans objet Accessible.
+        readonly property bool exposed: spoken && Burn.accessibleText === true
+        onExposedChanged: if (exposed && !Accessible.ignored) {
+            Accessible.role = Accessible.StaticText;
+            Accessible.name = Qt.binding(() => txt.text);
+        }
     }
     // Carte : fond translucide, contenu empilé avec 18 px de marge.
     component Card: Rectangle {
@@ -296,6 +305,7 @@ Item {
                         text: entry.modelData === "all" ? "Tous les agents" : Burn.agentName(entry.modelData)
                         color: entry.sel ? Colors.foreground : Colors.withAlpha(Colors.foreground, 0.75)
                         font.bold: entry.sel
+                        spoken: false
                     }
                 }
             }
@@ -329,6 +339,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Paramètres"
                 color: Colors.withAlpha(Colors.foreground, 0.75)
+                spoken: false
             }
         }
     }
@@ -443,6 +454,7 @@ Item {
                                     text: opt.modelData.label
                                     color: opt.sel ? Colors.foreground : Colors.muted
                                     font.bold: opt.sel   // la sélection ne tient pas qu'à la couleur
+                                    spoken: false
                                 }
                             }
                         }
@@ -463,6 +475,7 @@ Item {
                     text: "\uf1c0   Historique journalier · " + archive.kept + " sur ce PC"  // database
                     color: Colors.muted
                     Accessible.name: "Historique journalier : " + archive.kept + " sur ce PC"
+                    spoken: false
                 }
                 BurnButton {
                     id: backup
@@ -619,6 +632,7 @@ Item {
                             text: "\uf017  " + weekReset.when  // clock
                             color: Colors.muted
                             Accessible.name: weekReset.when
+                            spoken: false
                         }
                     }
                     BurnQuotaChart {
@@ -867,8 +881,8 @@ Item {
                                 Item {
                                     width: parent.width
                                     height: 15
-                                    Txt { text: Burn.agentName(ag.modelData.agent); font.bold: true }
-                                    Txt { anchors.right: parent.right; text: ag.costText; font.bold: true }
+                                    Txt { text: Burn.agentName(ag.modelData.agent); font.bold: true; spoken: false }
+                                    Txt { anchors.right: parent.right; text: ag.costText; font.bold: true; spoken: false }
                                 }
                                 Meter {
                                     width: parent.width
@@ -876,7 +890,7 @@ Item {
                                     value: ag.modelData.cost / root.agentRows[0].cost
                                     fill: Burn.agentColor(ag.modelData.agent)
                                 }
-                                Txt { text: Burn.tokens(ag.modelData.tokens) + " tokens"; color: Colors.muted; font.pixelSize: 10 }
+                                Txt { text: Burn.tokens(ag.modelData.tokens) + " tokens"; color: Colors.muted; font.pixelSize: 10; spoken: false }
                             }
                         }
                         Txt {
@@ -937,6 +951,7 @@ Item {
                                 visible: search.text === ""
                                 text: "Filtrer les modèles"
                                 color: Colors.muted
+                                spoken: false
                             }
                         }
                     }
@@ -972,6 +987,7 @@ Item {
                                         color: colHead.sorted ? Colors.foreground : Colors.muted
                                         font.pixelSize: 11
                                         font.bold: true
+                                        spoken: false
                                     }
                                     Txt {
                                         visible: colHead.sorted
