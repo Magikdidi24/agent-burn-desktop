@@ -136,6 +136,45 @@ class SettingsWindow(unittest.TestCase):
         QTest.keyClick(self.win, Qt.Key.Key_Space)
         self.assertEqual(self.cfg.closeToTray, before)
 
+    def test_enter_activates_like_space(self):
+        self.open("general")
+        before = self.cfg.closeToTray
+        switch = next(i for i in self.items("QQuickSwitch") if "zone de notification" in i.property("text"))
+        switch.forceActiveFocus(Qt.FocusReason.TabFocusReason)
+        QTest.keyClick(self.win, Qt.Key.Key_Return)
+        self.assertEqual(self.cfg.closeToTray, not before)
+        dark = next(i for i in self.items("QQuickRadioButton") if i.property("text") == "Sombre")
+        dark.forceActiveFocus(Qt.FocusReason.TabFocusReason)
+        QTest.keyClick(self.win, Qt.Key.Key_Enter)   # pavé numérique
+        self.assertEqual(self.cfg.theme, "dark")
+        tab = next(i for i in self.items("QQuickTabButton") if i.property("text") == "Diagnostic")
+        tab.forceActiveFocus(Qt.FocusReason.TabFocusReason)
+        QTest.keyClick(self.win, Qt.Key.Key_Return)
+        self.assertEqual(self.win.property("section"), 2)
+        self.settle()
+        copy = next(i for i in self.items("QQuickButton") if i.property("text") == "Copier le diagnostic")
+        copy.forceActiveFocus(Qt.FocusReason.TabFocusReason)
+        QTest.keyClick(self.win, Qt.Key.Key_Return)
+        self.assertEqual(copy.property("text"), "Copié dans le presse-papiers")
+        self.assertEqual(self.messages, [])
+
+    def test_arrows_move_within_a_row_of_options(self):
+        self.open("general")
+        options = {i.property("text"): i for i in self.items("QQuickRadioButton")}
+        options["Système"].forceActiveFocus(Qt.FocusReason.TabFocusReason)
+        QTest.keyClick(self.win, Qt.Key.Key_Right)
+        self.assertEqual((self.cfg.theme, self.win.activeFocusItem().property("text")), ("light", "Clair"))
+        QTest.keyClick(self.win, Qt.Key.Key_Right)
+        QTest.keyClick(self.win, Qt.Key.Key_Right)   # bout de la rangée : rien de plus
+        self.assertEqual((self.cfg.theme, self.win.activeFocusItem().property("text")), ("dark", "Sombre"))
+        QTest.keyClick(self.win, Qt.Key.Key_Left)
+        self.assertEqual((self.cfg.theme, self.win.activeFocusItem().property("text")), ("light", "Clair"))
+        self.assertTrue(self.win.activeFocusItem().property("visualFocus"))
+        options["Dashboard"].forceActiveFocus(Qt.FocusReason.TabFocusReason)   # autre rangée, sans déborder
+        QTest.keyClick(self.win, Qt.Key.Key_Left)
+        self.assertEqual((self.cfg.trayClick, self.cfg.theme), ("popover", "light"))
+        self.assertEqual(self.messages, [])
+
     def test_theme_light_drives_colors(self):
         self.cfg.theme = "light"
         self.assertFalse(js(self.root, "Colors.dark"))

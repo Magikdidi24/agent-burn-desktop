@@ -25,6 +25,14 @@ ApplicationWindow {
         raise();
         requestActivate();
     }
+    // Entrée comme Espace sur le contrôle focalisé : bouton, interrupteur, option ou onglet.
+    function activate(event) {
+        const f = win.activeFocusItem;
+        if (typeof f?.click === "function")
+            f.click();
+        else
+            event.accepted = false;
+    }
     function stateColor(s) {
         return s === "live" ? Colors.good : s === "unavailable" ? Colors.danger
              : s === "none" || s === "unknown" ? Colors.muted : Colors.warn;
@@ -69,6 +77,8 @@ ApplicationWindow {
         currentIndex: win.section
         onCurrentIndexChanged: win.section = currentIndex
         Accessible.name: "Sections des paramètres"
+        Keys.onReturnPressed: event => win.activate(event)
+        Keys.onEnterPressed: event => win.activate(event)
         Tab { text: "Général" }
         Tab { text: "Fournisseurs" }
         Tab { text: "Diagnostic" }
@@ -98,8 +108,19 @@ ApplicationWindow {
         }
         Ring { visible: tab.visualFocus }
     }
+    // Option d'une rangée : flèche gauche ou droite vers la voisine, cochée aussitôt, comme sous Windows ou GTK.
     component Choice: RadioButton {
         id: choice
+        function step(d) {
+            const row = Array.from(parent.children).filter(c => c instanceof RadioButton);
+            const next = row[row.indexOf(choice) + d];
+            if (next) {
+                next.forceActiveFocus(Qt.TabFocusReason);   // anneau gardé, comme au Tab
+                next.click();
+            }
+        }
+        Keys.onLeftPressed: step(-1)
+        Keys.onRightPressed: step(1)
         Ring { visible: choice.visualFocus }
     }
 
@@ -161,6 +182,8 @@ ApplicationWindow {
         sourceComponent: StackLayout {
             id: stack
             currentIndex: tabs.currentIndex
+            Keys.onReturnPressed: event => win.activate(event)
+            Keys.onEnterPressed: event => win.activate(event)
 
             // Contrôle atteint au clavier hors de la vue : la page défile jusqu'à lui.
             Connections {
