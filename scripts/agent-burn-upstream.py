@@ -29,7 +29,7 @@ ROOT = Path(__file__).resolve().parents[3]   # <repo>/config/quickshell/scripts/
 INSTALL_SH = Path(os.environ.get("AGENT_BURN_INSTALL_SH") or ROOT / "install.sh").resolve()
 ENV = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}   # lancé en fond par qs : jamais de demande d'identifiants
 
-QS, WIN = "config/quickshell/", "desktop/agent-burn/app/"
+QS, APP = "config/quickshell/", "desktop/agent-burn/app/"
 BURN, POP, DASH = QS + "Burn.qml", QS + "BurnPopover.qml", QS + "BurnDashboardView.qml"
 # App Mac (Sources/AgentBurn/<nom>.swift) → fichiers de ce repo qui la portent ; [] = non porté.
 PORT = {
@@ -39,15 +39,23 @@ PORT = {
     **dict.fromkeys(["OverviewView", "CompactHarnessView", "QuotaFreshnessView"], [POP]),
     "HarnessView": [POP, BURN],
     # MenuPopover + DashboardView ; QuotaSummary sert aux deux ; RefreshFooter, StatusBadge… sont dans Theme.
-    **dict.fromkeys(["AppViews", "UsageDetails"], [POP, DASH]),
+    # AppViews porte aussi SettingsView (onglets General, Data, Background, Updates, About) : SettingsWindow.
+    "AppViews": [POP, DASH, APP + "qml/SettingsWindow.qml"],
+    "UsageDetails": [POP, DASH],
     "ClaudeAccountView": [POP, DASH, BURN],   # ClaudeAccount et claudeVerdict : Burn.qml
-    "Theme": [POP, DASH, WIN + "qml/Colors.qml"],
+    "Theme": [POP, DASH, APP + "qml/Colors.qml"],
+    # Mode « barre de menus seule » et logo des fenêtres (__main__.py), réglage d'apparence (Colors.qml).
+    "AppAppearance": [APP + "agentburn/__main__.py", APP + "qml/Colors.qml", QS + "Colors.qml"],
+    "LoginItem": [APP + "agentburn/platform_win.py", APP + "agentburn/platform_linux.py"],   # démarrage auto
+    "BrandImages": [QS + "assets/burn/"],
     # MenuBarLabel (pill, icône de notification) et fenêtre du dashboard.
-    "AgentBurnApp": [QS + "BurnPill.qml", QS + "BurnDashboard.qml", WIN + "agentburn/tray.py",
-                     WIN + "qml/DashboardWindow.qml"],
-    **dict.fromkeys(["UsageStore", "QuotaFreshness", "QuotaJournal", "QuotaHistory", "QuotaCollector", "MetricsArchive",
-                     "UsageJournal", "Usage", "ClaudeAccountFile", "CLIClient", "ReportCache"], [BURN]),
+    "AgentBurnApp": [QS + "BurnPill.qml", QS + "BurnDashboard.qml", APP + "agentburn/tray.py",
+                     APP + "qml/DashboardWindow.qml"],
+    # QuotaService : agent launchd du collecteur ; ici, relevé de Burn.qml tant que l'app tourne.
+    **dict.fromkeys(["UsageStore", "QuotaFreshness", "QuotaJournal", "QuotaHistory", "QuotaCollector", "QuotaService",
+                     "MetricsArchive", "UsageJournal", "Usage", "ClaudeAccountFile", "CLIClient", "ReportCache"], [BURN]),
     "CursorAccountView": [],
+    "AppUpdater": [],   # Sparkle : pas de mise à jour automatique, voulu (desktop/agent-burn/README.md)
 }
 GROUPS = {"mac": "App Mac", "cli": "CLI", "docs": "Docs", "ci": "CI/infra", "other": "Autres"}
 # Clés lues dans les rapports par Burn.qml (setSummary, merge, windows, quotaProc) et par les vues (popover,
@@ -378,11 +386,11 @@ def bump(rev):
                                                "install.sh (avant, copie .bak)", "install.sh"))
     repo = INSTALL_SH.parent
     print(f"\nCompatible : CLI installé ({dst}), install.sh épinglé. Étapes suivantes :\n"
-          f"  recapture desktop/agent-burn/tests/fixtures avec ce CLI (selftest et tests de l'app Windows ;\n"
+          f"  recapture desktop/agent-burn/tests/fixtures avec ce CLI (selftest et tests de l'app de bureau ;\n"
           f"  date de capture dans fake_cli de __main__.py et dans gen.py de la suite burn-suite)\n"
           f"  git -C {repo} add install.sh   (+ les fichiers portés)\n"
           f'  git -C {repo} commit -m "agent-burn : CLI épinglé sur {sha[:12]} ({ver})"\n'
-          f"  git -C {repo} push   → la CI Windows recompile le CLI et l'app")
+          f"  git -C {repo} push   → la CI recompile le CLI et l'app")
     return 0
 
 

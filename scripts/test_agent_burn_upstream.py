@@ -307,6 +307,20 @@ class Upstream(unittest.TestCase):
                       r.stdout)   # nom d'avant
         self.assertIn("HarnessPanel.swift → à évaluer", r.stdout)
 
+    def test_mac_only_files_are_mapped(self):
+        up2 = self.copy_upstream()
+        names = ("AppAppearance", "AppUpdater", "AppViews", "BrandImages", "LoginItem", "QuotaService")
+        self.commit(up2, "feat(macos): réglages", {f"apps/macos/Sources/AgentBurn/{n}.swift": f"// {n}\n" for n in names})
+        self.pin(self.head)
+        self.assertEqual(self.report("--fetch")["toPort"], [
+            "config/quickshell/Burn.qml", "config/quickshell/BurnDashboardView.qml", "config/quickshell/BurnPopover.qml",
+            "config/quickshell/Colors.qml", "config/quickshell/assets/burn/", "desktop/agent-burn/app/agentburn/__main__.py",
+            "desktop/agent-burn/app/agentburn/platform_linux.py", "desktop/agent-burn/app/agentburn/platform_win.py",
+            "desktop/agent-burn/app/qml/Colors.qml", "desktop/agent-burn/app/qml/SettingsWindow.qml"])
+        out = self.run_script().stdout
+        self.assertNotIn("à évaluer", out)
+        self.assertIn("AppUpdater.swift → non porté", out)
+
     def test_cli_args_crate_is_not_json_output(self):
         # agent-burn-cli/src/types.rs = arguments du CLI, pas les structures du JSON lu par Burn.qml.
         up2 = self.copy_upstream()
