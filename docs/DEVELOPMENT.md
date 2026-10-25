@@ -223,7 +223,7 @@ podman `agent-burn-build-cache`). Le wrapper passe aussi le commit du dépôt (`
 enregistre : depuis un worktree, le `.git` monté pointe hors du conteneur et `build.sh` ne le lirait pas.
 `build.sh` refuse de tourner ailleurs que dans Debian 12 : le bundle prend la glibc de bookworm (plancher 2.35)
 et tourne donc sur les distros plus récentes. Sans `CARGO_HOME` ni `RUSTUP_HOME`, il prend `$HOME/.cargo` et
-`$HOME/.rustup` (dans la CI, ceux que ses caches sauvegardent).
+`$HOME/.rustup` (dans la CI, le registre de `$HOME/.cargo` est en cache avec le CLI).
 
 Étapes :
 
@@ -342,9 +342,10 @@ branche, du même tag ou de la même pull request ; un push et la pull request d
 | Release (brouillon) | `ubuntu-24.04` | tags `desktop-v*` seulement, après les paquets et Windows : refus d'un tag dont la version n'est pas celle des paquets, `SHA256SUMS`, `gh release create --draft --verify-tag` | release brouillon |
 
 - Caches : CLI par `AB_REV` (et par architecture sous Windows) avec le registre cargo, sauvé dès la compilation
-  même si la suite échoue ; chaîne Rust de l'amont (`rust-<os>-<arch>-<AB_REV>`, seulement quand le CLI est à
-  recompiler ; cargo et rustup sont sous `$HOME` dans le conteneur Linux) ; pip, indexé par le verrou. Un cache
-  n'est vu que de sa branche et de `main` : fusionner le workflow dans `main` les amorce pour toutes les branches.
+  même si la suite échoue ; pip des jobs Tests et Windows (setup-python), indexé par le verrou. Pas de cache de
+  la chaîne Rust : rustup installe celle de l'amont à chaque compilation du CLI (15 s environ), et un cache par
+  révision ne serait jamais relu. Un cache n'est vu que de sa branche et de `main` : fusionner le workflow dans
+  `main` les amorce pour toutes les branches.
 - Hygiène : actions épinglées par SHA (version en commentaire), `persist-credentials: false`, permissions
   `contents: read` (sauf la release), délai maximal sur chaque job, `pull_request` et jamais
   `pull_request_target` (une pull request de fork n'a ni secret ni droit d'écriture), runs groupés par numéro de
