@@ -344,7 +344,7 @@ def check(binary, ver):
 
 
 def bump(rev):
-    text, pinned, _ = read_pin()
+    _, pinned, _ = read_pin()
     ref = "origin/main" if rev in ("latest", "main", "HEAD") else rev   # la branche main locale reste celle du clone
     try:
         sha = git("rev-parse", "--verify", "--quiet", ref + "^{commit}").strip()
@@ -359,6 +359,12 @@ def bump(rev):
     if not m:
         raise Fail(f"version introuvable dans rust/crates/agent-burn/Cargo.toml de {sha[:12]}")
     ver = "agent-burn " + m[1]
+    st = subprocess.run(["git", "-C", str(INSTALL_SH.parent), "--no-optional-locks", "status", "--porcelain", "--",
+                         INSTALL_SH.name], capture_output=True, text=True, env=ENV)
+    dirty = st.returncode == 0 and st.stdout.strip() != ""
+    if st.returncode == 0:   # hors d'un dépôt git : rien à signaler
+        print("install.sh : " + ("modifications non commitées, conservées (seules les lignes AB_REV et AB_VER changent,"
+                                 " copie dans install.sh.bak)." if dirty else "aucune modification locale."))
     print(f"Compilation de {ver} ({sha[:12]}) : cargo, ~2 min…", flush=True)
     # Même commande qu'install.sh, mais à part : la barre garde son CLI tant que ce JSON n'est pas vérifié.
     staged = CACHE / "cli/bin/agent-burn"
@@ -370,6 +376,7 @@ def bump(rev):
         print(f"\nIncompatible : rien n'a été changé (install.sh, CLI installé). Adapte d'abord le QML ; CLI compilé"
               f" gardé pour l'examiner : AGENT_BURN_BIN={staged}")
         return 1
+    text, _, _ = read_pin()   # relu : une modification faite pendant la compilation reste
     # Renommage atomique : pas de « Text file busy » si la barre lance le CLI à cet instant.
     dst = Path.home() / ".local/bin/agent-burn"
     dst.parent.mkdir(parents=True, exist_ok=True)
@@ -385,10 +392,11 @@ def bump(rev):
     sys.stdout.writelines(difflib.unified_diff(text.splitlines(True), new.splitlines(True),
                                                "install.sh (avant, copie .bak)", "install.sh"))
     repo = INSTALL_SH.parent
+    add = "add -p" if dirty else "add"   # -p : le bump seul, sans les modifications locales
     print(f"\nCompatible : CLI installé ({dst}), install.sh épinglé. Étapes suivantes :\n"
           f"  recapture desktop/agent-burn/tests/fixtures avec ce CLI (selftest et tests de l'app de bureau ;\n"
           f"  date de capture dans fake_cli de __main__.py et dans gen.py de la suite burn-suite)\n"
-          f"  git -C {repo} add install.sh   (+ les fichiers portés)\n"
+          f"  git -C {repo} {add} install.sh   (+ les fichiers portés)\n"
           f'  git -C {repo} commit -m "agent-burn : CLI épinglé sur {sha[:12]} ({ver})"\n'
           f"  git -C {repo} push   → la CI recompile le CLI et l'app")
     return 0

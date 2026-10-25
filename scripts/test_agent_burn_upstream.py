@@ -43,6 +43,8 @@ import os, sys
 open(os.environ["FAKE_LOG"], "w").write("\\n".join(sys.argv[1:]))
 if os.environ.get("FAKE_CARGO_FAIL"):
     sys.exit(101)
+if os.environ.get("FAKE_CARGO_EDIT"):   # install.sh modifié pendant la compilation
+    open(os.environ["FAKE_CARGO_EDIT"], "a").write("echo ajout\\n")
 root = sys.argv[sys.argv.index("--root") + 1]
 os.makedirs(root + "/bin", exist_ok=True)
 # Le contrôle lance le CLI avec un environnement vide : ses réglages de test sont écrits dans le binaire.
@@ -187,6 +189,7 @@ class Upstream(unittest.TestCase):
     def run_script(self, *args, **env):
         e = {**os.environ, "AGENT_BURN_UPSTREAM_URL": self.url, "AGENT_BURN_UPSTREAM_CACHE": str(self.dir / "cache"),
              "AGENT_BURN_INSTALL_SH": str(self.install), "HOME": str(self.home),
+             "GIT_CEILING_DIRECTORIES": str(self.tmp),   # install.sh hors dépôt, même si TMPDIR est dans un dépôt
              "PATH": f"{self.fakebin}:{os.environ['PATH']}", "FAKE_LOG": str(self.dir / "cargo.log"),
              "FAKE_AB": str(self.tmp / "fake-agent-burn"), "FAKE_AB_LOG": str(self.dir / "ab.log"),
              "FAKE_AB_SUMMARY": str(FIX / "summary-live.json"), "FAKE_AB_HARNESS": str(FIX / "harness-claude.json"),
@@ -386,8 +389,9 @@ class Upstream(unittest.TestCase):
         for s in ["+AB_REV=" + self.head, '+AB_VER="agent-burn 20.0.22"', "Compatible", "Étapes suivantes",
                   "recapture desktop/agent-burn/tests/fixtures", "push", "Non vérifiable hors ligne : claudeAccount",
                   "claudeAccountStatus", "summary : ok (22 clés)\n", "harness claude : ok (13 clés)\n",
-                  "harness codex : ok (10 clés)\n"]:
+                  "harness codex : ok (10 clés)\n", f"git -C {self.dir} add install.sh"]:
             self.assertIn(s, r.stdout)
+        self.assertNotIn("install.sh : ", r.stdout)   # hors d'un dépôt git : rien à signaler
 
     def test_bump_checks_against_a_synthetic_home(self):
         # Ni les données, ni l'environnement, ni les réglages de l'utilisateur ne changent le contrôle.
@@ -417,6 +421,32 @@ class Upstream(unittest.TestCase):
         self.assertIn("harness claude : ok (10 clés), non vérifiable (null ou vide) : window.usedPercent, "
                       "window.elapsedPercent, window.windowMinutes\n", out.getvalue())   # relevé live seulement
         self.assertIn("harness codex : ok (10 clés)\n", out.getvalue())
+
+    def test_bump_keeps_uncommitted_install_sh_changes(self):
+        git = lambda *a: sh(self.dir, "git", "-c", "user.name=t", "-c", "user.email=t@example.com",
+                            "-c", "commit.gpgSign=false", *a)
+        git("init", "-q")
+        git("add", "install.sh")
+        git("commit", "-q", "-m", "install")
+        r = self.run_script("--fetch", "update", "v20.0.22")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("install.sh : aucune modification locale.", r.stdout)
+        self.pin(self.c1)   # = le commit
+        self.install.write_text(self.install.read_text().replace("echo fin", "echo local"))   # non commité
+        before = self.install.read_text()
+        r = self.run_script("update", "v20.0.22")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertLess(r.stdout.index("modifications non commitées, conservées"), r.stdout.index("Compilation"))
+        self.assertEqual(self.install.read_text(), before.replace(self.c1, self.c9).replace("20.0.21", "20.0.22"))
+        self.assertEqual((self.dir / "install.sh.bak").read_text(), before)
+        self.assertIn(f"git -C {self.dir} add -p install.sh", r.stdout)   # le bump seul
+
+    def test_bump_keeps_edits_made_during_the_build(self):
+        r = self.run_script("--fetch", "--bump", FAKE_CARGO_EDIT=str(self.install))
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        text = self.install.read_text()
+        self.assertTrue(text.endswith("echo fin\necho ajout\n"), text)
+        self.assertIn(f"AB_REV={self.head}\n", text)
 
     def test_bump_main_is_upstream_main_not_the_clone_branch(self):
         # Le clone crée une branche main locale que fetch ne déplace jamais : main = origin/main.
