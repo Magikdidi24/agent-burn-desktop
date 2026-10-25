@@ -230,7 +230,8 @@ et tourne donc sur les distros plus récentes. Sans `CARGO_HOME` ni `RUSTUP_HOME
 Étapes :
 
 1. lit `AB_REV`, `AB_VER` (`cli.env`) et `__version__` (`app/agentburn/__init__.py`) ;
-2. CLI : copie superficielle de l'amont à `AB_REV`, Rust de son `rust-toolchain.toml` (rustup-init épinglé),
+2. CLI (seulement s'il est à compiler : gcc et musl ne sont installés qu'alors) : copie superficielle de l'amont
+   à `AB_REV`, Rust de son `rust-toolchain.toml` (rustup-init épinglé),
    binaire statique `x86_64-unknown-linux-musl` (repli `gnu` si l'amont casse ce build), `--version` == `AB_VER`,
    licence et notices des crates ; en cache dans `build/cli-linux/` (clé : `AB_REV`) ;
 3. polices JetBrainsMono Nerd Font v3.4.0 vérifiées par sha256 ;

@@ -34,10 +34,10 @@ VER=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' app/agentburn/__init__.py)
 
 step "Paquets système"
 apt-get update -qq
-# Outils de build, Rust (gcc, musl), validation, Xvfb + Mesa (selftest OpenGL), et les bibliothèques que Qt
-# demande : PyInstaller embarque celles que le spec garde (libxcb-*), le reste sert au selftest.
+# Outils de build, validation, Xvfb + Mesa (selftest OpenGL), et les bibliothèques que Qt demande : PyInstaller
+# embarque celles que le spec garde (libxcb-*), le reste sert au selftest. gcc et musl : dans build_cli.
 apt-get install -y -qq --no-install-recommends \
-    ca-certificates curl git xz-utils binutils file gcc libc6-dev musl-tools appstream desktop-file-utils \
+    ca-certificates curl git xz-utils binutils file appstream desktop-file-utils \
     xvfb xauth libgl1-mesa-dri fonts-dejavu-core \
     libgl1 libegl1 libopengl0 libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 libfreetype6 libdbus-1-3 \
     libglib2.0-0 libx11-xcb1 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
@@ -47,6 +47,8 @@ mkdir -p "$W" "$T"
 
 build_cli() {
     local src=$W/cli-src rust t
+    # Compilateurs C des crates du CLI (aws-lc, SQLite…) : seulement quand il est à compiler.
+    apt-get install -y -qq --no-install-recommends gcc libc6-dev musl-tools >/dev/null
     rm -rf "$src" "$CLI" && mkdir -p "$CLI/bin"
     git init -q "$src"
     git -C "$src" fetch -q --depth 1 https://github.com/Melvynx/agent-burn "$REV"
@@ -61,7 +63,8 @@ build_cli() {
         fetch https://static.rust-lang.org/rustup/archive/1.29.2/x86_64-unknown-linux-gnu/rustup-init \
             5be191e8c70a5007074254cb74d78dbfdd25cd5a61c27de7b8e5410122ec24f4 "$T/rustup-init"
         chmod +x "$T/rustup-init"
-        "$T/rustup-init" -y -q --no-modify-path --profile minimal --default-toolchain none
+        # HOME de root : avec celui de la CI (/github/home), rustup-init croit à un sudo et l'écrit en « error: ».
+        HOME=/root "$T/rustup-init" -y -q --no-modify-path --profile minimal --default-toolchain none
     fi
     rustup -q toolchain install --profile minimal "$rust" --target x86_64-unknown-linux-musl
     # musl : binaire statique, sans glibc ni bibliothèque système. Repli glibc si l'amont casse ce build.
