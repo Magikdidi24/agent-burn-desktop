@@ -3,6 +3,7 @@
 # part des ~/.cache/agent-burn et ~/.config/agent-burn du CLI lui-même.
 import getpass
 import os
+import posixpath
 import sys
 from pathlib import Path
 
@@ -14,7 +15,8 @@ LINUX = "agent-burn-desktop"
 def xdg(var, default):
     """Dossier de base XDG ; une valeur relative est invalide selon la spec, donc ignorée."""
     value = os.environ.get(var, "")
-    return Path(value) if os.path.isabs(value) else Path.home() / default
+    # posixpath : chemins POSIX même quand les tests simulent Linux sous Windows (os.path y refuse « /x » depuis 3.13).
+    return Path(value) if posixpath.isabs(value) else Path.home() / default
 
 
 def data_dir():
