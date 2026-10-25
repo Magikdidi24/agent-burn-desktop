@@ -122,7 +122,7 @@ Copy-Item tools/licenses/QT-THIRD-PARTY.txt "$extra/licenses"
 # les logiciels incorporés de Doc/license.rst, ajoutés à la suite.
 $pyLicense = Get-Content -Raw (Join-Path (& $py -c 'import sys; print(sys.base_prefix)') LICENSE.txt)
 if (-not $pyLicense.Contains('Licenses and Acknowledgements for Incorporated Software')) { $pyLicense += "`n`n$pyThird" }
-Set-Content -NoNewline "$extra/licenses/LICENSE-Python.txt" $pyLicense
+$pyLicense | Set-Content -NoNewline "$extra/licenses/LICENSE-Python.txt"
 [ordered]@{
     appVersion = $ver
     cliRev     = (Get-Content $stamp) -replace ' .*'   # celui de build\cli, même avec -SkipCli
