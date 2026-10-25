@@ -48,7 +48,10 @@ QtObject {
     readonly property list<QtObject> bindings: [
         Binding { target: Burn; property: "refreshInterval"; value: Settings.refreshMinutes * 60000 },
         Binding { target: Burn; property: "cliHint"; value: "Agent Burn ne trouve pas son CLI (" + Burn.bin + ") : réinstalle l'application." },
-        Binding { target: Colors; property: "theme"; value: Settings.theme }
+        Binding { target: Colors; property: "theme"; value: Settings.theme },
+        // Textes des vues partagées lus par les lecteurs d'écran : sûr ici, la boucle de rendu basique de Linux
+        // (__main__) évite le plantage que l'exposition provoquait dans la boucle à fil de Qt 6.12 sous Wayland.
+        Binding { target: Burn; property: "accessibleText"; value: true }
     ]
 
     function openDashboard() { Burn.openDashboard(Burn.dashboardPage); }
