@@ -3,7 +3,7 @@
 # Ordre des signaux de Process relevé sous qs : streamFinished → exited (running déjà faux) →
 # runningChanged ; binaire absent : un seul runningChanged, sans started.
 # En plus de qs : enfants lancés dans le dossier de données avec child_environment(), chaque run
-# journalisé sur le logger « agentburn.cli » (handlers posés par l'app).
+# journalisé sur le logger « agentburn.cli » (handlers posés par l'app, fin du stderr en DEBUG).
 import logging
 import os
 import sys
@@ -208,6 +208,8 @@ class Process(QObject):
                  time.monotonic() - self._since, len(out))
         if code or crashed:
             log.warning("%s : %s", cmd, _first_error(err) or "stderr vide")
+        # Journal détaillé : fin du stderr de chaque run, masquée par les handlers de l'app comme le reste.
+        log.debug("%s : stderr\n%s", cmd, err.strip()[-4000:] or "vide")
         self.exited.emit(code, status.value)
         self.runningChanged.emit()
 

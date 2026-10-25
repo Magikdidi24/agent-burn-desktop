@@ -190,6 +190,20 @@ class ProcessRun(unittest.TestCase):
         self.assertEqual(p.property("code"), -1)   # pas d'exited : Burn.qml le voit par running sans started
         self.assertIn("lancement impossible", logs.output[0])
 
+    def test_stderr_tail_logged_at_debug_only(self):
+        with self.assertLogs("agentburn.cli", "DEBUG") as logs:
+            self.run_child([sys.executable, "-I", str(tmp / "child.py"), "0"])
+            self.run_child([sys.executable, "-I", "-c", "import sys; sys.stderr.write('debut' + 'x' * 5000 + 'fin')"])
+        debug = [r.getMessage() for r in logs.records if r.levelname == "DEBUG"]
+        self.assertEqual(len(debug), 2, logs.output)
+        lines = debug[0].splitlines()
+        self.assertTrue(lines[0].endswith("child.py 0 : stderr"), lines[0])
+        self.assertEqual(lines[1:], ["WARN  avant", 'Error: CliError("pas de fixture")'])
+        self.assertEqual(debug[1].split(" : stderr\n")[1], ("x" * 5000 + "fin")[-4000:])   # la fin seulement
+        with self.assertLogs("agentburn.cli", "INFO") as logs:
+            self.run_child([sys.executable, "-I", str(tmp / "child.py"), "0"])
+        self.assertNotIn("WARN  avant", "\n".join(logs.output))   # niveau INFO : pas de stderr d'un run réussi
+
 
 class DeclaredRunning(unittest.TestCase):
     def test_running_before_command_starts_after_creation(self):
