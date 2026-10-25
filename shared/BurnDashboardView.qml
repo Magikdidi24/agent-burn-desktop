@@ -914,6 +914,11 @@ Item {
                             selectionColor: Colors.withAlpha(Colors.accent, 0.5)
                             activeFocusOnTab: true
                             Accessible.name: "Filtrer les modèles"
+                            // Échap vide le filtre ; déjà vide, il remonte à l'hôte (fermeture du dashboard).
+                            Keys.onEscapePressed: event => {
+                                event.accepted = search.text !== "";
+                                search.text = "";
+                            }
                             Txt {
                                 anchors.verticalCenter: parent.verticalCenter
                                 visible: search.text === ""
