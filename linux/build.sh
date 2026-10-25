@@ -259,7 +259,7 @@ share "$A/usr/share"
 mv "$A/usr/share/metainfo/$APPID.metainfo.xml" "$A/usr/share/metainfo/$APPID.appdata.xml"   # nom cherché par appimagetool
 install -m 755 linux/AppRun "$A/AppRun"
 cp "linux/$APPID.desktop" "$W/icons/hicolor/256x256/apps/$APPID.png" "$A/"
-# -n : AppStream déjà validé plus haut, hors ligne ; appimagetool, lui, testerait les URL (dépôt privé : KO).
+# -n : AppStream déjà validé plus haut, hors ligne ; appimagetool, lui, testerait les URL en ligne.
 ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 "$T/appimagetool" -n --runtime-file "$T/runtime-x86_64" "$A" "$OUT/$TB.AppImage"
 
 (cd "$OUT" && sha256sum -- *.tar.gz *.AppImage *.deb *.rpm >SHA256SUMS)
