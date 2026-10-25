@@ -19,11 +19,12 @@ APP = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(APP))
 FIXTURES = APP.parent / "tests" / "fixtures"
 
-from PySide6.QtCore import QCoreApplication, QEventLoop, QLockFile, QPoint, QRect, QSize, Qt, QUrl  # noqa: E402
+from PySide6.QtCore import QCoreApplication, QEventLoop, QLockFile, QMetaObject, QPoint, QRect, QSize, Qt, QUrl  # noqa: E402
 from PySide6.QtGui import QColor, QGuiApplication  # noqa: E402
 from PySide6.QtNetwork import QLocalServer  # noqa: E402
 from PySide6.QtQml import QQmlComponent, QQmlEngine, QQmlExpression, qmlRegisterSingletonInstance  # noqa: E402
 from PySide6.QtQuick import QQuickItem, QQuickWindow  # noqa: E402,F401 (QQuickWindow : type des fenêtres QML côté Python)
+from PySide6.QtTest import QTest  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from agentburn import __main__ as appmain, diagnostics, paths, runtime, settings, shim  # noqa: E402
@@ -354,6 +355,30 @@ class Popover(unittest.TestCase):
         self.assertGreaterEqual(pop.y() + pad, a.y() + 16)
         self.assertLessEqual(pop.y() + pop.height() - pad, a.y() + a.height() - 16)
         del pop, component
+
+    def test_short_screen_keyboard_scrolls_the_card(self):
+        # 1366×768 à 125 % : la carte défile. Page suivante, Fin, Début, et Tab amène le contrôle à l'écran.
+        env = qml_env()
+        component = QQmlComponent(env["engine"], QUrl.fromLocalFile(str(env["qml"] / "PopoverWindow.qml")))
+        pop = component.create()
+        self.addCleanup(lambda: (pop.setVisible(False), component))   # composant gardé : il détruirait la fenêtre
+        pop.setProperty("maxHeight", 300)
+        QMetaObject.invokeMethod(pop, "open")
+        self.assertTrue(wait_for(lambda: pop.isVisible() and pop.isActive(), 5))
+        flick = next(i for i in pop.findChildren(QQuickItem) if i.metaObject().className() == "QQuickFlickable")
+        wait_for(lambda: False, 0.4)
+        end = flick.property("contentHeight") - flick.height()
+        self.assertGreater(end, 0)
+        QTest.keyClick(pop, Qt.Key.Key_PageDown)
+        self.assertEqual(flick.property("contentY"), min(end, flick.height() - 40))
+        QTest.keyClick(pop, Qt.Key.Key_End)
+        self.assertEqual(flick.property("contentY"), end)
+        QTest.keyClick(pop, Qt.Key.Key_Home)
+        self.assertEqual(flick.property("contentY"), 0)
+        last = [i for i in pop.findChildren(QQuickItem) if i.property("activeFocusOnTab") and i.isVisible()][-1]
+        last.forceActiveFocus(Qt.FocusReason.TabFocusReason)
+        top = last.mapToItem(flick.property("contentItem"), 0, 0).y() - flick.property("contentY")
+        self.assertTrue(0 <= top and top + last.height() <= flick.height(), (top, last.height(), flick.height()))
 
 
 class Autostart(unittest.TestCase):

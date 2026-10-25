@@ -40,6 +40,21 @@ Window {
 
     Shortcut { sequence: "Esc"; onActivated: win.dismiss() }
 
+    // Écran court : la carte défile jusqu'au contrôle atteint au clavier (Tab).
+    onActiveFocusItemChanged: {
+        const item = activeFocusItem;
+        let inside = false;
+        for (let p = item; p && !inside; p = p.parent)
+            inside = p === flick;
+        if (!inside)
+            return;
+        const y = item.mapToItem(flick.contentItem, 0, 0).y, max = Math.max(0, flick.contentHeight - flick.height);
+        if (y - 12 < flick.contentY)
+            flick.contentY = Math.max(0, y - 12);
+        else if (y + item.height + 12 > flick.contentY + flick.height)
+            flick.contentY = Math.min(max, y + item.height + 12 - flick.height);
+    }
+
     Item {
         id: box
         x: win.pad
@@ -47,6 +62,17 @@ Window {
         width: 440
         height: win.maxHeight > 0 ? Math.min(content.implicitHeight, win.maxHeight) : content.implicitHeight
         transform: Translate { id: slide }
+        // Page précédente ou suivante, début, fin : au clavier aussi, contrôle focalisé ou non.
+        focus: true
+        Keys.onPressed: event => {
+            const max = Math.max(0, flick.contentHeight - flick.height), step = flick.height - 40;
+            const to = event.key === Qt.Key_PageDown ? flick.contentY + step : event.key === Qt.Key_PageUp ? flick.contentY - step
+                     : event.key === Qt.Key_Home ? 0 : event.key === Qt.Key_End ? max : NaN;
+            if (isNaN(to))
+                return;
+            flick.contentY = Math.max(0, Math.min(max, to));
+            event.accepted = true;
+        }
 
         RectangularShadow {
             anchors.fill: parent
