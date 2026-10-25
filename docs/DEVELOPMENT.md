@@ -4,7 +4,8 @@ Architecture : [ARCHITECTURE.md](ARCHITECTURE.md). Utilisation : [README](../REA
 
 ## Mise en place
 
-- **Python 3.12** (celui de la CI et des builds) et la seule dépendance, épinglée dans
+- **Python 3.12** sous Linux, **3.13** sous Windows (ceux de la CI et des builds : python.org ne publie plus de
+  binaires Windows de 3.12), et la seule dépendance, épinglée dans
   [`app/requirements.txt`](../app/requirements.txt) (`PySide6-Essentials==6.12.0`) :
 
   ```sh
@@ -12,13 +13,14 @@ Architecture : [ARCHITECTURE.md](ARCHITECTURE.md). Utilisation : [README](../REA
   ~/.venvs/agent-burn/bin/pip install -r app/requirements.txt
   ```
 
-  Windows : `py -3.12 -m venv .venv`, puis `.venv\Scripts\pip install -r app\requirements.txt`.
+  Windows : `py -3.13 -m venv .venv`, puis `.venv\Scripts\pip install -r app\requirements.txt`.
 
   Builds et CI installent à la place [`app/requirements.lock`](../app/requirements.lock) avec
   `pip install --require-hashes` : le verrou de [`app/requirements-build.txt`](../app/requirements-build.txt)
   (`requirements.txt` plus `pyinstaller==6.22.3`), versions et sha256 de tout l'arbre pour Linux x86_64 et
   Windows x64 et ARM64. Après un changement de l'un de ces deux fichiers, le régénérer depuis `app/` :
-  `uv pip compile --universal --python-version 3.12 --generate-hashes requirements-build.txt -o requirements.lock`.
+  `uv pip compile --universal --python-version 3.12 --generate-hashes requirements-build.txt -o requirements.lock`
+  (avec `--universal`, `--python-version` est un minimum : le verrou vaut aussi pour 3.13).
 - **CLI `agent-burn`**, à la révision `AB_REV` de [`cli.env`](../cli.env) :
   - Linux : `cargo install --locked --git https://github.com/Melvynx/agent-burn --rev <AB_REV> agent-burn --bin agent-burn --root ~/.local`
     (dans `~/.local/bin/agent-burn`) ;
@@ -252,7 +254,7 @@ CLI, 1 min 30 avec le CLI en cache. `build/`, `dist/` et `app/fonts/` sont ignor
 
 ### Windows : `build.ps1`
 
-Windows 10/11 avec PowerShell 7.4+ (`winget install Microsoft.PowerShell`), Python 3.12 de la même
+Windows 10/11 avec PowerShell 7.4+ (`winget install Microsoft.PowerShell`), Python 3.13 de la même
 architecture que la cible dans le `PATH`, Git, Rust via [rustup](https://rustup.rs) (chaîne MSVC, Build Tools
 C++ de Visual Studio) et [Inno Setup](https://jrsoftware.org/isdl.php) 6.3+ (`iscc` dans le `PATH`, ou son
 dossier par défaut). Réseau : GitHub, crates.io, PyPI.
@@ -290,9 +292,10 @@ tourne pas sous Wine (pas de PowerShell 7) : il n'a tourné que dans la CI, sur 
 ### Monter Qt, PySide6, Python ou le runtime AppImage
 
 Les notices de [`tools/licenses/`](../tools/licenses/) décrivent des versions précises, données par leur première
-ligne : `QT-THIRD-PARTY.txt` (Qt et PySide6), `PYTHON-THIRD-PARTY.txt` (Python, version mineure),
-`NOTICE-AppImage-runtime.txt` (`RUNTIME` de `build.sh`). `build.sh` et `build.ps1` s'arrêtent tant qu'elles ne
-correspondent plus. Après un changement de PySide6 (donc de Qt) ou de Python, régénérer le verrou (voir
+ligne : `QT-THIRD-PARTY.txt` (Qt et PySide6), `PYTHON-<X.Y>-THIRD-PARTY.txt` (une par version mineure de
+Python livrée : 3.12 sous Linux, 3.13 sous Windows), `NOTICE-AppImage-runtime.txt` (`RUNTIME` de `build.sh`).
+`build.sh` et `build.ps1` s'arrêtent tant qu'elles ne correspondent plus (ou que la notice de leur Python
+manque). Après un changement de PySide6 (donc de Qt) ou de Python, régénérer le verrou (voir
 [Mise en place](#mise-en-place)), puis refaire la notice concernée ; après un changement de `RUNTIME`, refaire
 celle du runtime. Les scripts qui les ont produites ne sont pas dans le dépôt. Sources utilisées : les
 `qt_attribution.json` et les fichiers de licence de qtbase, qtdeclarative, qtwayland et pyside-setup à l'étiquette
@@ -339,7 +342,7 @@ branche, du même tag ou de la même pull request ; un push et la pull request d
 | Tests | `ubuntu-24.04` | bibliothèques Qt, Xvfb et Mesa ; dépendances du verrou haché ; tests unitaires ; outils de licence (`tools/`) ; suite du cœur (normal, corrompu) ; suivi de l'amont ; selftest sous Xvfb ; suite « CLI bloqué » en dernier | `selftest-linux-dev` (7 jours) |
 | Linux (paquets) | conteneur `python:3.12-slim-bookworm`, épinglé par empreinte | `linux/build.sh` | `agent-burn-desktop-linux` (1 jour) |
 | Paquets sur … | 7 conteneurs de distros (étiquettes, pas d'empreinte : des distros à jour) | `linux/smoke.sh` sur l'artefact téléchargé dans `dist-in/` | `smoke-<n>` en cas d'échec (7 jours) : journaux et captures de `smoke.sh` |
-| Windows x64 | `windows-2025` (image épinglée : `windows-latest` en changerait sans prévenir) | venv `.venv` rempli du verrou haché (celui de `build.ps1`), tests unitaires sur un vrai Windows (sortie en UTF-8, 5 min au plus), Inno Setup (choco 6.7.1 si absent), `build.ps1`, `smoke.ps1` | `agent-burn-desktop-windows-x64` (1 jour, déposé avant `smoke.ps1`), `selftest-windows-x64` (7 jours, dès que le build a tourné : selftest du build et sorties de `smoke.ps1`, sans la copie extraite du zip) |
+| Windows x64 | `windows-2025` (image épinglée : `windows-latest` en changerait sans prévenir) | Python 3.13 ; venv `.venv` rempli du verrou haché (celui de `build.ps1`), tests unitaires sur un vrai Windows (sortie en UTF-8, 5 min au plus), Inno Setup (choco 6.7.1 si absent), `build.ps1`, `smoke.ps1` | `agent-burn-desktop-windows-x64` (1 jour, déposé avant `smoke.ps1`), `selftest-windows-x64` (7 jours, dès que le build a tourné : selftest du build et sorties de `smoke.ps1`, sans la copie extraite du zip) |
 | Windows ARM64 (expérimental) | `windows-11-arm` | comme x64 ; seulement au lancement manuel avec `arm64`, son échec n'échoue pas le run | idem, `-arm64` |
 | Release (brouillon) | `ubuntu-24.04` | tags `desktop-v*` seulement, après les paquets et Windows : refus d'un tag dont la version n'est pas celle des paquets, `SHA256SUMS`, `gh release create --draft --verify-tag` | release brouillon |
 

@@ -135,11 +135,12 @@ Path(out, "licenses", "NOTICE-Qt-PySide6.txt").write_text(
     notice.replace("@QT@", qVersion()).replace("@PYSIDE6@", PySide6.__version__), encoding="utf-8")
 # Composants tiers de Qt et logiciels incorporés à Python : relevés pour ces versions, à refaire quand elles changent.
 qt_third = Path("tools/licenses/QT-THIRD-PARTY.txt").read_text(encoding="utf-8")
-py_third = Path("tools/licenses/PYTHON-THIRD-PARTY.txt").read_text(encoding="utf-8")
+py_notice = "tools/licenses/PYTHON-%d.%d-THIRD-PARTY.txt" % sys.version_info[:2]   # une par version mineure livrée
+py_third = Path(py_notice).read_text(encoding="utf-8")
 if not qt_third.startswith(f"Qt {qVersion()} et PySide6 {PySide6.__version__} :"):
     sys.exit(f"tools/licenses/QT-THIRD-PARTY.txt ne décrit pas Qt {qVersion()} et PySide6 {PySide6.__version__} : à refaire")
 if not py_third.startswith("Python %d.%d :" % sys.version_info[:2]):
-    sys.exit(f"tools/licenses/PYTHON-THIRD-PARTY.txt ne décrit pas Python {platform.python_version()} : à refaire")
+    sys.exit(f"{py_notice} ne décrit pas Python {platform.python_version()} : à refaire")
 Path(out, "licenses", "QT-THIRD-PARTY.txt").write_text(qt_third, encoding="utf-8")
 # LICENSE.txt de Python sans les logiciels incorporés (Doc/license.rst) : ajoutés à la suite.
 py_license = Path(sysconfig.get_path("stdlib"), "LICENSE.txt").read_text(encoding="utf-8")

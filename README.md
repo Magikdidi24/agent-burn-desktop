@@ -123,7 +123,8 @@ Dépendances sous Arch :
 
 ### Depuis les sources
 
-Python 3.12 et PySide6 6.12 : voir [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+Python 3.12 ou plus récent (les paquets Linux embarquent 3.12, ceux de Windows 3.13) et PySide6 6.12 : voir
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## Prérequis
 

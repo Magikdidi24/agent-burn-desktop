@@ -121,9 +121,9 @@ $pyside, $qt, $pyVer = & $py -c 'import sys, PySide6, PySide6.QtCore as c; print
     Set-Content -NoNewline "$extra/licenses/NOTICE-Qt-PySide6.txt"
 # Composants tiers de Qt et logiciels incorporés à Python : relevés pour ces versions, à refaire quand elles changent.
 $qtThird = Get-Content -Raw tools/licenses/QT-THIRD-PARTY.txt
-$pyThird = Get-Content -Raw tools/licenses/PYTHON-THIRD-PARTY.txt
+$pyThird = Get-Content -Raw "tools/licenses/PYTHON-$pyVer-THIRD-PARTY.txt"   # une notice par version mineure livrée
 if (-not $qtThird.StartsWith("Qt $qt et PySide6 $pyside :")) { throw "tools\licenses\QT-THIRD-PARTY.txt ne décrit pas Qt $qt et PySide6 $pyside : à refaire" }
-if (-not $pyThird.StartsWith("Python $pyVer :")) { throw "tools\licenses\PYTHON-THIRD-PARTY.txt ne décrit pas Python $pyVer : à refaire" }
+if (-not $pyThird.StartsWith("Python $pyVer :")) { throw "tools\licenses\PYTHON-$pyVer-THIRD-PARTY.txt ne décrit pas Python $pyVer : à refaire" }
 Copy-Item tools/licenses/QT-THIRD-PARTY.txt "$extra/licenses"
 # Python et les bibliothèques C de sa distribution (OpenSSL, libffi…) : LICENSE.txt, à sa racine sous Windows, sans
 # les logiciels incorporés de Doc/license.rst, ajoutés à la suite.
