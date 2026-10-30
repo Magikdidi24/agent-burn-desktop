@@ -1,10 +1,11 @@
-# In-app update, frozen Windows and macOS builds only (build-info.json target windows-x64, windows-arm64 or
-# macos-arm64); elsewhere (Linux, dev runs) nothing runs and nothing is requested. The latest GitHub release is
-# checked a minute after launch, then every 24 h, or on request. Installed Windows app: the release's installer is
-# downloaded to the cache, checked against the release's SHA256SUMS, run silently, and the app quits; the installer
-# starts it again (/relaunch=1, installer.iss). macOS bundle this user can replace: the release's zip, checked the
-# same way, is unpacked in the cache and checked, the app quits, HELPER swaps the bundles and opens the new one.
-# Portable zip, or a bundle that cannot be replaced: the release page opens. Network data is validated before use.
+# In-app update, frozen Windows and macOS builds only (build-info.json target windows-x64, windows-arm64,
+# macos-arm64 or macos-x64); elsewhere (Linux, dev runs) nothing runs and nothing is requested. The latest GitHub
+# release is checked a minute after launch, then every 24 h, or on request. Installed Windows app: the release's
+# installer is downloaded to the cache, checked against the release's SHA256SUMS, run silently, and the app quits;
+# the installer starts it again (/relaunch=1, installer.iss). macOS bundle this user can replace: the release's zip,
+# checked the same way, is unpacked in the cache and checked, the app quits, HELPER swaps the bundles and opens the
+# new one. Portable zip, or a bundle that cannot be replaced: the release page opens. Network data is validated
+# before use.
 import hashlib
 import json
 import logging
@@ -28,7 +29,7 @@ API = "https://api.github.com/repos/Magikdidi24/agent-burn-desktop"
 SITE = "https://github.com/Magikdidi24/agent-burn-desktop"   # release pages and downloads
 # build-info.json targets (build scripts) and the release file that updates each one ({}: version)
 ASSETS = {"windows-x64": "AgentBurn-Setup-{}-x64.exe", "windows-arm64": "AgentBurn-Setup-{}-arm64.exe",
-          "macos-arm64": "AgentBurn-{}-macos-arm64.zip"}
+          "macos-arm64": "AgentBurn-{}-macos-arm64.zip", "macos-x64": "AgentBurn-{}-macos-x64.zip"}
 TAG = re.compile(r"desktop-v([0-9]{1,6})\.([0-9]{1,6})\.([0-9]{1,6})")   # [0-9]: \d takes any script's digits
 SUM = re.compile(r"([0-9a-fA-F]{64}) [ *](.+)")   # sha256sum line, text or binary mode
 FIRST_MS, EVERY_MS = 60_000, 24 * 3_600_000

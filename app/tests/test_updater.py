@@ -320,6 +320,16 @@ class Update(unittest.TestCase):
         p.startDetached.assert_called_once_with()
         self.quit.assert_called_once_with()
 
+    def test_each_mac_takes_its_own_zip(self):
+        release = self.server.release(setup=ZIP, name=MACOS)
+        zip_, sums = release["assets"]
+        intel = {**zip_, "name": "AgentBurn-9.9.9-macos-x64.zip",
+                 "browser_download_url": zip_["browser_download_url"].replace("arm64", "x64")}
+        both = {**release, "assets": [zip_, intel, sums]}
+        for target, name in (("macos-arm64", MAC), ("macos-x64", "AgentBurn-9.9.9-macos-x64.zip")):
+            offer = updater.parse(both, updater.ASSETS[target], self.server.url, False)
+            self.assertEqual((offer["name"], offer["setup"]), (name, f"{self.server.url}/releases/download/desktop-v9.9.9/{name}"))
+
     def test_macos_release_files_validated(self):
         good = self.server.release(setup=ZIP, name=MACOS)
         zip_, sums = good["assets"]
@@ -401,7 +411,7 @@ class Update(unittest.TestCase):
 
     def test_unsupported_platforms_do_nothing(self):
         self.server.release()
-        for target in ("dev", "linux-x86_64", "", "windows-x86", "macos-x64", "macos-universal", "darwin"):
+        for target in ("dev", "linux-x86_64", "", "windows-x86", "macos-universal", "darwin"):
             u = self.updater(target=target)
             u.start()
             u.check()

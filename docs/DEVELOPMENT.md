@@ -250,7 +250,7 @@ remembered `autostart` task writes the `Run` value back.
 
 ### In-app update (macOS)
 
-The same tests and fake GitHub as above, with build target `macos-arm64` and the exe in
+The same tests and fake GitHub as above, with build target `macos-arm64` (or `macos-x64`) and the exe in
 `Agent Burn.app/Contents/MacOS`. Nothing macOS-only runs there: `updater.extract()` (the `ditto` call) is replaced
 by a fake that writes a bundle with the `Info.plist` under test, `QProcess` and `QCoreApplication` are patched, and
 the test checks the exact command line of `updater.HELPER`. The script itself does run, under `sh` (`MacHelper`,
@@ -264,7 +264,7 @@ and on App Translocation's read-only copy, macOS's `/bin/sh`, `mv` between the c
 detached script outliving the app, `open` starting the new version, the new bundle carrying no quarantine
 attribute, and the App Management protection of macOS 13 and later, which might refuse the move (the script then
 reopens the old version and deletes the new one). By hand, on a Mac: version X in `/Applications` (moved with the
-Finder), version Y's `AgentBurn-<Y>-macos-arm64.zip` and its `SHA256SUMS` served as for Windows, X started from a
+Finder), version Y's `AgentBurn-<Y>-macos-<arch>.zip` and its `SHA256SUMS` served as for Windows, X started from a
 terminal with `AGENT_BURN_UPDATE_URL=http://127.0.0.1:8000 "/Applications/Agent Burn.app/Contents/MacOS/AgentBurn"`,
 then Check for updates, Update now: the app quits and Y opens; `codesign --verify --deep` passes on the bundle,
 `xattr -l` shows no `com.apple.quarantine`, and the cache keeps no `update-*` folder.
@@ -507,9 +507,9 @@ branch, tag or pull request; a push and the pull request of its branch each get 
   `setDesktopFileName`, autostart), the `AgentBurn` application name (`WM_CLASS` on X11 ↔
   `StartupWMClass`), the `AgentBurn.exe` and `agent-burn-desktop` executables, the CLI in `<exe directory>/bin/`,
   the `build-info.json` keys (`appVersion`, `cliRev`, `cliVersion`, `target`, `builtAt`) written by the
-  two build scripts (the `target` values `windows-x64`, `windows-arm64` and `macos-arm64` also turn the updater on:
+  two build scripts (the `target` values `windows-x64`, `windows-arm64`, `macos-arm64` and `macos-x64` also turn the updater on:
   `updater.ASSETS`), the `desktop-v<ver>` tag and the `AgentBurn-Setup-<ver>-<arch>.exe`,
-  `AgentBurn-<ver>-macos-arm64.zip` and `SHA256SUMS` release files (`build.ps1`, `installer.iss`, the macOS build,
+  `AgentBurn-<ver>-macos-<arch>.zip` and `SHA256SUMS` release files (`build.ps1`, `installer.iss`, the macOS build,
   the release job, `updater.py`), the macOS bundle name and identifier (`Agent Burn.app`,
   `io.github.magikdidi24.AgentBurn`: `updater.BUNDLE`, `updater.BUNDLE_ID`), the `/relaunch=1` parameter
   (`updater.py`, `installer.iss`, `smoke.ps1`), the digest of the build image (workflow and

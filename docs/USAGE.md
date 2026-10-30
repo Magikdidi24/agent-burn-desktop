@@ -134,14 +134,16 @@ ask.
 - Windows, portable zip: "Open download page" opens the release page in the browser. Download the new zip and put
   its `AgentBurn` folder in place of the old one (data and settings are in `%APPDATA%\AgentBurn`).
 - macOS, `Agent Burn.app` in a folder you can write to (`/Applications` with an administrator account,
-  `~/Applications`): "Update now" (or the menu item) downloads `AgentBurn-X.Y.Z-macos-arm64.zip` into the cache
-  folder, checks its SHA-256 against the release's `SHA256SUMS`, unpacks it there with `ditto` and checks that it
-  holds Agent Burn X.Y.Z (bundle identifier and version); if anything differs, everything is deleted and nothing
-  changes. Then the app quits like menu → Quit, and a small script waits for it to be gone (a minute at most), puts
-  the new `Agent Burn.app` in place of the old one, deletes the old one and opens the app again. If the new one
-  cannot be moved in, the old one is put back and reopened. Data and settings are not touched. The app downloaded
-  the new version itself, not through a browser, so it carries no quarantine attribute: macOS opens it without
-  asking again.
+  `~/Applications`): "Update now" (or the menu item) downloads `AgentBurn-X.Y.Z-macos-arm64.zip` (Intel:
+  `-macos-x64`) into the cache folder, checks its SHA-256 against the release's `SHA256SUMS`, unpacks it there with
+  `ditto` and checks that it holds Agent Burn X.Y.Z (bundle identifier and version); if anything differs, everything
+  is deleted and nothing changes. Then the app quits like menu → Quit, and a small script waits for it to be gone (a
+  minute at most), puts the new `Agent Burn.app` in place of the old one, deletes the old one and opens the app
+  again. If the new one cannot be moved in, the old one is put back and reopened. Data and settings are not touched.
+  The app downloaded the new version itself, not through a browser, so it carries no quarantine attribute: macOS
+  opens it without asking again. If macOS says Agent Burn was prevented from modifying apps (App Management, macOS
+  13 and later), the old version opens again: allow Agent Burn in System Settings › Privacy & Security › App
+  Management, then "Update now" again.
 - macOS, any other copy (opened from a disk image, from `/Applications` with a standard account, or straight from
   the folder it was unzipped in, which macOS then runs from a read-only copy): "Open download page" opens the
   release page. Download the zip and replace `Agent Burn.app` with the one it holds. Once moved with the Finder into
