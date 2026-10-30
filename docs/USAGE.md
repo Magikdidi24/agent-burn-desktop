@@ -70,8 +70,10 @@ click elsewhere.
 - All agents: total spend, tokens, days recorded, models; Providers card (Claude Code and Codex, then the
   detected agents, with their state); daily spend; spend by agent; models table (filter, sort by column).
 - Agent page: state, warnings (CLI error, error specific to this agent, explanation of the state when it is not
-  "Live", missing pricing), plan (one gauge per limit, Claude extra credits), plan economics and breakdown by
-  token type over 30 days (Claude Code and Codex), daily spend, models.
+  "Live", missing pricing), plan (one gauge per limit, Claude extra credits), weekly limit and 5-hour session
+  (% left, pace verdict, chart of the readings and forecast up to the reset; no card when the window's start is
+  unknown, as with the Codex session, or when it is already over), plan economics and breakdown by token type over 30 days (Claude Code and Codex),
+  daily spend, models.
 - Daily history: Claude Code deletes its logs older than 30 days; the app keeps every day it has seen, even after
   an update or an uninstall. "Show backup" opens the data folder.
 - Keyboard: Tab moves through the controls, and the page (or the "By agent" list) scrolls to the focused control;

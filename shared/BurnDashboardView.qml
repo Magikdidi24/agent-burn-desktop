@@ -94,8 +94,6 @@ Item {
 
     readonly property var sub: agent ? Burn.subEntry(agent) : null
     readonly property var limits: agent ? Burn.windows(agent) : []
-    readonly property var weekly: limits.find(w => w.key === "weekly") ?? null
-    readonly property var weeklyPace: weekly ? Burn.pace(agent, "weekly") : null
     readonly property var harness: agent ? (Burn.harnesses[agent] ?? null) : null
 
     property string sortKey: "totalCost"
@@ -226,6 +224,81 @@ Item {
             spacing: 5
             Txt { text: "●"; color: badge.tone; font.pixelSize: 11; Accessible.ignored: true }
             Txt { text: badge.label; font.pixelSize: 11; font.bold: true }
+        }
+    }
+
+    // A limit window up to its reset: % left, pace verdict, readings and forecast. Hidden while its start is
+    // unknown (Codex session: no reset time, nothing to draw) and once it is over (reading older than the window).
+    component LimitCard: Card {
+        id: lim
+        property string agent
+        property string key
+        property string caption
+        readonly property var w: Burn.windows(agent).find(x => x.key === key) ?? null
+        readonly property var pace: w ? Burn.pace(agent, key) : null
+        visible: !!w && w.startMs > 0 && (w.resetsAtMs || w.startMs + w.durationMin * 60000) > Burn.now
+        Row {
+            width: parent.width
+            spacing: 24
+            Column {
+                id: limCol
+                width: 260
+                spacing: 10
+                Txt {
+                    text: lim.caption
+                    color: Colors.muted
+                    font.pixelSize: 11
+                    font.bold: true
+                    font.letterSpacing: 0.6
+                }
+                Row {
+                    spacing: 8
+                    Txt { id: limLeft; text: Burn.pct(lim.w?.remaining); font.pixelSize: 40; font.bold: true }
+                    Txt { anchors.baseline: limLeft.baseline; text: "left"; color: Colors.muted; font.pixelSize: 13 }
+                }
+                Row {
+                    spacing: 8
+                    Txt {
+                        text: lim.pace?.status === "good" ? "\uf058" : "\uf071"  // check-circle / warning
+                        color: Burn.tone(lim.pace?.status)
+                        font.pixelSize: 14
+                        Accessible.ignored: true
+                    }
+                    Txt {
+                        width: limCol.width - 30
+                        wrapMode: Text.WordWrap
+                        text: lim.pace?.title ?? ""
+                        font.pixelSize: 13
+                        font.bold: true
+                    }
+                }
+                Txt {
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    text: lim.pace?.detail ?? ""
+                    color: Colors.muted
+                }
+                Txt {
+                    id: limReset
+                    readonly property string when: "Resets " + Burn.until(lim.w?.resetsAtMs ?? 0)
+                    visible: (lim.w?.resetsAtMs ?? 0) > 0
+                    text: "\uf017  " + limReset.when  // clock
+                    color: Colors.muted
+                    Accessible.name: limReset.when
+                    spoken: false
+                }
+            }
+            BurnQuotaChart {
+                width: parent.width - limCol.width - parent.spacing
+                height: 220
+                startMs: lim.w?.startMs ?? 0
+                // Unknown reset: theoretical end of the window.
+                endMs: lim.w ? (lim.w.resetsAtMs || lim.w.startMs + lim.w.durationMin * 60000) : 0
+                samples: lim.w ? Burn.quotaSamples(lim.agent, lim.key) : []
+                used: lim.w?.used ?? -1
+                projected: lim.pace?.projected ?? -1
+                accent: Burn.tone(lim.pace?.status)
+            }
         }
     }
 
@@ -580,74 +653,9 @@ Item {
                 }
             }
 
-            // Weekly limit: what is left, pace and trajectory up to the reset.
-            Card {
-                width: parent.width
-                visible: root.weekly !== null
-                Row {
-                    width: parent.width
-                    spacing: 24
-                    Column {
-                        id: weekCol
-                        width: 260
-                        spacing: 10
-                        Txt {
-                            text: "WEEKLY LIMIT"
-                            color: Colors.muted
-                            font.pixelSize: 11
-                            font.bold: true
-                            font.letterSpacing: 0.6
-                        }
-                        Row {
-                            spacing: 8
-                            Txt { id: weekLeft; text: Burn.pct(root.weekly?.remaining); font.pixelSize: 40; font.bold: true }
-                            Txt { anchors.baseline: weekLeft.baseline; text: "left"; color: Colors.muted; font.pixelSize: 13 }
-                        }
-                        Row {
-                            spacing: 8
-                            Txt {
-                                text: root.weeklyPace?.status === "good" ? "\uf058" : "\uf071"  // check-circle / warning
-                                color: Burn.tone(root.weeklyPace?.status)
-                                font.pixelSize: 14
-                                Accessible.ignored: true
-                            }
-                            Txt {
-                                width: weekCol.width - 30
-                                wrapMode: Text.WordWrap
-                                text: root.weeklyPace?.title ?? ""
-                                font.pixelSize: 13
-                                font.bold: true
-                            }
-                        }
-                        Txt {
-                            width: parent.width
-                            wrapMode: Text.WordWrap
-                            text: root.weeklyPace?.detail ?? ""
-                            color: Colors.muted
-                        }
-                        Txt {
-                            id: weekReset
-                            readonly property string when: "Resets " + Burn.until(root.weekly?.resetsAtMs ?? 0)
-                            visible: (root.weekly?.resetsAtMs ?? 0) > 0
-                            text: "\uf017  " + weekReset.when  // clock
-                            color: Colors.muted
-                            Accessible.name: weekReset.when
-                            spoken: false
-                        }
-                    }
-                    BurnQuotaChart {
-                        width: parent.width - weekCol.width - parent.spacing
-                        height: 220
-                        startMs: root.weekly?.startMs ?? 0
-                        // Unknown reset: theoretical end of the window.
-                        endMs: root.weekly ? (root.weekly.resetsAtMs || root.weekly.startMs + root.weekly.durationMin * 60000) : 0
-                        samples: root.weekly ? Burn.quotaSamples(root.agent, "weekly") : []
-                        used: root.weekly?.used ?? -1
-                        projected: root.weeklyPace?.projected ?? -1
-                        accent: Burn.tone(root.weeklyPace?.status)
-                    }
-                }
-            }
+            // Weekly limit, then the 5-hour session: what is left, pace and trajectory up to the reset.
+            LimitCard { width: parent.width; agent: root.agent; key: "weekly"; caption: "WEEKLY LIMIT" }
+            LimitCard { width: parent.width; agent: root.agent; key: "session"; caption: "5-HOUR SESSION" }
 
             // Subscription over 30 days (`harness <agent>`): value for money and cost per token type.
             Row {
