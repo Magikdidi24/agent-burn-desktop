@@ -2,7 +2,8 @@
 # Smoke test of a macOS zip on a Mac (CI: "macos" jobs), the app as a user gets it: unzipped with ditto, Info.plist,
 # ad hoc signature without sandbox, architecture, bundled CLI, selftest of the unzipped app (build-info.json read:
 # version and target) with start at login turned on then off (LaunchAgent plist checked), tray mode for 10 s, a 2nd
-# launch handed over to it. In a throwaway HOME, never the real one. The x64 app runs under Rosetta 2 on Apple Silicon.
+# launch handed over to it, the updater's bundle swap and reopening. In a throwaway HOME, never the real one (the
+# reopened app aside, which LaunchServices starts). The x64 app runs under Rosetta 2 on Apple Silicon.
 #   bash mac/smoke.sh ZIP [OUTPUT]      ZIP: AgentBurn-<version>-macos-<arm64|x64>.zip
 # OUTPUT (logs, captures): dist/mac-<arch>/smoke by default. Code ≠ 0 at the 1st failure. For the bash 3.2 of macOS.
 set -euo pipefail
@@ -97,4 +98,34 @@ grep -q "opened the dashboard of the running instance" "$LOG" ||
 ok "tray mode alive after 10 s; 2nd launch handed over, code 0 in $((SECONDS - t)) s"
 kill "$pid" && wait "$pid" || true
 pid=
-step "OK: zip, signature, bundled CLI, selftests, start at login, tray mode, 2nd launch"
+
+step "Update: the updater's script swaps the bundles once the app has quit, then opens the new one"
+# HELPER read from updater.py without importing it (no PySide6 here), run the way the app runs it: a stand-in
+# installed copy, the new version unpacked in a work folder, a short-lived process in the app's place.
+HELPER=$(python3 -c 'import ast, sys
+print(next(n.value.value for n in ast.parse(open(sys.argv[1]).read()).body
+           if isinstance(n, ast.Assign) and getattr(n.targets[0], "id", "") == "HELPER"), end="")' \
+    "$HERE/app/agentburn/updater.py")
+U=$(mktemp -d /tmp/abupd.XXXXXX)
+mkdir "$U/Applications" "$U/work"
+ditto "$APP" "$U/Applications/Agent Burn.app"
+ditto "$APP" "$U/work/Agent Burn.app"
+new=$(stat -f %i "$U/work/Agent Burn.app")   # the new bundle, recognized by its inode once moved in place
+sleep 2 &
+t=$SECONDS
+/bin/sh -c "$HELPER" sh $! "$U/Applications/Agent Burn.app" "$U/work" || die "update script: code $?"
+[ $((SECONDS - t)) -ge 1 ] || die "the update script did not wait for the app to quit"
+[ "$(stat -f %i "$U/Applications/Agent Burn.app")" = "$new" ] || die "the new bundle is not in place"
+[ ! -e "$U/work" ] || die "the old bundle was not removed: $(ls "$U/work")"
+codesign --verify --deep --strict "$U/Applications/Agent Burn.app" || die "signature broken by the swap"
+# open: launched by LaunchServices, so with the runner's own HOME, not the throwaway one (real CLI, no usage there).
+for _ in $(seq 20); do
+    pid=$(pgrep -n -f "$U/Applications/Agent Burn.app/Contents/MacOS/AgentBurn" || true)
+    [ -z "$pid" ] || break
+    sleep 1
+done
+[ -n "$pid" ] || die "the update script did not open the new app"
+ok "bundle swapped after the app quit, old one removed, new one opened (pid $pid)"
+kill "$pid" 2>/dev/null; pid=
+rm -rf "$U"
+step "OK: zip, signature, bundled CLI, selftests, start at login, tray mode, 2nd launch, update swap"

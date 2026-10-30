@@ -507,8 +507,8 @@ branch, tag or pull request; a push and the pull request of its branch each get 
   `setDesktopFileName`, autostart), the `AgentBurn` application name (`WM_CLASS` on X11 ↔
   `StartupWMClass`), the `AgentBurn.exe` and `agent-burn-desktop` executables, the CLI in `<exe directory>/bin/`,
   the `build-info.json` keys (`appVersion`, `cliRev`, `cliVersion`, `target`, `builtAt`) written by the
-  two build scripts (the `target` values `windows-x64`, `windows-arm64`, `macos-arm64` and `macos-x64` also turn the updater on:
-  `updater.ASSETS`), the `desktop-v<ver>` tag and the `AgentBurn-Setup-<ver>-<arch>.exe`,
+  build scripts (the `target` values `windows-x64`, `windows-arm64`, `macos-arm64` and `macos-x64` also turn the
+  updater on: `updater.ASSETS`), the `desktop-v<ver>` tag and the `AgentBurn-Setup-<ver>-<arch>.exe`,
   `AgentBurn-<ver>-macos-<arch>.zip` and `SHA256SUMS` release files (`build.ps1`, `installer.iss`, the macOS build,
   the release job, `updater.py`), the macOS bundle name and identifier (`Agent Burn.app`,
   `io.github.magikdidi24.AgentBurn`: `updater.BUNDLE`, `updater.BUNDLE_ID`), the `/relaunch=1` parameter

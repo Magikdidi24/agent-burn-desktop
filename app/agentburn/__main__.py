@@ -246,7 +246,7 @@ def run(args):
     data = paths.data_dir()
     desktop = diagnostics.Desktop(os.environ["AGENT_BURN_BIN"], data, settings_file,
                                   Path(args.selftest) if args.selftest else paths.log_dir(), paths.cache_dir())
-    # Frozen Windows builds only (their build-info.json target); checks start with the tray icon.
+    # Frozen Windows and macOS builds only (their build-info.json target); checks start with the tray icon.
     upd = updater.Updater(desktop.buildInfo["target"], Path(sys.executable).parent, cfg)
     hints = QGuiApplication.styleHints()
 

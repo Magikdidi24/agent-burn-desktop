@@ -32,7 +32,7 @@ privacy, troubleshooting, uninstalling); for developers: [architecture](docs/ARC
 
 CI ([`ci.yml`](.github/workflows/ci.yml)) reruns the Windows, Linux and macOS checks above on every push (results in
 the Actions tab). Its first complete run, all green, was on 2026-10-25, just before the app got its own repository. I
-also run, locally on Linux and from source: unit tests (133), the core suite under Quickshell 0.3.2 and under the
+also run, locally on Linux and from source: unit tests (152), the core suite under Quickshell 0.3.2 and under the
 app (342 checks, 29 with corrupted files, 6 with a stuck CLI), selftests, and the nested KWin sessions from the
 table.
 
@@ -182,9 +182,10 @@ The rest (icon, popover, dashboard, settings, troubleshooting, uninstalling): [d
   Rosetta 2). Not seen: the menu bar icon and its clicks (left, right, Control-click; read from Qt's sources), the
   popover under it, Gatekeeper, the Keychain question, a launch at login, a reopen from Finder.
 - Not signed (SmartScreen, antivirus).
-- Updates from the app: Windows only, the portable zip only opens the download page, and 1.0.0 predates them. On
-  Linux, install the new package by hand. No update has gone through on a real Windows yet: CI runs the installer
-  the way the app does (`/relaunch=1`), and the tests use a fake GitHub.
+- Updates from the app: Windows and macOS. The Windows portable zip, and a Mac app in a folder you can't write to,
+  only open the download page, and 1.0.0 predates updates. On Linux, install the new package by hand. No update has
+  gone through on a real Windows or Mac yet: CI runs the Windows installer the way the app does (`/relaunch=1`), and
+  the tests use a fake GitHub.
 - Wayland: the compositor places the popover. GNOME: system tray only with the AppIndicator extension.
 - Linux: no idle detection, so readings go on while the session is idle (Windows and macOS pause them after 5 min
   without input).
