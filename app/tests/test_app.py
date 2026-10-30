@@ -289,6 +289,12 @@ class Placement(unittest.TestCase):
         self.assertEqual(edge, Qt.BottomEdge)
         self.assertEqual(pos.y(), 1044 - 16 - 600)
 
+    def test_macos_menu_bar_over_a_bottom_dock(self):
+        # Work area cut at the top (menu bar) and at the bottom (Dock): the icon, in the menu bar, decides.
+        pos, edge = place(QRect(1300, 0, 32, 24), QRect(0, 0, 1440, 900), QRect(0, 25, 1440, 800), CARD)
+        self.assertEqual(edge, Qt.TopEdge)
+        self.assertEqual(pos, QPoint(1440 - 16 - 440, 25 + 16))
+
     def test_second_screen(self):
         pos, edge = place(QRect(4400, 1400, 24, 24), QRect(1920, 0, 2560, 1440), QRect(1920, 0, 2560, 1392), CARD)
         self.assertEqual(edge, Qt.BottomEdge)
