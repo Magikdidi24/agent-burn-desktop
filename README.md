@@ -181,15 +181,16 @@ The rest (icon, popover, dashboard, settings, troubleshooting, uninstalling): [d
 - I have never run it on a real Mac, only on GitHub's macOS runners (arm64 virtual machines, the Intel app under
   Rosetta 2). Not seen: the menu bar icon and its clicks (left, right, Control-click; read from Qt's sources), the
   popover under it, Gatekeeper, the Keychain question, a launch at login, a reopen from Finder.
-- Not signed (SmartScreen, antivirus); on macOS, signed ad hoc, not notarized (Gatekeeper, see [macOS](#macos)).
-- macOS: start at login is a LaunchAgent. Turned off in System Settings → General → Login Items ("Allow in the
-  Background"), it stays on in the app, which only sees its plist. After moving the app, turn it on again.
+- Not signed (SmartScreen, antivirus).
 - Updates from the app: Windows only, the portable zip only opens the download page, and 1.0.0 predates them. On
   Linux, install the new package by hand. No update has gone through on a real Windows yet: CI runs the installer
   the way the app does (`/relaunch=1`), and the tests use a fake GitHub.
 - Wayland: the compositor places the popover. GNOME: system tray only with the AppIndicator extension.
 - Linux: no idle detection, so readings go on while the session is idle (Windows and macOS pause them after 5 min
   without input).
+- macOS: signed ad hoc, not notarized (Gatekeeper, see [macOS](#macos)). Start at login is a LaunchAgent: turned
+  off in System Settings → General → Login Items ("Allow in the Background"), it stays on in the app, which only
+  sees its plist; after moving the app, turn it on again.
 - I have only seen Codex with test data (synthetic or cleaned), never with a real Codex account.
 - Outside Claude, limit windows are assumed to be 5 h and 7 days.
 - Screen readers: the app exposes the texts of the popover and the dashboard, a one-sentence summary of each

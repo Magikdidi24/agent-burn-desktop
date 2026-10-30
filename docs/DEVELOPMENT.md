@@ -193,6 +193,23 @@ runs the selftest of the installed app (software rendering, then Mesa OpenGL und
 that no file is left. On Arch, it also tries the AppImage (`APPIMAGE_EXTRACT_AND_RUN=1`). Logs and captures:
 `dist/linux/smoke-<distro>-<version>/` (in CI, `smoke-<n>` artifact on failure).
 
+### macOS app: `smoke.sh`
+
+```sh
+bash mac/smoke.sh dist/mac-arm64/AgentBurn-<ver>-macos-arm64.zip   # or the x64 zip, under Rosetta 2 on Apple Silicon
+```
+
+It works in a throwaway HOME (`/tmp/abhome.*`, short for the single-instance socket), never the real one, and
+checks the zip the way a user gets it: unzipped with `ditto`, `Agent Burn.app` at its top, Info.plist (identifier,
+executable, version, `LSUIElement`), `codesign --verify --deep --strict`, no App Sandbox entitlement, the
+architecture of the exe and of the bundled CLI (`lipo -archs`), the CLI's `--version`, `build-info.json`; then a
+selftest of the unzipped app that turns start at login on (the LaunchAgent: label, `ProgramArguments` = the exe,
+`RunAtLoad`) and one that turns it off (plist gone), both also checking that the app read its `build-info.json`
+(version and target in its log); then menu bar mode for 10 s and a 2nd launch that hands over to it (code 0, the
+1st one still running, "opened the dashboard of the running instance" in the log). Outputs in
+`dist/mac-<arch>/smoke/` (in CI, `selftest-macos-<arch>` artifact, without the unzipped app). It has run only on
+GitHub's `macos-15` runner, never on a real Mac.
+
 ### Windows installer: `smoke.ps1`
 
 ```powershell
@@ -210,23 +227,6 @@ portable zip. Outputs in `dist/smoke/` (in CI, `selftest-windows-<arch>` artifac
 the zip). It runs in CI, on the `windows-2025` runner (Windows Server 2025), never on a desktop Windows; before
 CI, its logic had been replayed in Python under Wine (43 checks out of 43, plus an update over an old
 installation and the refusal of the arm64 installer on x64).
-
-### macOS app: `smoke.sh`
-
-```sh
-bash mac/smoke.sh dist/mac-arm64/AgentBurn-<ver>-macos-arm64.zip   # or the x64 zip, under Rosetta 2 on Apple Silicon
-```
-
-It works in a throwaway HOME (`/tmp/abhome.*`, short for the single-instance socket), never the real one, and
-checks the zip the way a user gets it: unzipped with `ditto`, `Agent Burn.app` at its top, Info.plist (identifier,
-executable, version, `LSUIElement`), `codesign --verify --deep --strict`, no App Sandbox entitlement, the
-architecture of the exe and of the bundled CLI (`lipo -archs`), the CLI's `--version`, `build-info.json`; then a
-selftest of the unzipped app that turns start at login on (the LaunchAgent: label, `ProgramArguments` = the exe,
-`RunAtLoad`) and one that turns it off (plist gone), both also checking that the app read its `build-info.json`
-(version and target in its log); then menu bar mode for 10 s and a 2nd launch that hands over to it (code 0, the
-1st one still running, "opened the dashboard of the running instance" in the log). Outputs in
-`dist/mac-<arch>/smoke/` (in CI, `selftest-macos-<arch>` artifact, without the unzipped app). It has run only on
-GitHub's `macos-15` runner, never on a real Mac.
 
 ### In-app update (Windows)
 
@@ -475,21 +475,23 @@ branch, tag or pull request; a push and the pull request of its branch each get 
   `grep -nP '[\x{E000}-\x{F8FF}]' shared/*.qml app/qml/*.qml app/agentburn/*.py`.
 - Text coming from the CLI is shown as `Text.PlainText`; processes are launched with argv; writes are atomic.
 - A deliberate shortcut carries a `shortcut: <limit>, <when to revisit>` comment.
+- macOS, to keep in sync too: the bundle identifier (`agentburn.spec`) and the LaunchAgent label
+  (`platform_mac.py`), both the `io.github.magikdidi24.AgentBurn` id and checked by `mac/smoke.sh`; the
+  `Agent Burn.app/Contents/MacOS/AgentBurn` executable and the CLI in `Contents/Frameworks/bin/` (`sys._MEIPASS`);
+  the `build-info.json` targets `macos-arm64` and `macos-x64` and the `AgentBurn-<ver>-macos-<arch>.zip` release
+  files (`mac/build.sh`, `mac/smoke.sh`, the release job); the font sums in `mac/build.sh` too.
 - Platform-specific code goes in `platform_win.py`, `platform_linux.py` or `platform_mac.py`, directories in
   `paths.py` only.
 - To keep in sync: the `io.github.magikdidi24.AgentBurn` id (`.desktop` file, icons, AppStream,
-  `setDesktopFileName`, autostart; on macOS the bundle identifier in `agentburn.spec` and the LaunchAgent label in
-  `platform_mac.py`, both checked by `mac/smoke.sh`), the `AgentBurn` application name (`WM_CLASS` on X11 ↔
-  `StartupWMClass`), the `AgentBurn.exe`, `agent-burn-desktop` and `Agent Burn.app/Contents/MacOS/AgentBurn`
-  executables, the CLI in `bin/` of the bundle (`sys._MEIPASS`), the `build-info.json` keys (`appVersion`,
-  `cliRev`, `cliVersion`, `target`, `builtAt`) written by the three build scripts (the Windows `target` values,
-  `windows-x64` and `windows-arm64`, also turn the updater on: `updater.ARCHS`; the macOS ones are `macos-arm64` and
-  `macos-x64`), the `desktop-v<ver>` tag and the `AgentBurn-Setup-<ver>-<arch>.exe` and `SHA256SUMS` release files
-  (`build.ps1`, `installer.iss`, the release job, `updater.py`), the `AgentBurn-<ver>-macos-<arch>.zip` release files
-  (`mac/build.sh`, `mac/smoke.sh`, the release job), the `/relaunch=1` parameter (`updater.py`, `installer.iss`,
-  `smoke.ps1`), the digest of the build image (workflow and `linux/build-local.sh`), the sums of the extracted
-  JetBrainsMono Nerd Font fonts (`linux/build.sh`, `build.ps1` and `mac/build.sh`) and the version in their cache key
-  (workflow).
+  `setDesktopFileName`, autostart), the `AgentBurn` application name (`WM_CLASS` on X11 ↔
+  `StartupWMClass`), the `AgentBurn.exe` and `agent-burn-desktop` executables, the CLI in `<exe directory>/bin/`,
+  the `build-info.json` keys (`appVersion`, `cliRev`, `cliVersion`, `target`, `builtAt`) written by the
+  two build scripts (the Windows `target` values, `windows-x64` and `windows-arm64`, also turn the updater on:
+  `updater.ARCHS`), the `desktop-v<ver>` tag and the `AgentBurn-Setup-<ver>-<arch>.exe` and `SHA256SUMS`
+  release files (`build.ps1`, `installer.iss`, the release job, `updater.py`), the `/relaunch=1` parameter
+  (`updater.py`, `installer.iss`, `smoke.ps1`), the digest of the build image (workflow and
+  `linux/build-local.sh`), the sums of the extracted JetBrainsMono Nerd Font fonts (`linux/build.sh` and
+  `build.ps1`) and the version in their cache key (workflow).
 
 ## ARM64
 
