@@ -97,9 +97,10 @@ class QuickshellGlobal(QObject):
 
     @Slot(list)
     def execDetached(self, command):
-        # "xdg-open" of the Linux QML: File Explorer on Windows. Elsewhere xdg-open itself, with
-        # child_environment(): QDesktopServices would pass it the frozen bundle's environment.
-        if command[0] == "xdg-open" and sys.platform == "win32":
+        # "xdg-open" of the Linux QML: File Explorer on Windows, Finder or the browser on macOS (opened by the
+        # system, not as our child). Linux: xdg-open itself, with child_environment(): QDesktopServices would pass
+        # it the frozen bundle's environment.
+        if command[0] == "xdg-open" and sys.platform in ("win32", "darwin"):
             QDesktopServices.openUrl(QUrl.fromUserInput(command[1]))
             return
         p = QProcess()
@@ -293,12 +294,12 @@ class IdleMonitor(QObject):
         super().__init__(parent)
         self._timeout = 0.0
         self._idle = False
-        # Windows: last input polled every 5 s.
-        # shortcut: never idle elsewhere, the Linux desktop app keeps taking readings while idle;
+        # Windows and macOS: last input polled every 5 s.
+        # shortcut: never idle on Linux, the Linux desktop app keeps taking readings while idle;
         # hook up ext-idle-notify (Wayland) or XScreenSaver (X11) if that usage matters.
-        # shortcut: inhibitors ignored on Windows (video without input = idle, unlike the
+        # shortcut: inhibitors ignored on Windows and macOS (video without input = idle, unlike the
         # respectInhibitors of qs), to review if the icon freezes during a video.
-        if sys.platform == "win32":
+        if sys.platform in ("win32", "darwin"):
             self._poll = QTimer(self, interval=5000, timeout=lambda: self._check())   # no bound method: see Process
             self._poll.start()
 
@@ -306,8 +307,11 @@ class IdleMonitor(QObject):
     isIdle = Property(bool, lambda self: self._idle, notify=isIdleChanged)
 
     def _check(self):
-        from agentburn import platform_win
-        idle = self._timeout > 0 and platform_win.idle_seconds() >= self._timeout
+        if sys.platform == "win32":
+            from agentburn import platform_win as system
+        else:
+            from agentburn import platform_mac as system
+        idle = self._timeout > 0 and system.idle_seconds() >= self._timeout
         if idle != self._idle:
             self._idle = idle
             self.isIdleChanged.emit()

@@ -1,4 +1,4 @@
-# Agent Burn desktop app (Windows, Linux X11 and Wayland): tray icon, popover, dashboard and settings
+# Agent Burn desktop app (Windows, Linux X11 and Wayland, macOS): tray icon, popover, dashboard and settings
 # on the agent-burn CLI, with the QML of the Quickshell module. With AGENT_BURN_FAKE_DIR, the CLI calls
 # (summary, harness) are served by the app itself, without Qt: the fake agent-burn of the tests and of
 # the frozen selftest.
@@ -73,9 +73,9 @@ def main():
     parser.add_argument("--show", choices=("popover", "dashboard"), help="dev: this window only, without the tray icon")
     args = parser.parse_args()
     if args.selftest:
-        # Real renderer: the software one would ignore masks and shadows. Offscreen except on Windows,
-        # where the offscreen platform has no native window for D3D11 (empty captures).
-        if sys.platform != "win32":
+        # Real renderer: the software one would ignore masks and shadows. Offscreen except on Windows and
+        # macOS, where the offscreen platform has no native window for D3D11 or Metal (empty captures).
+        if sys.platform not in ("win32", "darwin"):
             os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
         os.environ.setdefault("QT_QUICK_BACKEND", "rhi")
     # Linux: render loop without a dedicated thread. Qt 6.12's threaded one crashes in QtWaylandClient
@@ -88,7 +88,8 @@ def main():
         OWN_ENV.add("QSG_RENDER_LOOP")
     if "AGENT_BURN_BIN" not in os.environ:   # read by Burn.qml at load time
         exe = "agent-burn.exe" if sys.platform == "win32" else "agent-burn"   # Linux bundle: no .exe
-        os.environ["AGENT_BURN_BIN"] = (str(Path(sys.executable).parent / "bin" / exe) if FROZEN
+        # Frozen: bin/ of the bundle, next to the exe (macOS: Contents/Frameworks/bin).
+        os.environ["AGENT_BURN_BIN"] = (str(Path(sys._MEIPASS) / "bin" / exe) if FROZEN
                                         else shutil.which("agent-burn") or str(Path.home() / ".local" / "bin" / "agent-burn"))
     if not args.selftest:
         return run(args)
@@ -234,6 +235,10 @@ def run(args):
     if FROZEN:   # dev: no installed exe to start at login
         if sys.platform == "win32":
             from agentburn import platform_win as system
+        elif sys.platform == "darwin":
+            from agentburn import platform_mac
+            # The .app only, not the bare onedir folder PyInstaller leaves next to it.
+            system = platform_mac if Path(sys.executable).parent.match("*.app/Contents/MacOS") else None
         else:
             from agentburn import platform_linux as system
     settings_file = None if mode == "selftest" else paths.settings_file()
@@ -301,6 +306,13 @@ def run(args):
             QMetaObject.invokeMethod(root, "openDashboard")
 
         quit_when_closed(app, dash, prefs, cfg, desktop)
+        if sys.platform == "darwin":
+            # Opened again from Finder, Spotlight or Launchpad: macOS activates this instance (reopen event)
+            # instead of starting a 2nd one. Activated with no window shown (the menu counts: a click on it
+            # activates the app), the app was opened that way.
+            app.applicationStateChanged.connect(lambda state: state == Qt.ApplicationState.ApplicationActive
+                                                and not any(w.isVisible() for w in app.topLevelWindows())
+                                                and QMetaObject.invokeMethod(root, "openDashboard"))
     else:
         # Without an icon (dev), the app lives as long as a window is open.
         def quit_if_hidden(*_):

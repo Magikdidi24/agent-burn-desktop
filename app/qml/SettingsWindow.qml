@@ -379,7 +379,7 @@ ApplicationWindow {
                         label: "Display"
                         // "Wayland (KDE)"; the session only if it differs (X11 app on Wayland: XWayland).
                         value: {
-                            const name = n => ({ wayland: "Wayland", xcb: "X11", x11: "X11", windows: "Windows" })[n] ?? n;
+                            const name = n => ({ wayland: "Wayland", xcb: "X11", x11: "X11", windows: "Windows", cocoa: "macOS" })[n] ?? n;
                             const shown = name(Desktop.platformName), session = name(Desktop.sessionType);
                             const extra = [Desktop.desktopEnv, session && session !== shown ? session + " session" : ""].filter(x => x);
                             return shown + (extra.length ? " (" + extra.join(", ") + ")" : "");

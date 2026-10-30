@@ -149,7 +149,7 @@ class Startup(unittest.TestCase):
         # (selftest) the basic loop captures the enlarged popover badly, and no Wayland is involved.
         for platform, qpa, preset, loop in (("linux", None, None, "basic"), ("linux", "xcb", None, "basic"),
                                             ("linux", None, "threaded", "threaded"), ("linux", "offscreen", None, None),
-                                            ("win32", None, None, None)):
+                                            ("win32", None, None, None), ("darwin", None, None, None)):
             with mock.patch.dict(os.environ, {"AGENT_BURN_BIN": "agent-burn"}), mock.patch.object(sys, "platform", platform), \
                     mock.patch.object(sys, "argv", ["agentburn"]), mock.patch.object(appmain, "run", return_value=0):
                 for name, value in (("QT_QPA_PLATFORM", qpa), ("QSG_RENDER_LOOP", preset)):
@@ -166,14 +166,17 @@ class SingleInstance(unittest.TestCase):
         # Two launches at the same moment: the winner holds the lock but is not listening yet; the loser
         # does not become a 2nd instance (2nd icon, duplicate CLI runs), it hands over as soon as the server listens.
         gui()
-        with tempfile.TemporaryDirectory() as tmp:
+        mac = sys.platform == "darwin"
+        with tempfile.TemporaryDirectory(dir="/tmp" if mac else None) as tmp:   # macOS: socket path ≤ 104 bytes
             rt = Path(tmp) / "rt"
             rt.mkdir(mode=0o700)
-            name = str(rt / "AgentBurn.sock")
+            # Linux: the runtime directory; macOS: the cache under HOME.
+            name = str(Path(tmp) / "Library" / "Caches" / "AgentBurn" / "AgentBurn.sock" if mac else rt / "AgentBurn.sock")
+            Path(name).parent.mkdir(parents=True, exist_ok=True)
             lock = QLockFile(name + ".lock")
             self.assertTrue(lock.tryLock(0))
             env = {**os.environ, "XDG_RUNTIME_DIR": str(rt), "QT_QPA_PLATFORM": "offscreen", "QT_QPA_PLATFORMTHEME": "none",
-                   "AGENT_BURN_DATA": tmp,
+                   "AGENT_BURN_DATA": tmp, "HOME": tmp,
                    "AGENT_BURN_FAKE_DIR": str(FIXTURES), "AGENT_BURN_BIN": str(APP / "tests" / "fake-agent-burn"),
                    **{v: f"{tmp}/{v}" for v in ("XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME")}}
             loser = subprocess.Popen([sys.executable, "-m", "agentburn"], cwd=APP, env=env,

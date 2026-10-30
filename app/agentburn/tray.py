@@ -1,7 +1,9 @@
 # System tray icon: % left of the tightest limit on a badge tinted by pace
 # (the Linux bar's pill); click = popover or dashboard (setting), double-click =
-# dashboard, middle click = refresh, right click = menu with the status on top.
+# dashboard, middle click = refresh, right click (macOS: or Control-click) = menu
+# with the status on top.
 import logging
+import sys
 import time
 
 from PySide6.QtCore import QMetaObject, QObject, QPoint, QRect, QRectF, QSize, Qt, QTimer, Q_ARG
@@ -10,8 +12,9 @@ from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
 GAP = 16   # card ↔ taskbar; = PopoverWindow's shadow margin (pad), nothing spills onto it
 # Actual icon sizes by display scale (100% → 16 px … 200% → 32 px): each one
-# drawn at its size, never scaled.
-SIZES = (16, 20, 24, 28, 32, 40, 48, 64)
+# drawn at its size, never scaled. macOS takes the largest one up to the menu bar height
+# minus 4 pt (18 or 20 pt): 16 pt there, at 1× and 2×, close to its own icons.
+SIZES = (16, 32) if sys.platform == "darwin" else (16, 20, 24, 28, 32, 40, 48, 64)
 LINES = 3   # status lines at the top of the menu (Main.menuLines)
 log = logging.getLogger("agentburn.tray")
 
@@ -21,7 +24,9 @@ def place(icon, screen, avail, card):
     left, top = avail.x(), avail.y()
     right, bottom = left + avail.width(), top + avail.height()   # exclusive edges
     cx, cy = icon.x() + icon.width() // 2, icon.y() + icon.height() // 2   # QRect.center() rounds down
-    if bottom < screen.y() + screen.height():
+    if icon.y() + icon.height() <= top:   # icon above the work area: top bar, macOS menu bar over a bottom Dock
+        edge = Qt.TopEdge
+    elif bottom < screen.y() + screen.height():
         edge = Qt.BottomEdge
     elif top > screen.y():
         edge = Qt.TopEdge
@@ -160,7 +165,8 @@ class Tray(QObject):
             self.icon.hide()
             self.icon.deleteLater()
         self.icon = QSystemTrayIcon(self)
-        self.icon.setContextMenu(self.menu)
+        if sys.platform != "darwin":   # macOS would open it on every click, left included: see clicked()
+            self.icon.setContextMenu(self.menu)
         self.icon.activated.connect(self.clicked)
         self.paint()
         self.tip()
@@ -204,7 +210,11 @@ class Tray(QObject):
     def clicked(self, reason):
         R = QSystemTrayIcon.ActivationReason
         log.debug("icon: %s", reason.name)
-        if reason == R.Trigger:
+        # macOS: menu on a right click or a Control-click (Qt's Meta there), which comes as a left click.
+        if sys.platform == "darwin" and (reason == R.Context or reason == R.Trigger
+                                         and QGuiApplication.queryKeyboardModifiers() & Qt.MetaModifier):
+            self.context_menu()
+        elif reason == R.Trigger:
             self.dashboard() if self.settings.property("trayClick") == "dashboard" else self.popover()
         elif reason == R.DoubleClick:   # Windows: the 1st click already took effect
             self.dashboard()
@@ -218,6 +228,15 @@ class Tray(QObject):
         elif time.time() * 1000 - self.pop.property("closedAt") > 400:
             open_popover(self.pop, self.icon.geometry())
             QMetaObject.invokeMethod(self.pop, "open")
+
+    def context_menu(self):
+        """macOS: the menu under the icon, in a new QMenu each time. Qt closes a menu clicked away while the app is in
+        the background only if its window was created then (QCocoaWindow::setupPopupMonitor), not when reused."""
+        self.menu.aboutToShow.emit()   # check mark reread
+        menu = self.shown = QMenu()
+        menu.addActions(self.menu.actions())
+        r = self.icon.geometry()
+        menu.popup(QPoint(r.x(), r.y() + r.height()) if r.isValid() else QCursor.pos())
 
     def dashboard(self):
         QMetaObject.invokeMethod(self.root, "openDashboard")

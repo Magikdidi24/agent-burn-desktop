@@ -1,6 +1,6 @@
 # Tray icon tests on the real Main.qml (offscreen windows, fake CLI): menu labels and order,
-# effect of each action, autostart check mark, status lines, update item, clicks, icon recreated when a
-# system tray appears, popover left to the compositor on Wayland.
+# effect of each action, autostart check mark, status lines, update item, clicks (macOS: menu shown by the app),
+# icon recreated when a system tray appears, popover left to the compositor on Wayland.
 #   cd app && python -m unittest discover -s tests -v
 import sys
 import types
@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from test_app import APP, js, main_root, qml_env, wait_for  # noqa: E402
 
-from PySide6.QtCore import QPoint, QRect  # noqa: E402
+from PySide6.QtCore import QPoint, QRect, Qt  # noqa: E402
 from PySide6.QtGui import QGuiApplication  # noqa: E402
 from PySide6.QtQuick import QQuickWindow  # noqa: E402
 from PySide6.QtWidgets import QSystemTrayIcon  # noqa: E402
@@ -156,8 +156,35 @@ class TrayIcon(unittest.TestCase):
             t.clicked(R.MiddleClick)
         self.assertEqual(logs.output, ["DEBUG:agentburn.tray:icon: MiddleClick"])
         self.assertTrue(wait_for(lambda: js(self.root, "Burn.updatedAt") > before, 20))
-        t.clicked(R.Context)   # menu: nothing else
+        with mock.patch.object(t, "context_menu") as menu:
+            t.clicked(R.Context)   # menu: shown by the system, by the app on macOS; nothing else
+        self.assertEqual(menu.called, sys.platform == "darwin")
         self.assertFalse(self.pop.isVisible())
+
+    def test_macos_menu_on_right_or_control_click_only(self):
+        # A context menu set on the status item would open on any click (Qt's cocoa QSystemTrayIcon), left included.
+        with mock.patch.object(sys, "platform", "darwin"):
+            t = self.make()
+            self.assertIsNone(t.icon.contextMenu())
+            popup = mock.patch.object(tray.QMenu, "popup").start()
+            keys = mock.patch.object(tray.QGuiApplication, "queryKeyboardModifiers",
+                                     return_value=Qt.KeyboardModifier.NoModifier).start()
+            self.state["on"] = True   # changed elsewhere: the check mark follows
+            t.clicked(R.Context)
+            self.assertEqual(popup.call_count, 1)
+            self.assertEqual(t.shown.actions(), t.menu.actions())
+            self.assertTrue(t.boot.isChecked())
+            first = t.shown
+            keys.return_value = Qt.KeyboardModifier.MetaModifier   # Control key: a left click with Control held
+            t.clicked(R.Trigger)
+            self.assertEqual(popup.call_count, 2)
+            self.assertIsNot(t.shown, first)   # a new menu each time
+            self.assertFalse(self.pop.isVisible())
+            keys.return_value = Qt.KeyboardModifier.NoModifier
+            self.cfg.trayClick = "popover"
+            t.clicked(R.Trigger)
+            self.assertTrue(wait_for(self.pop.isVisible, 5))
+            self.assertEqual(popup.call_count, 2)
 
     def test_icon_recreated_on_xcb_when_a_tray_host_appears(self):
         desktop = qml_env()["desktop"]
@@ -176,7 +203,7 @@ class TrayIcon(unittest.TestCase):
             # xcb: the icon created without a host stays on XEmbed; Wayland: it registered by itself.
             self.assertIs(t.icon is first, platform == "wayland", platform)
             self.assertTrue(t.icon.isVisible())
-            self.assertIs(t.icon.contextMenu(), t.menu)
+            self.assertIs(t.icon.contextMenu(), None if sys.platform == "darwin" else t.menu)
             self.assertTrue(t.docked)
             self.assertTrue(desktop.trayAvailable)
             self.assertTrue(t.timer.isActive())   # still tracked: a host can disappear

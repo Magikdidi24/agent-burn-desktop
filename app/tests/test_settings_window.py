@@ -210,7 +210,7 @@ class SettingsWindow(unittest.TestCase):
     def test_display_field_in_plain_words(self):
         for platform, desktop, session, shown in (("wayland", "KDE", "wayland", "Wayland (KDE)"),
                                                   ("xcb", "GNOME", "wayland", "X11 (GNOME, Wayland session)"),
-                                                  ("windows", "", "", "Windows")):
+                                                  ("windows", "", "", "Windows"), ("cocoa", "", "", "macOS")):
             with mock.patch.object(diagnostics.QGuiApplication, "platformName", return_value=platform), \
                     mock.patch.dict(os.environ, {"XDG_CURRENT_DESKTOP": desktop, "XDG_SESSION_TYPE": session}):
                 self.open("diagnostic")

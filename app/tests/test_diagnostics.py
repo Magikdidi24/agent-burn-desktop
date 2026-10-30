@@ -1,6 +1,6 @@
 # Diagnostics tests (Desktop singleton): text fields, secrets redacted (Burn error, environment),
 # no environment variable copied, CLI version read in the background, build info,
-# opening folders (xdg-open with the cleaned environment, File Explorer on Windows).
+# opening folders (xdg-open with the cleaned environment, File Explorer on Windows, Finder on macOS).
 #   cd app && python -m unittest discover -s tests -v
 import json
 import os
@@ -115,9 +115,10 @@ class BuildInfo(unittest.TestCase):
         self.assertRegex(b["cliRev"], r"^[0-9a-f]{40}$")
         self.assertRegex(b["cliVersion"], r"^agent-burn \d+\.\d+\.\d+$")
 
-    def test_frozen_reads_build_info_next_to_the_exe(self):
+    def test_frozen_reads_build_info_in_the_bundle(self):
+        # Next to the exe (sys._MEIPASS); macOS: Contents/Frameworks, a link to Contents/Resources.
         with tempfile.TemporaryDirectory() as d, mock.patch.object(sys, "frozen", True, create=True), \
-                mock.patch.object(sys, "executable", str(Path(d) / "AgentBurn.exe")):
+                mock.patch.object(sys, "_MEIPASS", d, create=True):
             info = {"appVersion": "1.2.3", "cliRev": "abc", "cliVersion": "agent-burn 20.0.21",
                     "target": "x86_64-pc-windows-msvc", "builtAt": "2026-10-25T10:00:00Z", "other": 1}
             (Path(d) / "build-info.json").write_text(json.dumps(info), encoding="utf-8")
@@ -129,7 +130,7 @@ class BuildInfo(unittest.TestCase):
 
 
 class OpenDirs(unittest.TestCase):
-    @unittest.skipIf(sys.platform == "win32", "xdg-open: Linux")
+    @unittest.skipUnless(sys.platform.startswith("linux"), "xdg-open: Linux")
     def test_linux_xdg_open_detached_with_clean_environment(self):
         qml_env()
         with tempfile.TemporaryDirectory() as tmp:
@@ -149,14 +150,27 @@ class OpenDirs(unittest.TestCase):
             for name in leaks:
                 self.assertNotIn(name, env)
 
-    def test_windows_uses_the_explorer_and_logs_failures(self):
+    def test_windows_and_macos_open_through_the_system_and_log_failures(self):
         d = desktop()
-        with mock.patch.object(sys, "platform", "win32"), mock.patch.object(diagnostics, "QDesktopServices") as services:
-            services.openUrl.return_value = False
-            with self.assertLogs("agentburn", "WARNING") as logs:
-                d.openDataDir()
-        services.openUrl.assert_called_once_with(QUrl.fromLocalFile(str(qml_env()["data"])))
-        self.assertTrue(re.search(r"cannot open", logs.output[0]))
+        for platform in ("win32", "darwin"):
+            with mock.patch.object(sys, "platform", platform), \
+                    mock.patch.object(diagnostics, "QDesktopServices") as services:
+                services.openUrl.return_value = False
+                with self.assertLogs("agentburn", "WARNING") as logs:
+                    d.openDataDir()
+            services.openUrl.assert_called_once_with(QUrl.fromLocalFile(str(qml_env()["data"])))
+            self.assertTrue(re.search(r"cannot open", logs.output[0]), platform)
+
+    def test_licenses_of_the_bundle(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(sys, "frozen", True, create=True), \
+                mock.patch.object(sys, "_MEIPASS", tmp, create=True):
+            (Path(tmp) / "licenses").mkdir()
+            (Path(tmp) / "build-info.json").write_text("{}", encoding="utf-8")
+            d = desktop()
+            self.assertTrue(d.licensesAvailable)
+            with mock.patch.object(diagnostics, "open_path") as opened:
+                d.openLicenses()
+            opened.assert_called_once_with(Path(tmp) / "licenses")
 
     def test_licenses_only_when_bundled(self):
         d = desktop()

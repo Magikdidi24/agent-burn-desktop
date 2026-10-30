@@ -26,11 +26,12 @@ _BURN = """JSON.stringify({ data: Burn.stateText(Burn.dataState), updatedAt: Bur
 
 
 def build_info():
-    """Frozen: build-info.json placed next to the exe by the build; dev: pinned CLI in cli.env."""
+    """Frozen: build-info.json placed in the bundle by the build (next to the exe; macOS: Contents/Resources,
+    linked from Contents/Frameworks); dev: pinned CLI in cli.env."""
     info = {"appVersion": __version__, "target": "dev"}
     if getattr(sys, "frozen", False):
         try:
-            found = json.loads((Path(sys.executable).parent / "build-info.json").read_text(encoding="utf-8"))
+            found = json.loads((Path(sys._MEIPASS) / "build-info.json").read_text(encoding="utf-8"))
         except (OSError, ValueError) as e:
             log.warning("build-info.json unreadable: %s", e)
             found = {}
@@ -46,8 +47,8 @@ def build_info():
 
 def open_path(path):
     """Directory opened in the file manager. Linux: xdg-open with the environment cleaned by the shim
-    (QDesktopServices would pass it the frozen bundle's one)."""
-    if sys.platform == "win32":
+    (QDesktopServices would pass it the frozen bundle's one); Windows and macOS: by the system."""
+    if sys.platform in ("win32", "darwin"):
         ok = QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
     else:
         p = QProcess()
@@ -77,8 +78,8 @@ class Desktop(QObject):
         self._tray = False    # icon placed in a system tray
         self._root = None
         self._build = build_info()
-        exe = Path(sys.executable).parent / "licenses"
-        self._licenses = exe if getattr(sys, "frozen", False) and exe.is_dir() else None
+        bundled = getattr(sys, "frozen", False) and Path(sys._MEIPASS) / "licenses"
+        self._licenses = bundled if bundled and bundled.is_dir() else None
         app = QGuiApplication.instance()
         app.screenAdded.connect(lambda *_: self.changed.emit())
         app.screenRemoved.connect(lambda *_: self.changed.emit())

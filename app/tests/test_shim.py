@@ -1,6 +1,6 @@
 # Tests of the desktop app's Quickshell shim: environment of launched processes (frozen bundle leaks,
 # inherited CLI settings, HOME on Windows), stderr read before exited, working directory, run log,
-# running declared before command, waiting for runs at shutdown, detached xdg-open.
+# running declared before command, waiting for runs at shutdown, detached xdg-open, idle time polled.
 #   cd app && python -m unittest discover -s tests -v
 import json
 import os
@@ -263,7 +263,7 @@ class WaitForRuns(Runs):
 
 
 class Detached(unittest.TestCase):
-    @unittest.skipIf(sys.platform == "win32", "xdg-open: Linux")
+    @unittest.skipUnless(sys.platform.startswith("linux"), "xdg-open: Linux")
     def test_xdg_open_started_with_clean_environment(self):
         bin_dir, dump = tmp / "bin", tmp / "xdg-open.txt"
         bin_dir.mkdir(exist_ok=True)
@@ -280,11 +280,37 @@ class Detached(unittest.TestCase):
         for name in ("QT_PLUGIN_PATH", "_PYI_ARCHIVE_FILE", "LD_LIBRARY_PATH_ORIG"):
             self.assertNotIn(name, env)
 
-    def test_windows_xdg_open_goes_to_the_explorer(self):
-        path = r"C:\Users\me\AppData\Roaming\AgentBurn"
-        with mock.patch.object(sys, "platform", "win32"), mock.patch.object(shim, "QDesktopServices") as services:
-            shim._global.execDetached(["xdg-open", path])
-        services.openUrl.assert_called_once_with(QUrl.fromUserInput(path))
+    def test_xdg_open_goes_to_the_system_on_windows_and_macos(self):
+        for platform, path in (("win32", r"C:\Users\me\AppData\Roaming\AgentBurn"),
+                               ("darwin", "/Users/me/Library/Application Support/AgentBurn")):
+            with mock.patch.object(sys, "platform", platform), mock.patch.object(shim, "QDesktopServices") as services:
+                shim._global.execDetached(["xdg-open", path])
+            services.openUrl.assert_called_once_with(QUrl.fromUserInput(path))
+
+
+class Idle(unittest.TestCase):
+    def test_last_input_polled_on_windows_and_macos(self):
+        # Burn.qml pauses its rounds after 300 s without input.
+        for platform, module in (("win32", "platform_win"), ("darwin", "platform_mac")):
+            fake = mock.Mock()
+            fake.idle_seconds.return_value = 10.0
+            with mock.patch.object(sys, "platform", platform), mock.patch.dict(sys.modules, {f"agentburn.{module}": fake}), \
+                    mock.patch(f"agentburn.{module}", fake, create=True):
+                monitor, changed = shim.IdleMonitor(), mock.Mock()
+                self.addCleanup(monitor._poll.stop)
+                self.assertTrue(monitor._poll.isActive() and monitor._poll.interval() == 5000, platform)
+                monitor.setProperty("timeout", 300)
+                monitor.isIdleChanged.connect(changed)
+                seen = []
+                for idle in (10.0, 300.0, 400.0, 1.0):
+                    fake.idle_seconds.return_value = idle
+                    monitor._check()
+                    seen.append(monitor.property("isIdle"))
+            self.assertEqual((seen, changed.call_count), ([False, True, True, False], 2), platform)
+
+    def test_never_idle_on_linux(self):   # shortcut in shim.py
+        with mock.patch.object(sys, "platform", "linux"):
+            self.assertFalse(hasattr(shim.IdleMonitor(), "_poll"))
 
 
 if __name__ == "__main__":

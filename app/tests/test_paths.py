@@ -56,8 +56,17 @@ class Paths(unittest.TestCase):
         self.assertEqual(paths.log_dir(), Path("/home/me/.local/state/agent-burn-desktop/logs"))
         self.assertEqual(paths.cache_dir(), Path("/home/me/.cache/agent-burn-desktop"))
 
-    def test_agent_burn_data_overrides_on_both_platforms(self):
-        for platform in ("win32", "linux"):
+    @unittest.skipIf(sys.platform == "win32", "Path.home() reads USERPROFILE on Windows")
+    def test_macos_library_dirs_apart_from_the_cli(self):
+        self.run_as("darwin", {"HOME": "/Users/me", "XDG_DATA_HOME": "/x/data"})   # XDG ignored
+        self.assertEqual(paths.data_dir(), Path("/Users/me/Library/Application Support/AgentBurn"))
+        self.assertEqual(paths.settings_file(), Path("/Users/me/Library/Application Support/AgentBurn/settings.json"))
+        self.assertEqual(paths.log_dir(), Path("/Users/me/Library/Logs/AgentBurn"))
+        self.assertEqual(paths.cache_dir(), Path("/Users/me/Library/Caches/AgentBurn"))   # the CLI's: …/agent-burn
+        self.assertEqual(paths.instance_name(), "/Users/me/Library/Caches/AgentBurn/AgentBurn.sock")
+
+    def test_agent_burn_data_overrides_on_every_platform(self):
+        for platform in ("win32", "linux", "darwin"):
             with mock.patch.dict(os.environ, {**WIN, "AGENT_BURN_DATA": "/fixtures/data"}), \
                     mock.patch.object(sys, "platform", platform):
                 self.assertEqual(paths.data_dir(), Path("/fixtures/data"), platform)
@@ -65,11 +74,15 @@ class Paths(unittest.TestCase):
 
 class InstanceName(unittest.TestCase):
     @unittest.skipIf(sys.platform == "win32", "Unix socket")
-    def test_unix_socket_full_path_in_private_runtime_dir(self):
+    def test_unix_socket_full_path_in_private_dir(self):
         name = paths.instance_name()
         self.assertTrue(os.path.isabs(name), name)
         self.assertNotEqual(Path(name).parent, Path("/tmp"))
-        mode = stat.S_IMODE(Path(name).parent.stat().st_mode)
+        self.assertLess(len(os.fsencode(name)), 104, name)   # sun_path: 104 bytes on macOS, 108 on Linux
+        # Linux: the runtime directory; macOS: the cache, under ~/Library.
+        private = Path.home() / "Library" if sys.platform == "darwin" else Path(name).parent
+        self.assertTrue(Path(name).is_relative_to(private), name)
+        mode = stat.S_IMODE(private.stat().st_mode)
         self.assertEqual(mode, 0o700, oct(mode))
 
     def test_windows_pipe_named_per_user_and_session(self):

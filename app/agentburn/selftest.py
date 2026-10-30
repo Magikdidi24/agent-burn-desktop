@@ -2,6 +2,7 @@
 # or fake); selftest.json lists QML errors and warnings, failed captures and the last CLI error.
 # Exit code 0: everything clean, loaded and captured.
 import json
+import os
 import time
 
 from PySide6.QtCore import QCoreApplication, QEventLoop, QMetaObject
@@ -98,11 +99,16 @@ def run(root, out, problems):
         settle(0.5)
         save(prefs, f"selftest-settings{name}.png")
     prefs.close()
+    # mac/smoke.sh, in a throwaway HOME: start at login set by the app as the Settings switch does, then read back.
+    autostart = os.environ.get("AGENT_BURN_SELFTEST_AUTOSTART")
+    if autostart in ("on", "off"):
+        js(f"Settings.autostart = {str(autostart == 'on').lower()}")
     wait("!Burn.loading", 120)   # no CLI killed mid-run (it writes its shared reading)
 
     cli = js("Burn.error")   # a failed CLI call leaves no QML warning, only this text
     ok = loaded and harness and not cli and not captures and not problems["qmlErrors"] and not problems["warnings"]
     (out / "selftest.json").write_text(json.dumps({"ok": ok, **problems, "captureErrors": captures, "dataLoaded": loaded,
-                                                   "cliError": cli}, ensure_ascii=False, indent=2),
+                                                   "cliError": cli, "autostart": js("Settings.autostart")},
+                                                  ensure_ascii=False, indent=2),
                                        encoding="utf-8")
     return 0 if ok else 1
