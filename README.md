@@ -219,6 +219,26 @@ The rest (icon, popover, dashboard, settings, troubleshooting, uninstalling): [d
   see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#platform-contract).
 - Setup, tests, build and release: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
+## Code signing policy
+
+I'm applying to the SignPath Foundation's open source program for the Windows builds: free code signing provided
+by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org). Until that is
+approved and set up, the Windows app and installer stay unsigned.
+
+- Source: this repository. Releases: [GitHub Releases](https://github.com/Magikdidi24/agent-burn-desktop/releases).
+  Every release is built from its `desktop-v*` tag by the CI workflow
+  ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)); nothing is built or signed on a personal machine.
+- Signed files: `AgentBurn.exe` and the `AgentBurn-Setup-<version>-x64.exe` installer. The third-party files in
+  the bundle (Python, Qt, PySide6, the agent-burn CLI) are not signed as mine.
+- Roles: I maintain the project alone. Committer, reviewer and approver of every signing request:
+  [Berthelot Samuel](https://github.com/Magikdidi24). Changes to the release workflow or this policy go through
+  me.
+- Privacy: the app sends nothing about you or your usage to me or to anyone else. What it does send over the
+  network: the agent-burn CLI asks Claude and Codex for your limits and downloads model prices; on Windows and
+  macOS the app asks GitHub for the latest release once a day; with a currency other than USD, or when you open the
+  currency list, it downloads exchange rates (once a day at most). Details in the
+  [user guide](docs/USAGE.md#privacy-what-the-app-reads-and-writes).
+
 ## Licenses
 
 - Agent Burn (this app): MIT, [LICENSE](LICENSE).
