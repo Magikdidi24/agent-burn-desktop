@@ -451,8 +451,10 @@ branch, tag or pull request; a push and the pull request of its branch each get 
 - Not in CI: the core suite under Quickshell, the core suite on Windows, a QML lint.
 - Durations of the first complete run: tests 3 min 40 s (2 min of it for the "stuck CLI" suite, 20 s since),
   Linux packages 2 min 30 s, Windows x64 10 min, each distro about 1 min, so 15 min end to end; plus 5 to
-  12 min when the CLI is recompiled (estimate). Public repo: GitHub does not bill the minutes of its standard
-  runners. The package artifacts (about 300 MB for Linux and 110 MB for Windows per run) are kept 30 days,
+  12 min when the CLI is recompiled (estimate). The macOS jobs, run in parallel since: about 7 min for Apple
+  Silicon and 10 min for Intel under Rosetta 2, 2 min of each for the CLI when it is compiled. Public repo:
+  GitHub does not bill the minutes of its standard runners. The package artifacts (about 300 MB for Linux,
+  110 MB for Windows and 110 MB for the two macOS zips per run) are kept 30 days,
   uploaded without recompression (`compression-level: 0`): between two releases, that is where users
   find them (see the README).
 

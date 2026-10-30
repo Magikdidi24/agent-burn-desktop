@@ -201,7 +201,8 @@ The rest (icon, popover, dashboard, settings, troubleshooting, uninstalling): [d
   enough. A `QSG_RENDER_LOOP` value that is already set wins; ours is passed neither to the CLI nor to
   `xdg-open`. Not rechecked on a real GPU or a real compositor; Qt bug not reported.
 - Windows: dark title bar not verified (Wine does not apply it), and no effect expected before Windows 10 20H1.
-- Size: about 195 MB installed on Linux; the Windows installer is about 40 MB.
+- Size: about 195 MB installed on Linux; the Windows installer is about 40 MB; the macOS app about 160 MB
+  (a zip of 55 MB).
 - Linux x86_64 only, glibc 2.35 or later. Windows ARM64 is experimental.
 - The CLI is killed if it runs longer than 120 s, and by the installer; on exit, the app waits at most 5 s for a
   run in progress to finish before killing it. If the CLI were rewriting Claude's token at that moment, Claude
