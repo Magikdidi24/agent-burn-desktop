@@ -1,20 +1,26 @@
 # PyInstaller, windowed onedir: AgentBurn.exe on Windows (build.ps1), agent-burn-desktop on Linux
-# (linux/build.sh, slimmed bundle for every distro).
+# (linux/build.sh, slimmed bundle for every distro), Agent Burn.app on macOS (mac/build.sh).
 import os
+import platform
 import re
 import sys
 
 win = sys.platform == 'win32'
+mac = sys.platform == 'darwin'
+# macOS: the architecture of the Python running PyInstaller is the bundle's (thin binaries), arm64 or x64.
+arch = {'arm64': 'arm64', 'x86_64': 'x64'}.get(platform.machine(), platform.machine())
 here = SPECPATH
 app = os.path.join(here, 'app')
 shared = os.path.join(here, 'shared')
 fonts = os.path.join(app, 'fonts')
-name = 'AgentBurn' if win else 'agent-burn-desktop'
-cli = os.path.join(here, 'build', *(('cli', 'bin', 'agent-burn.exe') if win else ('cli-linux', 'bin', 'agent-burn')))
+name = 'AgentBurn' if win or mac else 'agent-burn-desktop'
+cli = os.path.join(here, 'build', *(('cli', 'bin', 'agent-burn.exe') if win else
+                                    (f'cli-mac-{arch}' if mac else 'cli-linux', 'bin', 'agent-burn')))
 extra = os.path.join(here, 'build', 'bundle-extra')   # build-info.json and licenses/, written by the build script
 version = os.path.join(here, 'build', 'version_info.txt')   # written by build.ps1
 
 sys.path.insert(0, app)
+from agentburn import __version__  # noqa: E402
 from agentburn.runtime import SHARED  # noqa: E402  (the list the app assembles at launch)
 
 # Entry = "python -m agentburn": the package's __main__ keeps its relative imports once frozen.
@@ -52,7 +58,7 @@ unused = ('WebEngine', 'WebView', 'WebChannel', 'WebSockets', '3D', 'Quick3D', '
 drop = re.compile(r'(?i)(Qt6?|Qt6Qml|Labs|qml/Qt|qml/QtQuick/|qml/QtQml/|qml/Qt/labs/|imageformats/(lib)?q)(%s)'
                   r'|plugins/qmltooling/|imageformats/(lib)?q(jpeg|tiff|webp|gif|tga|wbmp|icns)\b|opengl32sw'
                   % '|'.join(unused))
-if not win:
+if not (win or mac):
     # Every distro provides them (package dependencies): the bundled bookworm ones hid the system ones
     # (libstdc++ too old: Mesa GLX broken on Fedora 44, Debian 13, Ubuntu 24.04, Arch, Tumbleweed).
     # A family goes as a whole: bookworm's libxkbcommon-x11 on top of Arch's libxkbcommon crashed.
@@ -88,3 +94,10 @@ exe = EXE(
     contents_directory='.',
 )
 coll = COLLECT(exe, a.binaries, a.datas, upx=False, name=name)
+if mac:
+    # Executable in Contents/MacOS, binaries (bin/agent-burn too) in Contents/Frameworks = sys._MEIPASS, data in
+    # Contents/Resources linked from there. Menu bar app: no Dock icon (LSUIElement). Icon made by mac/build.sh.
+    BUNDLE(coll, name='Agent Burn.app', icon=os.path.join(here, 'build', f'mac-{arch}', 'AgentBurn.icns'),
+           bundle_identifier='io.github.magikdidi24.AgentBurn', version=__version__,
+           info_plist={'CFBundleVersion': __version__, 'LSUIElement': True,
+                       'LSMinimumSystemVersion': '14.0'})   # the PySide6 6.12 wheels' floor
