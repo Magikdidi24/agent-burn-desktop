@@ -24,7 +24,7 @@ Tray icon menu:
   ("Codex: Not detected"); without data, "Data unavailable", followed by the cause if there is one
   (": CLI failed (see Settings › Diagnostics)" for example). On Wayland, these lines are the only information
   shown next to the icon.
-- Windows, only while an update is available: "Update to Agent Burn X.Y.Z" (see [Updates](#updates)).
+- Windows and macOS, only while an update is available: "Update to Agent Burn X.Y.Z" (see [Updates](#updates)).
 - Open popover, Open dashboard, Refresh, Start at login (checkbox, unavailable when running from source),
   Settings…, Logs (opens the logs folder), About, Quit.
 
@@ -108,7 +108,7 @@ opened on a section from the tray icon menu (Settings…, About), the window put
 | | Icon click | Popover, Dashboard (Dashboard on Wayland, Popover elsewhere) | Left-click action. |
 | Providers | — | — | Claude Code, Codex, then every other agent seen: state, explanation, age of the reading, last error specific to the agent. agent-burn CLI: location, version ("unreadable" if `--version` prints nothing, "no response (10 s)" if it hangs), report state followed by the CLI error on failure, "Refresh now" button. |
 | Diagnostics | — | — | Versions (app, CLI, CLI expected by the build), system, display ("Wayland (KDE)", "X11 (GNOME, Wayland session)" for an X11 app on Wayland…), screens, system tray, folders. "Open logs", "Open data folder", "Copy diagnostics" buttons. "Detailed log (debug)" switch, no restart needed (content: see [Privacy](#privacy-what-the-app-reads-and-writes)). Recent errors (time, source, message). "Reset settings" button, in two steps: it becomes "Confirm reset" for 5 s, and only a 2nd press resets. |
-| About | — | — | Versions, credit, "Licenses" button (installed app). Windows: update state, "Check for updates" button, and while an update is available "Update now" (installer) or "Open download page" (portable zip); see [Updates](#updates). |
+| About | — | — | Versions, credit, "Licenses" button (installed app). Windows and macOS: update state, "Check for updates" button, and while an update is available "Update now" (installed app) or "Open download page" (portable zip, Mac copy that cannot update itself); see [Updates](#updates). |
 
 Settings are stored in `settings.json` (see [Where the files are](#where-the-files-are)): `refreshMinutes`,
 `theme`, `closeToTray`, `trayClick`, `debugLogging`. An invalid value falls back to its default (noted in the
@@ -118,26 +118,39 @@ says so. Start at login is not stored there: it is read from the system.
 
 ## Updates
 
-Windows only. The app asks GitHub for the latest release a minute after it starts, then once a day; Settings →
+Windows and macOS. The app asks GitHub for the latest release a minute after it starts, then once a day; Settings →
 About → "Check for updates" asks right away. About shows the result ("Agent Burn is up to date", "Agent Burn X.Y.Z
 is available", or why the check failed), and the tray icon menu gets "Update to Agent Burn X.Y.Z" while an update
 is available. A Windows notification announces each new version once. Nothing is downloaded or installed until you
 ask.
 
-- Installed app: "Update now" (or the menu item) downloads the release's installer
+- Windows, installed app: "Update now" (or the menu item) downloads the release's installer
   (`AgentBurn-Setup-X.Y.Z-x64.exe`) into the cache folder, as `AgentBurn-Setup.exe`, and checks its SHA-256
   against the release's `SHA256SUMS`: if they differ, the file is deleted and nothing runs. Then the app starts
   the installer, silently (a progress window only), and quits like menu → Quit (it waits for a CLI run in
   progress). The installer replaces the app, keeps your data and settings, and starts the new version. Start at
   login stays as you set it. If the installation fails or you cancel it, the app is not restarted: start it from
   the Start menu, or run the installer of the new version by hand if it no longer starts.
-- Portable zip: "Open download page" opens the release page in the browser. Download the new zip and put its
-  `AgentBurn` folder in place of the old one (data and settings are in `%APPDATA%\AgentBurn`).
+- Windows, portable zip: "Open download page" opens the release page in the browser. Download the new zip and put
+  its `AgentBurn` folder in place of the old one (data and settings are in `%APPDATA%\AgentBurn`).
+- macOS, `Agent Burn.app` in a folder you can write to (`/Applications` with an administrator account,
+  `~/Applications`): "Update now" (or the menu item) downloads `AgentBurn-X.Y.Z-macos-arm64.zip` into the cache
+  folder, checks its SHA-256 against the release's `SHA256SUMS`, unpacks it there with `ditto` and checks that it
+  holds Agent Burn X.Y.Z (bundle identifier and version); if anything differs, everything is deleted and nothing
+  changes. Then the app quits like menu → Quit, and a small script waits for it to be gone (a minute at most), puts
+  the new `Agent Burn.app` in place of the old one, deletes the old one and opens the app again. If the new one
+  cannot be moved in, the old one is put back and reopened. Data and settings are not touched. The app downloaded
+  the new version itself, not through a browser, so it carries no quarantine attribute: macOS opens it without
+  asking again.
+- macOS, any other copy (opened from a disk image, from `/Applications` with a standard account, or straight from
+  the folder it was unzipped in, which macOS then runs from a read-only copy): "Open download page" opens the
+  release page. Download the zip and replace `Agent Burn.app` with the one it holds. Once moved with the Finder into
+  a folder you can write to (Applications, from an administrator account), the app updates itself.
 - Linux: no update from the app. Install the new package, AppImage or archive as in the
   [README](../README.md#linux).
 - Version 1.0.0 has no updater: going from 1.0.0 to a later version is a manual installation, once.
-- Drafts and pre-releases are never offered. A release counts only if its tag, its installer and its
-  `SHA256SUMS` are exactly where the app expects them (see [ARCHITECTURE.md](ARCHITECTURE.md#security)).
+- Drafts and pre-releases are never offered. A release counts only if its tag, its installer (zip on macOS) and
+  its `SHA256SUMS` are exactly where the app expects them (see [ARCHITECTURE.md](ARCHITECTURE.md#security)).
 
 ## Data state
 
@@ -198,18 +211,18 @@ replaced by the next one). The `AGENT_BURN_DATA` variable overrides the data fol
 
 - The app launches the bundled `agent-burn` CLI (arguments passed directly, never through a shell), one run of
   each kind at a time, and reads its JSON output.
-- The app's own network requests: the exchange rates and, on Windows, the update check.
+- The app's own network requests: the exchange rates and, on Windows and macOS, the update check.
   - Exchange rates: `GET https://open.er-api.com/v6/latest/USD` (ExchangeRate-API), when the chosen currency is
     not USD (at launch, when it is chosen, then about once a day, when the provider updates its rates) or when the
     currency list opens with rates missing or out of date. Nothing about your usage is sent, only Qt's default
     headers (user agent `Mozilla/5.0`, the system language); the provider sees your IP address. In USD, without
     opening the list, the app sends nothing.
-  - Updates, Windows only: `GET https://api.github.com/repos/Magikdidi24/agent-burn-desktop/releases/latest`
+  - Updates, Windows and macOS only: `GET https://api.github.com/repos/Magikdidi24/agent-burn-desktop/releases/latest`
     a minute after launch, then once a day, and on "Check for updates". It sends the user agent
     `AgentBurn/<version>` (GitHub learns which version you run) and Qt's default headers (the system language),
     nothing about your usage; GitHub sees your IP address. "Update now" then downloads `SHA256SUMS` and the
-    installer from github.com (redirected to GitHub's download servers). On Linux and from source, the app never
-    sends it.
+    installer (the zip on macOS) from github.com (redirected to GitHub's download servers). On Linux and from
+    source, the app never sends it.
 - The CLI reads Claude Code's logs and configuration (`~/.claude/projects`, `~/.claude.json`), its sign-in token
   (`~/.claude/.credentials.json`; on macOS, the Keychain item "Claude Code-credentials", through the system
   `security` tool) to read the limits, the Codex logs (`~/.codex/sessions`,

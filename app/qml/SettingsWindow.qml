@@ -462,7 +462,7 @@ ApplicationWindow {
                     text: "Licenses"
                     onClicked: Desktop.openLicenses()
                 }
-                // Windows builds only: elsewhere Updater.mode is "" and nothing is ever requested.
+                // Windows and macOS builds only: elsewhere Updater.mode is "" and nothing is ever requested.
                 Group {
                     visible: Updater.mode !== ""
                     title: "Updates"
@@ -477,7 +477,7 @@ ApplicationWindow {
                     Hint {
                         text: "Checked on GitHub a minute after launch, then once a day. " + (Updater.mode === "installer"
                             ? "Update now installs the new version and restarts the app."
-                            : "Portable copy: download the new zip and replace this folder with it.")
+                            : "This copy cannot update itself: download the new version and put it in place of this one.")
                     }
                     Flow {
                         Layout.fillWidth: true

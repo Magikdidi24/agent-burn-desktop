@@ -69,7 +69,7 @@ Differences from the installed app:
 - the shared QML files are read again from `shared/` at every launch (copy prepared in the cache): a change is
   picked up at the next launch;
 - `AGENT_BURN_FAKE_DIR` outside the selftest is reported in the log;
-- no update check: the updater only runs in a frozen Windows build. `AGENT_BURN_UPDATE_URL=<url>` (tests, an
+- no update check: the updater only runs in a frozen Windows or macOS build. `AGENT_BURN_UPDATE_URL=<url>` (tests, an
   address on this machine only) points it at a fake GitHub instead of the real one: see
   [In-app update](#in-app-update-windows).
 
@@ -102,10 +102,10 @@ without a system tray), popover (keyboard scrolling), icon and menu (system tray
 cached QML copy, settings (BOM, deeply nested JSON) and Settings window (Enter, arrows, visible focus, contrast,
 two-step reset), log and redaction, diagnostics, folders (macOS ones with a simulated platform), Linux, Windows (fake
 registry) and macOS (LaunchAgent in a temporary home) autostart, macOS icon clicks, shim (environment, stderr, current
-directory, log, waiting for runs on close, idle polling), check of the selftest captures, in-app
-update (fake GitHub on 127.0.0.1: see [In-app update](#in-app-update-windows)). They set `QT_QPA_PLATFORM=offscreen`
-and `QT_QUICK_BACKEND=software` themselves; on Windows, `python -m unittest discover -s tests -v` is enough
-(the 8 tests for Linux or macOS alone are skipped there).
+directory, log, waiting for runs on close, idle polling), check of the selftest captures, in-app update (fake GitHub on
+127.0.0.1: see [In-app update](#in-app-update-windows), and the macOS update script run by `sh`). They set
+`QT_QPA_PLATFORM=offscreen` and `QT_QUICK_BACKEND=software` themselves; on Windows, `python -m unittest discover -s
+tests -v` is enough (the 12 tests for Unix alone are skipped there).
 
 ### Core suite (Burn.qml)
 
@@ -247,6 +247,27 @@ then Settings → About → Check for updates, Update now: the app quits, the in
 The installer part was also tried under Wine with Inno Setup 6.7.3, on a fake bundle: `/relaunch=1` runs the
 last `[Run]` entry, a silent installation without it does not, and without `/MERGETASKS=!autostart` the
 remembered `autostart` task writes the `Run` value back.
+
+### In-app update (macOS)
+
+The same tests and fake GitHub as above, with build target `macos-arm64` and the exe in
+`Agent Burn.app/Contents/MacOS`. Nothing macOS-only runs there: `updater.extract()` (the `ditto` call) is replaced
+by a fake that writes a bundle with the `Info.plist` under test, `QProcess` and `QCoreApplication` are patched, and
+the test checks the exact command line of `updater.HELPER`. The script itself does run, under `sh` (`MacHelper`,
+skipped on Windows): two fake bundles, a short-lived `sleep` as the app, and a stand-in `open` first on `PATH` that
+writes down its arguments. It checks the wait for the app's PID, the swap, the old bundle deleted, the reopening, a
+read-only folder (nothing moved, old version reopened) and a new bundle that fails half-way in (a stand-in `mv`:
+the old bundle is put back, not nested in the half copy).
+
+Not run on a Mac yet, so checked by reasoning only: `ditto -x -k` on the real zip, `os.access` on `/Applications`
+and on App Translocation's read-only copy, macOS's `/bin/sh`, `mv` between the cache and `/Applications`, the
+detached script outliving the app, `open` starting the new version, the new bundle carrying no quarantine
+attribute, and the App Management protection of macOS 13 and later, which might refuse the move (the script then
+reopens the old version and deletes the new one). By hand, on a Mac: version X in `/Applications` (moved with the
+Finder), version Y's `AgentBurn-<Y>-macos-arm64.zip` and its `SHA256SUMS` served as for Windows, X started from a
+terminal with `AGENT_BURN_UPDATE_URL=http://127.0.0.1:8000 "/Applications/Agent Burn.app/Contents/MacOS/AgentBurn"`,
+then Check for updates, Update now: the app quits and Y opens; `codesign --verify --deep` passes on the bundle,
+`xattr -l` shows no `com.apple.quarantine`, and the cache keeps no `update-*` folder.
 
 ### Under Wine
 
@@ -486,9 +507,11 @@ branch, tag or pull request; a push and the pull request of its branch each get 
   `setDesktopFileName`, autostart), the `AgentBurn` application name (`WM_CLASS` on X11 ↔
   `StartupWMClass`), the `AgentBurn.exe` and `agent-burn-desktop` executables, the CLI in `<exe directory>/bin/`,
   the `build-info.json` keys (`appVersion`, `cliRev`, `cliVersion`, `target`, `builtAt`) written by the
-  two build scripts (the Windows `target` values, `windows-x64` and `windows-arm64`, also turn the updater on:
-  `updater.ARCHS`), the `desktop-v<ver>` tag and the `AgentBurn-Setup-<ver>-<arch>.exe` and `SHA256SUMS`
-  release files (`build.ps1`, `installer.iss`, the release job, `updater.py`), the `/relaunch=1` parameter
+  two build scripts (the `target` values `windows-x64`, `windows-arm64` and `macos-arm64` also turn the updater on:
+  `updater.ASSETS`), the `desktop-v<ver>` tag and the `AgentBurn-Setup-<ver>-<arch>.exe`,
+  `AgentBurn-<ver>-macos-arm64.zip` and `SHA256SUMS` release files (`build.ps1`, `installer.iss`, the macOS build,
+  the release job, `updater.py`), the macOS bundle name and identifier (`Agent Burn.app`,
+  `io.github.magikdidi24.AgentBurn`: `updater.BUNDLE`, `updater.BUNDLE_ID`), the `/relaunch=1` parameter
   (`updater.py`, `installer.iss`, `smoke.ps1`), the digest of the build image (workflow and
   `linux/build-local.sh`), the sums of the extracted JetBrainsMono Nerd Font fonts (`linux/build.sh` and
   `build.ps1`) and the version in their cache key (workflow).

@@ -1,12 +1,15 @@
 # In-app update tests (updater.py) against a fake GitHub on 127.0.0.1 (AGENT_BURN_UPDATE_URL), never the real
 # one: release check, what the network sends validated, download checked by SHA-256, installer command line
-# (never run), portable copy, unsupported platforms, the About page and its buttons.
+# (never run), macOS zip unpacked by a fake ditto and checked, the macOS helper's command line, then the helper
+# itself run by sh on fake bundles, portable copy, unsupported platforms, the About page and its buttons.
 #   cd app && python -m unittest discover -s tests -v
 import hashlib
 import json
 import logging
 import os
+import plistlib
 import shutil
+import subprocess
 import sys
 import tempfile
 import threading
@@ -29,6 +32,9 @@ from agentburn import __version__, paths, settings, updater  # noqa: E402
 
 SETUP = b"MZ not a real installer\0" * 2000
 NAME = "AgentBurn-Setup-9.9.9-x64.exe"
+ZIP = b"PK not a real zip\0" * 2000
+MAC = "AgentBurn-9.9.9-macos-arm64.zip"
+X64, MACOS = updater.ASSETS["windows-x64"], updater.ASSETS["macos-arm64"]   # release file name templates
 
 
 class Server:
@@ -64,10 +70,10 @@ class Server:
     def latest(self, release):
         self.files["/releases/latest"] = (200, json.dumps(release).encode(), {"Content-Type": "application/json"})
 
-    def release(self, version="9.9.9", setup=SETUP, sums=None, **fields):
-        """Release as GitHub publishes it (x64 installer behind a redirect to the download servers, SHA256SUMS
-        of every package); fields replace its keys."""
-        tag, name = f"desktop-v{version}", f"AgentBurn-Setup-{version}-x64.exe"
+    def release(self, version="9.9.9", setup=SETUP, sums=None, name=X64, **fields):
+        """Release as GitHub publishes it (one package, the x64 installer unless name says otherwise, behind a
+        redirect to the download servers, SHA256SUMS of every package); fields replace its keys."""
+        tag, name = f"desktop-v{version}", name.format(version)
         if sums is None:
             sums = f"{'0' * 64}  agent-burn-desktop_{version}_amd64.deb\n{hashlib.sha256(setup).hexdigest()}  {name}\n".encode()
         files = f"{self.url}/releases/download/{tag}/"
@@ -88,12 +94,16 @@ class Update(unittest.TestCase):
         self.addCleanup(self.server.close)
         self.tmp = Path(tempfile.mkdtemp(prefix="agent-burn-update-"))
         self.addCleanup(shutil.rmtree, self.tmp, True)
-        self.setup = self.tmp / "cache" / updater.SETUP
+        self.cache = self.tmp / "cache"
+        self.setup = self.cache / updater.SETUP
         self.autostart = False
         self.cfg = settings.Settings(None, types.SimpleNamespace(autostart=lambda: self.autostart))
-        mock.patch.object(paths, "cache_dir", return_value=self.tmp / "cache").start()
-        self.process = mock.patch.object(updater, "QProcess").start()   # never a real installer
+        mock.patch.object(paths, "cache_dir", return_value=self.cache).start()
+        self.process = mock.patch.object(updater, "QProcess").start()   # never a real installer or helper
         self.process.return_value.startDetached.return_value = True
+        self.info = {"CFBundleIdentifier": updater.BUNDLE_ID, "CFBundleShortVersionString": "9.9.9"}
+        self.unpacked = []
+        mock.patch.object(updater, "extract", self.extract).start()   # never the real ditto
         self.quit = mock.patch.object(updater, "QCoreApplication").start().quit
         self.opened = mock.patch.object(updater, "QDesktopServices").start().openUrl
         self.addCleanup(mock.patch.stopall)
@@ -105,11 +115,25 @@ class Update(unittest.TestCase):
         self.addCleanup(updater.log.setLevel, logging.NOTSET)
         self.addCleanup(updater.log.removeHandler, handler)
 
+    def extract(self, archive, folder):
+        """Stands for ditto: records (zip content, folder), then unpacks a bundle whose Info.plist is self.info
+        (as is if bytes, none if None)."""
+        self.unpacked.append((archive.read_bytes(), folder))
+        contents = folder / updater.BUNDLE / "Contents"
+        (contents / "MacOS").mkdir(parents=True)
+        if self.info is not None:
+            data = self.info if isinstance(self.info, bytes) else plistlib.dumps(self.info)
+            (contents / "Info.plist").write_bytes(data)
+
     def updater(self, installed=True, target="windows-x64"):
-        """Updater of a frozen Windows build (target from build-info.json), installed (Inno's unins000.exe
-        next to the exe) or portable, reading the fake GitHub."""
+        """Updater of a frozen build (target from build-info.json) reading the fake GitHub. Windows: installed
+        (Inno's unins000.exe next to the exe) or portable; macOS: exe in Agent Burn.app/Contents/MacOS, the
+        bundle alone in a folder of its own."""
         app = Path(tempfile.mkdtemp(dir=self.tmp))
-        if installed:
+        if target.startswith("macos"):
+            app = app / updater.BUNDLE / "Contents" / "MacOS"
+            app.mkdir(parents=True)
+        elif installed:
             (app / "unins000.exe").touch()
         with mock.patch.dict(os.environ, {"AGENT_BURN_UPDATE_URL": self.server.url}):
             u = updater.Updater(target, app, self.cfg)
@@ -192,17 +216,17 @@ class Update(unittest.TestCase):
         release = {"tag_name": tag, "html_url": f"{updater.SITE}/releases/tag/{tag}",
                    "assets": [{"name": NAME, "size": 1, "browser_download_url": files + NAME},
                               {"name": "SHA256SUMS", "size": 1, "browser_download_url": files + "SHA256SUMS"}]}
-        offer = updater.parse(release, "x64", updater.SITE, False)
+        offer = updater.parse(release, X64, updater.SITE, False)
         self.assertEqual((offer["setup"], offer["sums"], offer["size"]), (files + NAME, files + "SHA256SUMS", 1))
         self.assertTrue(offer["setup"].startswith("https://github.com/Magikdidi24/agent-burn-desktop/releases/download/"))
-        self.assertEqual(updater.parse(release, "x64", updater.SITE, True)["page"], release["html_url"])
+        self.assertEqual(updater.parse(release, X64, updater.SITE, True)["page"], release["html_url"])
         for url in (files.replace("https:", "http:") + NAME, files.replace("agent-burn-desktop", "agent-burn-desktop-x") + NAME):
             bad = {**release, "assets": [{**release["assets"][0], "browser_download_url": url}, release["assets"][1]]}
             with self.assertRaisesRegex(ValueError, "download address outside"):
-                updater.parse(bad, "x64", updater.SITE, False)
+                updater.parse(bad, X64, updater.SITE, False)
         for page in ("http://github.com/Magikdidi24/agent-burn-desktop/releases/tag/" + tag, "https://evil.example/"):
             with self.assertRaisesRegex(ValueError, "release page outside"):
-                updater.parse({**release, "html_url": page}, "x64", updater.SITE, True)
+                updater.parse({**release, "html_url": page}, X64, updater.SITE, True)
 
     def test_checksums_file(self):
         h, other = "ab" * 32, "cd" * 32
@@ -275,9 +299,109 @@ class Update(unittest.TestCase):
         self.assertEqual(self.check(u), "error")
         self.assertEqual(u.message, "Update check failed: release page outside the repository")
 
+    def test_macos_update_unpacks_checks_and_hands_over_to_the_helper(self):
+        release = self.server.release(setup=ZIP, name=MACOS)
+        url = release["assets"][0]["browser_download_url"].replace(MAC, NAME)
+        installer = {"name": NAME, "size": 1, "browser_download_url": url}
+        self.server.latest({**release, "assets": [installer, *release["assets"]]})   # the zip is the one taken
+        u = self.updater(target="macos-arm64")
+        self.assertEqual((u.mode, u._bundle.name), ("installer", "Agent Burn.app"))
+        self.assertEqual(self.install(u), "installing", u.message)
+        self.assertEqual(self.server.paths(), ["/releases/latest", "/releases/download/desktop-v9.9.9/SHA256SUMS",
+                                               f"/releases/download/desktop-v9.9.9/{MAC}", "/cdn/setup"])
+        [(unpacked, work)] = self.unpacked
+        self.assertEqual(unpacked, ZIP)   # the file checked, as written
+        self.assertEqual(list(self.cache.iterdir()), [work])   # the zip deleted once unpacked
+        self.assertTrue((work / "Agent Burn.app" / "Contents" / "Info.plist").is_file())   # left for the helper
+        p = self.process.return_value
+        p.setProgram.assert_called_once_with("/bin/sh")
+        p.setArguments.assert_called_once_with(["-c", updater.HELPER, "sh", str(os.getpid()), str(u._bundle), str(work)])
+        p.setProcessEnvironment.assert_called_once()
+        p.startDetached.assert_called_once_with()
+        self.quit.assert_called_once_with()
+
+    def test_macos_release_files_validated(self):
+        good = self.server.release(setup=ZIP, name=MACOS)
+        zip_, sums = good["assets"]
+        prefix = f"{self.server.url}/releases/download/desktop-v9.9.9/"
+        cases = [({"assets": [sums]}, f"{MAC} missing from the release"),
+                 ({"assets": [{**zip_, "name": NAME}, sums]}, f"{MAC} missing"),   # the Windows installer: no use
+                 ({"assets": [{**zip_, "name": "AgentBurn-9.9.9-macos-x64.zip"}, sums]}, f"{MAC} missing")]
+        for url in ("https://evil.example/" + MAC, prefix + "../../../../other/repo/" + MAC,
+                    prefix.replace("9.9.9", "9.9.8") + MAC, prefix + NAME):
+            cases.append(({"assets": [{**zip_, "browser_download_url": url}, sums]}, f"{MAC}: download address outside"))
+        for size in (0, updater.MAX_SETUP + 1, "1"):
+            cases.append(({"assets": [{**zip_, "size": size}, sums]}, f"{MAC}: unexpected size"))
+        u = self.updater(target="macos-arm64")
+        for fields, error in cases:
+            self.server.latest({**good, **fields})
+            self.assertEqual(self.check(u), "error", fields)
+            self.assertIn("Update check failed: " + error, u.message, fields)
+        self.assertEqual(set(self.server.paths()), {"/releases/latest"})
+
+    def test_macos_mismatching_download_never_unpacked(self):
+        self.server.release(setup=ZIP, name=MACOS, sums=f"{'0' * 64}  {MAC}\n".encode())
+        u = self.updater(target="macos-arm64")
+        self.assertEqual(self.install(u), "error")
+        self.assertEqual(u.message, "Download failed: the zip does not match its SHA-256 sum, nothing was installed")
+        self.assertEqual((self.unpacked, list(self.cache.iterdir())), ([], []))
+        self.process.assert_not_called()
+        self.quit.assert_not_called()
+
+    def test_macos_unexpected_bundle_refused_and_cleaned_up(self):
+        self.server.release(setup=ZIP, name=MACOS)
+        u = self.updater(target="macos-arm64")
+        good, refused = self.info, "Download failed: the zip does not hold Agent Burn 9.9.9, nothing was installed"
+        for info, error in (({**good, "CFBundleIdentifier": "com.example.Other"}, refused),
+                            ({**good, "CFBundleShortVersionString": "9.9.8"}, refused),
+                            ({**good, "CFBundleShortVersionString": "9.9.9.1"}, refused),
+                            ({"CFBundleIdentifier": updater.BUNDLE_ID}, refused),
+                            ([updater.BUNDLE_ID, "9.9.9"], refused),
+                            (b"<?xml version='1.0'?><plist", "Download failed: "),
+                            (None, "Info.plist")):
+            self.info = info
+            self.assertEqual(self.install(u), "error", info)
+            self.assertIn(error, u.message, info)
+            self.assertEqual(list(self.cache.iterdir()), [], info)   # neither the zip nor what it held
+        self.info = good
+        with mock.patch.object(updater, "extract", side_effect=OSError("ditto: Couldn't read PKZip signature")):
+            self.assertEqual(self.install(u), "error")
+        self.assertEqual(u.message, "Download failed: ditto: Couldn't read PKZip signature")
+        self.assertEqual(list(self.cache.iterdir()), [])
+        self.process.assert_not_called()
+        self.process.return_value.startDetached.return_value = False
+        self.assertEqual(self.install(u), "error")
+        self.assertEqual(u.message, "Could not start the update")
+        self.assertEqual(list(self.cache.iterdir()), [])
+        self.quit.assert_not_called()
+
+    @unittest.skipIf(sys.platform == "win32", "write permission on folders: Unix")
+    def test_macos_bundle_that_cannot_be_replaced_opens_the_release_page(self):
+        self.server.release(setup=ZIP, name=MACOS)
+        folder = Path(tempfile.mkdtemp(dir=self.tmp))
+        exe = folder / "Agent Burn.app" / "Contents" / "MacOS"
+        (folder / "AgentBurn").mkdir()
+        exe.mkdir(parents=True)
+        # Folder read-only (disk image, App Translocation, a standard account's /Applications), bundle of another
+        # account, exe outside a bundle.
+        for locked, exe_dir in ((folder, exe), (exe.parents[1], exe), (None, folder / "AgentBurn")):
+            if locked:
+                locked.chmod(0o555)
+            with mock.patch.dict(os.environ, {"AGENT_BURN_UPDATE_URL": self.server.url}):
+                u = updater.Updater("macos-arm64", exe_dir, self.cfg)
+            if locked:
+                locked.chmod(0o755)
+            self.assertEqual((u.mode, u._bundle), ("portable", None), exe_dir)
+        self.assertEqual(self.check(u), "available")
+        u.update()
+        self.opened.assert_called_once_with(QUrl(f"{self.server.url}/releases/tag/desktop-v9.9.9"))
+        self.assertEqual(self.server.paths(), ["/releases/latest"])   # nothing downloaded
+        self.process.assert_not_called()
+        self.quit.assert_not_called()
+
     def test_unsupported_platforms_do_nothing(self):
         self.server.release()
-        for target in ("dev", "linux-x86_64", "", "windows-x86"):
+        for target in ("dev", "linux-x86_64", "", "windows-x86", "macos-x64", "macos-universal", "darwin"):
             u = self.updater(target=target)
             u.start()
             u.check()
@@ -306,6 +430,66 @@ class Update(unittest.TestCase):
         u.check()   # one already running: ignored
         self.assertTrue(wait_for(lambda: u.state == "available", 10))
         self.assertEqual(self.server.paths(), ["/releases/latest"])
+
+
+@unittest.skipIf(sys.platform == "win32", "HELPER: POSIX sh")
+class MacHelper(unittest.TestCase):
+    """updater.HELPER run by sh on two fake bundles, a stand-in for macOS's open first on PATH."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="agent-burn-helper-"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.app, self.work = self.tmp / "Applications" / "Agent Burn.app", self.tmp / "cache" / "update-1"
+        for bundle, version in ((self.app, "old"), (self.work / "Agent Burn.app", "new")):
+            (bundle / "Contents").mkdir(parents=True)
+            (bundle / "Contents" / "version").write_text(version)
+        self.bin = self.tmp / "bin"
+        self.bin.mkdir()
+        self.stub("open", 'printf "%s\\n" "$@" >> "$0.log"')
+        self.env = {**os.environ, "PATH": f"{self.bin}{os.pathsep}{os.environ['PATH']}"}
+
+    def stub(self, name, body):
+        (self.bin / name).write_text(f"#!/bin/sh\n{body}\n")
+        (self.bin / name).chmod(0o755)
+
+    def helper(self, pid=None):
+        """HELPER started for the app of that PID (default: one that has already quit)."""
+        if pid is None:
+            gone = subprocess.Popen(["true"])
+            gone.wait()
+            pid = gone.pid
+        return subprocess.Popen(["sh", "-c", updater.HELPER, "sh", str(pid), str(self.app), str(self.work)], env=self.env,
+                                stderr=subprocess.DEVNULL)   # mv's complaints, expected here
+
+    def result(self):
+        """Version of the bundle in place, the work folder still there, what open was given."""
+        log = self.bin / "open.log"
+        return ((self.app / "Contents" / "version").read_text(), self.work.exists(),
+                log.read_text().splitlines() if log.exists() else [])
+
+    def test_swaps_once_the_app_has_quit_then_opens_it(self):
+        app = subprocess.Popen(["sleep", "1"])
+        helper = self.helper(app.pid)
+        with self.assertRaises(subprocess.TimeoutExpired):
+            helper.wait(1.5)   # until the app is reaped (a zombie still answers kill -0)
+        self.assertEqual(self.result(), ("old", True, []))
+        app.wait()
+        self.assertEqual(helper.wait(10), 0)
+        self.assertEqual(self.result(), ("new", False, [str(self.app)]))   # old bundle deleted with the work folder
+
+    def test_bundle_that_cannot_move_left_as_it_was(self):
+        self.app.parent.chmod(0o555)   # read-only folder
+        self.addCleanup(self.app.parent.chmod, 0o755)
+        self.assertEqual(self.helper().wait(10), 0)
+        self.assertEqual(self.result(), ("old", False, [str(self.app)]))   # new bundle discarded, old one reopened
+
+    def test_old_bundle_put_back_when_the_new_one_cannot_move_in(self):
+        # The new bundle half copied, as across disks, then a failure.
+        self.stub("mv", f'[ "$1" = "{self.work / "Agent Burn.app"}" ] && mkdir -p "$2/Contents" && exit 1\n'
+                        f'exec {shutil.which("mv")} "$@"')
+        self.assertEqual(self.helper().wait(10), 0)
+        self.assertEqual(self.result(), ("old", False, [str(self.app)]))
+        self.assertEqual(sorted(p.name for p in self.app.iterdir()), ["Contents"])   # not nested in the half copy
 
 
 class AboutPage(unittest.TestCase):

@@ -279,7 +279,7 @@ The JSON must depend only on the agents' data, not on the machine's configuratio
    it answers, it opens its dashboard and this process exits with 0. Otherwise `QLocalServer` with
    `UserAccessOption`; a failed `listen()` is logged.
 8. Bundled fonts, window icon, `Settings` (in memory for the selftest), `Desktop` and `Updater` (supported only
-   when `build-info.json` names a Windows target), color scheme.
+   when `build-info.json` names a Windows or macOS target), color scheme.
 9. `runtime.assemble()` prepares the QML directory, `register()` registers the shim then the `Settings`,
    `Desktop` and `Updater` singletons (`import AgentBurn`, app QML only), then `Main.qml` is loaded.
 10. `fit()`: dashboard (1200 × 800) and Settings (620 × 680) centered on the primary screen, shrunk on a small
@@ -306,7 +306,7 @@ The JSON must depend only on the agents' data, not on the machine's configuratio
 | `platform_win.py` | `ctypes` and `winreg`: idle time, dark title bar (DWM), `Run` and `StartupApproved\Run` keys, `AllowSetForegroundWindow`, session number. |
 | `platform_mac.py` | `ctypes` and `plistlib`: idle time (CoreGraphics, this login session), the user's LaunchAgent (`RunAtLoad`, the bundle's executable, `ProcessType` `Interactive`: an app, not a throttled background job); `Disabled` true or an unreadable plist count as disabled; `OSError` (nothing written) for an app run from its translocated copy or a path with a control character. Only in the `.app` (`<name>.app/Contents/MacOS`). |
 | `platform_linux.py` | The user's XDG autostart file, `Exec` key escaped per the Desktop Entry spec; `$APPIMAGE` for an AppImage; `Hidden=true` or `X-GNOME-Autostart-enabled=false` count as disabled; `OSError` (nothing written) for an exe path with a control character, `%` or `\`. |
-| `updater.py` | `Updater` singleton, frozen Windows builds only (`build-info.json` target `windows-x64` or `windows-arm64`; elsewhere `mode` is empty and nothing is ever requested): latest GitHub release a minute after the tray icon starts, then every 24 h or on request, one request at a time. Installed app (Inno's `unins000.exe` next to the exe): installer downloaded to the cache, checked by SHA-256, started detached, app quit; portable zip: the release page opens. See [Security](#security). |
+| `updater.py` | `Updater` singleton, frozen Windows and macOS builds only (`build-info.json` target `windows-x64`, `windows-arm64` or `macos-arm64`; elsewhere `mode` is empty and nothing is ever requested): latest GitHub release a minute after the tray icon starts, then every 24 h or on request, one request at a time. Installed Windows app (Inno's `unins000.exe` next to the exe): installer downloaded to the cache, checked by SHA-256, started detached, app quit. macOS bundle the user can write to, in a folder the user can write to: zip downloaded and checked the same way, unpacked by `ditto` in the cache, its `Info.plist` checked, `HELPER` script started detached, app quit; the script swaps the bundles and reopens the app. Portable zip or any other Mac copy: the release page opens. See [Security](#security). |
 | `selftest.py` | Renders the icon, the popover, the dashboard and the 4 settings sections; rejects a capture that is empty, of a single color, of the wrong size or with a transparent corner; writes `selftest.json`. |
 
 ### App QML (`app/qml/`)
@@ -322,7 +322,7 @@ The JSON must depend only on the agents' data, not on the machine's configuratio
   in the settings. Keyboard scrolling (focus followed, Page Up / Page Down / Home / End) and Escape in the model
   filter are in `BurnDashboardView`, shared with the bar.
 - `SettingsWindow.qml`: Qt Quick controls (Fusion) in the `Colors` palette; sections General, Providers,
-  Diagnostics, About (with the `Updater` state and buttons on Windows builds). Enter works like Space
+  Diagnostics, About (with the `Updater` state and buttons on Windows and macOS builds). Enter works like Space
   (`activate()`), left and right arrows between the options of a row (`Choice`), current tab in bold and
   underlined and focus ring (`PageTab`, `Ring`), `open(section)` which gives focus to the section's tab, two-step
   reset (5 s), path fields wrapped anywhere.
@@ -336,10 +336,11 @@ The JSON must depend only on the agents' data, not on the machine's configuratio
 - One process, one Qt main thread; everything is event-driven. The app creates no Python thread.
 - Child processes: the CLI runs (asynchronous `QProcess`, output read at the end), `agent-burn --version`
   (killed after 10 s), detached `xdg-open` (Linux; Windows and macOS open folders and links through the system), on
-  Windows the installer of an update (detached, with
-  `child_environment()`, which it passes on to the app it starts again), and in tests or selftest the exe itself as
-  a fake CLI.
-- Synchronous file reads and writes on the main thread (small JSON files).
+  Windows the installer of an update (detached, with `child_environment()`, which it passes on to the app it starts
+  again), on macOS `ditto` (waited for, on the main thread, 2 min at most) and the update script (`/bin/sh`,
+  detached), and in tests or selftest the exe itself as a fake CLI.
+- Synchronous file reads and writes on the main thread (small JSON files; an update's hash and, on macOS, its
+  unpacking).
 - Single instance through `QLocalServer`: socket `$XDG_RUNTIME_DIR/AgentBurn.sock` (macOS:
   `~/Library/Caches/AgentBurn/AgentBurn.sock`, under the 104-byte limit of socket paths there for a usual home;
   beyond it, `listen()` fails, logged, and the lock alone keeps one instance), or pipe
@@ -353,7 +354,7 @@ The JSON must depend only on the agents' data, not on the machine's configuratio
 ## Security
 
 - Processes launched as argv, never through a shell. Texts coming from the CLI shown as `Text.PlainText`.
-- The app's own network requests: the update on Windows (next item) and the exchange rates:
+- The app's own network requests: the update on Windows and macOS (next item) and the exchange rates:
   `GET https://open.er-api.com/v6/latest/USD`
   (`ratesUrl`, free, no key), with Qt's default headers only (user agent `Mozilla/5.0`, the system language in
   `Accept-Language`), nothing about the usage. Sent only when the currency is not USD (at startup, when it is chosen,
@@ -363,12 +364,13 @@ The JSON must depend only on the agents' data, not on the machine's configuratio
   (network, HTTP status, unreadable JSON) keeps the cached rates and goes to `recentErrors`. The provider's terms
   require the "Rates By Exchange Rate API" link, shown in the currency list. The CLI, however, downloads pricing,
   queries the usage APIs and rewrites `~/.claude/.credentials.json` when it renews the Claude token.
-- Update, frozen Windows builds only (`updater.py`): `GET https://api.github.com/repos/Magikdidi24/agent-burn-desktop/releases/latest`
+- Update, frozen Windows and macOS builds only (`updater.py`): `GET https://api.github.com/repos/Magikdidi24/agent-burn-desktop/releases/latest`
   (`Accept: application/vnd.github+json`, user agent `AgentBurn/<version>`), a minute after the tray icon starts,
   then every 24 h, or from "Check for updates"; one request at a time, given up after 30 s without data. The
   answer is validated before any use: drafts and pre-releases ignored; `tag_name` exactly
-  `desktop-v<major>.<minor>.<patch>` (ASCII digits), newer than `__version__` compared as numbers; assets
-  `AgentBurn-Setup-<version>-<arch>.exe` (arch from `build-info.json`) and `SHA256SUMS`, each with a
+  `desktop-v<major>.<minor>.<patch>` (ASCII digits), newer than `__version__` compared as numbers; assets: the
+  file for the `build-info.json` target (`updater.ASSETS`: `AgentBurn-Setup-<version>-<arch>.exe`, or
+  `AgentBurn-<version>-macos-arm64.zip`) and `SHA256SUMS`, each with a
   `browser_download_url` exactly `https://github.com/Magikdidi24/agent-burn-desktop/releases/download/desktop-v<version>/<name>`
   (a prefix check would let `../` leave the repository) and a size from 1 byte to 256 MB (64 KB for
   `SHA256SUMS`, 1 MB for the JSON); portable zip: `html_url` exactly the tag's release page, the only thing it
@@ -385,7 +387,23 @@ The JSON must depend only on the agents' data, not on the machine's configuratio
   addresses (`<url>/releases/latest`, `<url>/releases/download/…`, `<url>/releases/tag/…`); like
   `AGENT_BURN_FAKE_DIR`, it stays active in the shipped app and is flagged in the log, but only for an address on
   this machine (`127.0.0.1`, `localhost`, `::1`): any other is ignored, so the variable cannot send "Update now"
-  to someone else's installer.
+  to someone else's installer or zip.
+- Update on macOS: the same requests and checks, with the zip in place of the installer, written to
+  `<cache>/AgentBurn-update.zip`. Only when the bundle (`Path(sys.executable).parents[2]`, named `*.app`) and its
+  folder are writable by the user; otherwise (disk image, App Translocation's read-only copy, `/Applications` for a
+  standard account, another account's bundle) the release page opens, as for the portable zip. The checked zip is
+  unpacked by `/usr/bin/ditto -x -k` into a new `<cache>/update-*` folder (symlinks, permissions and so the ad-hoc
+  signature kept, which `zipfile` does not), then deleted; `Agent Burn.app/Contents/Info.plist` there must give
+  `CFBundleIdentifier` `io.github.magikdidi24.AgentBurn` and a `CFBundleShortVersionString` exactly the version
+  offered. Any failure deletes the zip and the folder and changes nothing. Then `updater.HELPER`, a fixed `sh`
+  script whose paths come only as arguments, starts detached (`child_environment()`) and the app quits the same
+  way. The script waits for the app's PID to be gone (a minute at most, otherwise it deletes the folder and stops),
+  moves the bundle into the folder, moves the new one into its place (if that fails: what a copy across disks left
+  is deleted and the old bundle moved back), deletes the folder and starts the app with `open`. No `xattr` call:
+  per Apple's Information Property List reference, files an app creates are quarantined only when its `Info.plist`
+  sets `LSFileQuarantineEnabled` (default false), and the App Sandbox, which also quarantines them, is not used. So
+  Gatekeeper does not assess the new bundle at launch: the SHA-256 and the `Info.plist` check are the only checks.
+  None of this has run on a Mac yet (see [DEVELOPMENT.md](DEVELOPMENT.md#in-app-update-macos)).
 - Atomic writes (`QSaveFile`, `os.replace`); unreadable files copied to `.bak`, never overwritten.
 - CLI isolation (configuration, environment, working directory) and the frozen app's environment cleaned for
   every child.
