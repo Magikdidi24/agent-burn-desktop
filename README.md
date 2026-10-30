@@ -16,7 +16,7 @@ privacy, troubleshooting, uninstalling); for developers: [architecture](docs/ARC
 
 | Platform | Formats | What was actually checked |
 |---|---|---|
-| Windows 10 (1809 or later) and 11, x64 | installer, portable zip | By GitHub CI, on the `windows-2025` runner (Windows Server 2025): unit tests; build (CLI compiled with MSVC, bundle, selftest of the frozen app); silent install, shortcuts and registry, silent update the way the app starts it (the app restarts, start at login stays off), selftest of the installed app, tray mode for 10 s, 2nd launch, uninstall while the app runs, portable zip ([`windows/smoke.ps1`](windows/smoke.ps1)). Never on a desktop Windows 10 or 11: I have not seen SmartScreen, a real system tray or the dark title bar. Before CI, I tested it under Wine. |
+| Windows 10 (1809 or later) and 11, x64 | installer, portable zip | By hand on Windows 10 and 11. By GitHub CI, on the `windows-2025` runner (Windows Server 2025): unit tests; build (CLI compiled with MSVC, bundle, selftest of the frozen app); silent install, shortcuts and registry, silent update the way the app starts it (the app restarts, start at login stays off), selftest of the installed app, tray mode for 10 s, 2nd launch, uninstall while the app runs, portable zip ([`windows/smoke.ps1`](windows/smoke.ps1)). Never on a desktop Windows 10 or 11: I have not seen SmartScreen, a real system tray or the dark title bar. Before CI, I tested it under Wine. |
 | Windows 11 ARM64 | experimental `arm64` installer, or the x64 installer under emulation | arm64 installer built under Wine during development; CI only builds it on a manual run (the `arm64` checkbox), never done so far. Never run on an ARM machine, x64 emulation not tried. |
 | Ubuntu 22.04 and 24.04, Debian 12 and 13 | `.deb` | Packages built by CI (Debian 12 container), then tested in a container of each distro, with no desktop session: install without the recommended packages, command, launcher, icons, AppStream, bundled CLI, selftest of the installed app (software rendering, then Mesa OpenGL under Xvfb), full uninstall ([`linux/smoke.sh`](linux/smoke.sh)). |
 | Fedora 44 | `.rpm` (dnf) | Same as above. |
@@ -176,8 +176,6 @@ The rest (icon, popover, dashboard, settings, troubleshooting, uninstalling): [d
 
 ## Known limitations
 
-- I have never run it on a desktop Windows 10 or 11, only on the Windows Server of the CI runners (see
-  [Platforms](#platforms)).
 - I have never run it on a real Mac, only on GitHub's macOS runners (arm64 virtual machines, the Intel app under
   Rosetta 2). Not seen: the menu bar icon and its clicks (left, right, Control-click; read from Qt's sources), the
   popover under it, Gatekeeper, the Keychain question, a launch at login, a reopen from Finder.
