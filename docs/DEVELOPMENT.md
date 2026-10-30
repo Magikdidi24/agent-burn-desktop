@@ -105,7 +105,7 @@ registry) and macOS (LaunchAgent in a temporary home) autostart, macOS icon clic
 directory, log, waiting for runs on close, idle polling), check of the selftest captures, in-app
 update (fake GitHub on 127.0.0.1: see [In-app update](#in-app-update-windows)). They set `QT_QPA_PLATFORM=offscreen`
 and `QT_QUICK_BACKEND=software` themselves; on Windows, `python -m unittest discover -s tests -v` is enough
-(6 Linux-only tests are skipped there).
+(the 8 tests for Linux or macOS alone are skipped there).
 
 ### Core suite (Burn.qml)
 
