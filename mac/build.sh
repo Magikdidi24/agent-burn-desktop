@@ -23,8 +23,8 @@ fetch() {   # URL SHA256 FILE: downloaded once, verified on every build
     [ -f "$3" ] && echo "$2  $3" | shasum -a 256 -c --quiet >/dev/null 2>&1 && return
     curl -fsSLo "$3" "$1" && echo "$2  $3" | shasum -a 256 -c --quiet
 }
-if ! command -v timeout >/dev/null; then   # not in macOS; Perl is
-    timeout() { perl -e 'alarm shift; exec @ARGV' "$@"; }
+if ! command -v timeout >/dev/null; then   # not in macOS; Perl is (exec {…}: a path with a space stays one word)
+    timeout() { perl -e 'alarm shift; exec { $ARGV[0] } @ARGV or die "$ARGV[0]: $!\n"' "$@"; }
 fi
 
 [ "$(uname -s)" = Darwin ] || die "build.sh runs on a Mac, not $(uname -s)"

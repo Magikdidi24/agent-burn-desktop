@@ -21,8 +21,8 @@ case $(basename "$ZIP") in
     *) die "$ZIP: AgentBurn-$VER-macos-<arm64|x64>.zip expected" ;;
 esac
 OUT=${2:-$HERE/dist/mac-$ARCH/smoke}
-if ! command -v timeout >/dev/null; then   # not in macOS; Perl is
-    timeout() { perl -e 'alarm shift; exec @ARGV' "$@"; }
+if ! command -v timeout >/dev/null; then   # not in macOS; Perl is (exec {…}: a path with a space stays one word)
+    timeout() { perl -e 'alarm shift; exec { $ARGV[0] } @ARGV or die "$ARGV[0]: $!\n"' "$@"; }
 fi
 
 step "Agent Burn $VER for $ARCH on macOS $(sw_vers -productVersion) $(uname -m)"
@@ -30,7 +30,9 @@ rm -rf "$OUT" && mkdir -p "$OUT"
 # Short HOME: the single-instance socket goes under it (Library/Caches/AgentBurn/AgentBurn.sock), 104 bytes at most.
 H=$(mktemp -d /tmp/abhome.XXXXXX)
 pid=
-trap '[ -z "$pid" ] || kill "$pid" 2>/dev/null; cp -R "$H/Library/Logs" "$OUT/home-logs" 2>/dev/null; rm -rf "$H"' EXIT
+# Kept for the CI artifact: the app's own log (menu bar mode logs nowhere else) and what it wrote in that HOME.
+trap 'set +e; [ -z "$pid" ] || kill "$pid" 2>/dev/null; cp -R "$H/Library/Logs" "$OUT/home-logs" 2>/dev/null
+      ls -laR "$H/Library" >"$OUT/home-files.txt" 2>&1; rm -rf "$H"' EXIT
 ditto -x -k "$ZIP" "$OUT/unzipped"
 [ -d "$OUT/unzipped/Agent Burn.app" ] || die "no Agent Burn.app at the top of $ZIP"
 APP="$(cd "$OUT/unzipped" && pwd -P)/Agent Burn.app"   # the app records its exe with links resolved
@@ -80,15 +82,17 @@ ok "LaunchAgent removed"
 
 step "Tray mode for 10 s, then a 2nd launch"
 export HOME=$H AGENT_BURN_FAKE_DIR="$HERE/tests/fixtures" AGENT_BURN_BIN="$EXE" AGENT_BURN_DATA="$H/data-tray"
+LOG=$H/Library/Logs/AgentBurn/agent-burn.log
 "$EXE" >"$OUT/tray.log" 2>&1 &
 pid=$!
 sleep 10
 kill -0 "$pid" 2>/dev/null || die "tray mode stopped before 10 s: $OUT/tray.log, $OUT/home-logs"
-[ -d "$H/Library/Caches/AgentBurn" ] || die "no QML cache in $H/Library/Caches/AgentBurn"
+# Its last startup line, logged once the icon is up, just before the event loop.
+grep -q "INFO agentburn: startup: " "$LOG" 2>/dev/null || die "tray mode not started after 10 s (see $OUT/home-logs)"
 t=$SECONDS
 timeout 20 "$EXE" >"$OUT/second.log" 2>&1 || die "2nd launch: code $?"
 kill -0 "$pid" 2>/dev/null || die "the 1st instance stopped at the 2nd launch"
-grep -q "opened the dashboard of the running instance" "$H/Library/Logs/AgentBurn/agent-burn.log" ||
+grep -q "opened the dashboard of the running instance" "$LOG" ||
     die "the 2nd launch did not reach the 1st (log: $OUT/home-logs)"
 ok "tray mode alive after 10 s; 2nd launch handed over, code 0 in $((SECONDS - t)) s"
 kill "$pid" && wait "$pid" || true
