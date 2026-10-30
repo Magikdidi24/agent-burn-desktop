@@ -4,16 +4,16 @@ Installation, platforms and known limitations: [README](../README.md). Internals
 
 ## Tray icon
 
-The icon shows the % left of the tightest limit on a badge tinted by pace (gray: stale reading), or a gray flame
-as long as there is no data. On hover: the limit and its reset; without a limit, the data state and its cause (CLI
-not found, reading in progress, "CLI failed (see Settings › Diagnostics)").
+The icon (in the macOS menu bar) shows the % left of the tightest limit on a badge tinted by pace (gray: stale
+reading), or a gray flame as long as there is no data. On hover: the limit and its reset; without a limit, the data
+state and its cause (CLI not found, reading in progress, "CLI failed (see Settings › Diagnostics)").
 
-| | Windows | Linux X11 | Linux Wayland |
-|---|---|---|---|
-| Left click | popover, placed against the icon (near the pointer if the icon is tucked behind the arrow) | popover, near the pointer (the panel does not say where the icon is) | dashboard (the compositor would place the popover itself, often in the center) |
-| Double click | dashboard (the popover opened by the 1st click closes) | — | — |
-| Middle click | refresh | refresh | refresh |
-| Right click | menu | menu, drawn by the panel | menu, drawn by the panel |
+| | Windows | Linux X11 | Linux Wayland | macOS |
+|---|---|---|---|---|
+| Left click | popover, placed against the icon (near the pointer if the icon is tucked behind the arrow) | popover, near the pointer (the panel does not say where the icon is) | dashboard (the compositor would place the popover itself, often in the center) | popover, under the icon |
+| Double click | dashboard (the popover opened by the 1st click closes) | — | — | dashboard (the popover opened by the 1st click closes) |
+| Middle click | refresh | refresh | refresh | refresh |
+| Right click | menu | menu, drawn by the panel | menu, drawn by the panel | menu, under the icon; Control-click too |
 
 Change the left-click action in Settings → General → "Icon click".
 
@@ -31,6 +31,8 @@ Tray icon menu:
 Depending on the desktop:
 
 - Windows: native system tray.
+- macOS: the menu bar, and no Dock icon: the windows come back through the icon, or by opening the app again from
+  Finder, Spotlight or Launchpad, which shows the dashboard.
 - Linux: StatusNotifierItem protocol (KDE Plasma, GNOME with the AppIndicator extension, XFCE, Cinnamon…).
   Only a KDE-style test host has been tried, in a nested session.
 - GNOME without the AppIndicator / KStatusNotifierItem extension: no system tray. The app runs as a standalone
@@ -46,8 +48,8 @@ progress to finish.
 
 ## Popover
 
-A card placed against the icon (Windows) or near the pointer (X11), closed by Esc, by "Open dashboard" or by a
-click elsewhere.
+A card placed against the icon (Windows), under it (macOS) or near the pointer (X11), closed by Esc, by "Open
+dashboard" or by a click elsewhere.
 
 - General tab: total spend (all agents, API equivalent), tokens, today's spend, one line per agent, chart of the
   last 14 days.
@@ -100,8 +102,8 @@ opened on a section from the tray icon menu (Settings…, About), the window put
 | Section | Setting | Values (default) | Effect |
 |---|---|---|---|
 | General | Auto refresh | 1, 5, 15 or 30 min (5) | Limits read at this interval, full report at least once an hour (on every round if the tightest limit is not a Claude window). The open dashboard reloads at the same interval. |
-| | Theme | System, Light, Dark (System) | System follows the desktop's light/dark mode (on Linux, through xdg-desktop-portal). |
-| | Start at login | yes / no (no, unless the Windows installer box was checked) | Not available from source (switch grayed out). Windows: `AgentBurn` value of `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` (disabling it in Task Manager is respected; turning the option back on undoes that). Linux: `~/.config/autostart/io.github.magikdidi24.AgentBurn.desktop`, which launches the app's exe, links resolved (`/opt/agent-burn-desktop/agent-burn-desktop` for the packages), or the AppImage file; `Hidden=true` or `X-GNOME-Autostart-enabled=false` (set by the desktop's tool) count as disabled; only this file is created or removed. An app path that contains a control character (line break…), `%` or `\` is refused and the option stays off (noted in the log): the entry would be hijacked or ignored. |
+| | Theme | System, Light, Dark (System) | System follows the desktop's light/dark mode (on Linux, through xdg-desktop-portal; on macOS, Appearance). |
+| | Start at login | yes / no (no, unless the Windows installer box was checked) | Not available from source (switch grayed out). Windows: `AgentBurn` value of `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` (disabling it in Task Manager is respected; turning the option back on undoes that). Linux: `~/.config/autostart/io.github.magikdidi24.AgentBurn.desktop`, which launches the app's exe, links resolved (`/opt/agent-burn-desktop/agent-burn-desktop` for the packages), or the AppImage file; `Hidden=true` or `X-GNOME-Autostart-enabled=false` (set by the desktop's tool) count as disabled; only this file is created or removed. An app path that contains a control character (line break…), `%` or `\` is refused and the option stays off (noted in the log): the entry would be hijacked or ignored. macOS: the LaunchAgent `~/Library/LaunchAgents/io.github.magikdidi24.AgentBurn.plist`, which starts the app's executable (`Contents/MacOS/AgentBurn`) at login; `Disabled` set to true counts as disabled; only this file is created or removed. macOS lists it in System Settings → General → Login Items ("Allow in the Background"), where turning it off is not seen by the app. An app opened where it was downloaded runs from a temporary copy (App Translocation): refused, move it to Applications first. Moved app: turn the option on again. |
 | | Keep in the system tray when closed | yes / no (yes) | No: closing the dashboard quits the app. |
 | | Icon click | Popover, Dashboard (Dashboard on Wayland, Popover elsewhere) | Left-click action. |
 | Providers | — | — | Claude Code, Codex, then every other agent seen: state, explanation, age of the reading, last error specific to the agent. agent-burn CLI: location, version ("unreadable" if `--version` prints nothing, "no response (10 s)" if it hangs), report state followed by the CLI error on failure, "Refresh now" button. |
@@ -166,17 +168,17 @@ the tray icon menu when there is no limit. The signals are detailed in [PROVIDER
 
 ## Where the files are
 
-| | Windows | Linux |
-|---|---|---|
-| App | `%LOCALAPPDATA%\Programs\Agent Burn` (installer), or the zip's folder | `/opt/agent-burn-desktop` (packages), the AppImage file, or the archive's folder |
-| Bundled CLI | `bin\agent-burn.exe` in the app folder | `bin/agent-burn` in the app folder |
-| Data | `%APPDATA%\AgentBurn` | `~/.local/share/agent-burn-desktop` (`$XDG_DATA_HOME`) |
-| Settings | `%APPDATA%\AgentBurn\settings.json` | `~/.config/agent-burn-desktop/settings.json` (`$XDG_CONFIG_HOME`) |
-| Logs | `%LOCALAPPDATA%\AgentBurn\logs` | `~/.local/state/agent-burn-desktop/logs` (`$XDG_STATE_HOME`) |
-| Cache | `%LOCALAPPDATA%\AgentBurn\cache` | `~/.cache/agent-burn-desktop` and `~/.cache/AgentBurn/qmlcache` (`$XDG_CACHE_HOME`) |
-| Start at login | `AgentBurn` value of `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` | `~/.config/autostart/io.github.magikdidi24.AgentBurn.desktop` |
-| Single instance | named pipe `\\.\pipe\AgentBurn-<user>-<session>`, lock `%LOCALAPPDATA%\AgentBurn\cache\AgentBurn-<user>-<session>.lock` | `$XDG_RUNTIME_DIR/AgentBurn.sock` and its lock `AgentBurn.sock.lock` |
-| The CLI's own cache | `%USERPROFILE%\.cache\agent-burn` | `~/.cache/agent-burn` |
+| | Windows | Linux | macOS |
+|---|---|---|---|
+| App | `%LOCALAPPDATA%\Programs\Agent Burn` (installer), or the zip's folder | `/opt/agent-burn-desktop` (packages), the AppImage file, or the archive's folder | `Agent Burn.app`, in Applications |
+| Bundled CLI | `bin\agent-burn.exe` in the app folder | `bin/agent-burn` in the app folder | `Contents/Frameworks/bin/agent-burn` in the app |
+| Data | `%APPDATA%\AgentBurn` | `~/.local/share/agent-burn-desktop` (`$XDG_DATA_HOME`) | `~/Library/Application Support/AgentBurn` |
+| Settings | `%APPDATA%\AgentBurn\settings.json` | `~/.config/agent-burn-desktop/settings.json` (`$XDG_CONFIG_HOME`) | `~/Library/Application Support/AgentBurn/settings.json` |
+| Logs | `%LOCALAPPDATA%\AgentBurn\logs` | `~/.local/state/agent-burn-desktop/logs` (`$XDG_STATE_HOME`) | `~/Library/Logs/AgentBurn` |
+| Cache | `%LOCALAPPDATA%\AgentBurn\cache` | `~/.cache/agent-burn-desktop` and `~/.cache/AgentBurn/qmlcache` (`$XDG_CACHE_HOME`) | `~/Library/Caches/AgentBurn` |
+| Start at login | `AgentBurn` value of `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` | `~/.config/autostart/io.github.magikdidi24.AgentBurn.desktop` | `~/Library/LaunchAgents/io.github.magikdidi24.AgentBurn.plist` |
+| Single instance | named pipe `\\.\pipe\AgentBurn-<user>-<session>`, lock `%LOCALAPPDATA%\AgentBurn\cache\AgentBurn-<user>-<session>.lock` | `$XDG_RUNTIME_DIR/AgentBurn.sock` and its lock `AgentBurn.sock.lock` | `~/Library/Caches/AgentBurn/AgentBurn.sock` and its lock `AgentBurn.sock.lock` |
+| The CLI's own cache | `%USERPROFILE%\.cache\agent-burn` | `~/.cache/agent-burn` | `~/Library/Caches/agent-burn` |
 
 Data folder:
 
@@ -209,12 +211,14 @@ replaced by the next one). The `AGENT_BURN_DATA` variable overrides the data fol
     installer from github.com (redirected to GitHub's download servers). On Linux and from source, the app never
     sends it.
 - The CLI reads Claude Code's logs and configuration (`~/.claude/projects`, `~/.claude.json`), its sign-in token
-  (`~/.claude/.credentials.json`) to read the limits, the Codex logs (`~/.codex/sessions`,
+  (`~/.claude/.credentials.json`; on macOS, the Keychain item "Claude Code-credentials", through the system
+  `security` tool) to read the limits, the Codex logs (`~/.codex/sessions`,
   `~/.codex/archived_sessions`) and its token (`~/.codex/auth.json`), and the folders of the other agents. On
   Windows, these paths are under `%USERPROFILE%`: the app forces `HOME=%USERPROFILE%` on the CLI, which would
   otherwise follow a `HOME` set elsewhere (Git Bash for example).
-- The CLI writes: when Claude's OAuth token has expired, it renews it and rewrites `~/.claude/.credentials.json`,
-  like Claude Code does (temporary locks in `~/.claude`); and its cache `claude-usage.json`.
+- The CLI writes: when Claude's OAuth token has expired, it renews it and rewrites `~/.claude/.credentials.json`
+  (on macOS, the Keychain item), like Claude Code does (temporary locks in `~/.claude`); and its cache
+  `claude-usage.json`.
 - The CLI contacts: pricing (LiteLLM on raw.githubusercontent.com, models.dev), `api.anthropic.com` (Claude
   limits), `platform.claude.com` (token renewal), `chatgpt.com` (Codex limits, if Codex is signed in).
 - The user's agent-burn configuration is ignored on purpose: each run gets
@@ -247,6 +251,8 @@ replaced by the next one). The `AGENT_BURN_DATA` variable overrides the data fol
 - GNOME: install and enable the AppIndicator extension (already on in Ubuntu). Settings → General points this out
   when no system tray is detected.
 - Panel started, or extension enabled, after the app: the icon appears within 5 s, without restarting the app.
+- macOS: on a MacBook with a notch, the menu bar icons that do not fit next to it are hidden; with fewer icons in
+  the menu bar, Agent Burn's shows up.
 - Settings → Diagnostics → "System tray" says what the app found. Without an icon, everything stays reachable
   from the dashboard.
 
@@ -274,8 +280,9 @@ back online, then Refresh. Offline, a report also takes much more computation.
 
 App message: "Agent Burn can't find its CLI (<path>): reinstall the app."
 
-- The CLI is `bin\agent-burn.exe` (Windows) or `bin/agent-burn` (Linux) in the app folder. Settings → Providers →
-  agent-burn CLI gives its location and version.
+- The CLI is `bin\agent-burn.exe` (Windows) or `bin/agent-burn` (Linux) in the app folder,
+  `Contents/Frameworks/bin/agent-burn` in the macOS app. Settings → Providers → agent-burn CLI gives its location
+  and version.
 - Windows: an antivirus may have quarantined it. Restore it, or reinstall.
 - An `AGENT_BURN_BIN` variable set in the environment overrides this path: remove it.
 
@@ -296,6 +303,12 @@ and in Diagnostics → Recent errors. With no report at all, not even an old one
 - CLI version "unreadable" or "no response (10 s)" (Settings → Providers): `agent-burn --version` printed
   nothing, or did not respond within 10 s. Same fix as when the CLI is not found.
 
+### Gatekeeper (macOS)
+
+"Agent Burn" Not Opened, or Apple could not verify it: the app is signed ad hoc, not notarized by Apple. Check
+the zip against `SHA256SUMS` (`shasum -a 256 <file>`), then, after that first attempt, System Settings → Privacy &
+Security → "Open Anyway" and confirm; or in Terminal, `xattr -dr com.apple.quarantine "/Applications/Agent Burn.app"`.
+
 ### SmartScreen, antivirus
 
 Neither the installer nor the app is signed: SmartScreen warns on first launch ("More info" → "Run anyway"), and
@@ -309,6 +322,7 @@ antivirus removes `bin\agent-burn.exe`, the app shows "CLI not found".
   desktop theme and uses dark. If `QT_QPA_PLATFORMTHEME` is set, the app uses that Qt module instead of the
   portal.
 - Windows: the app follows the light/dark mode for apps and the accent color.
+- macOS: the app follows System Settings → Appearance and the accent color.
 
 ### Collecting diagnostics
 
@@ -333,9 +347,12 @@ then lost.
 | `.deb`, `.rpm` | Turn off start at login, quit, then `sudo apt remove agent-burn-desktop`, `sudo dnf remove agent-burn-desktop` or `sudo zypper remove agent-burn-desktop`. | The user's folders (data, settings, logs, cache). |
 | AppImage | Turn off start at login, quit, delete the file. | Same. |
 | Archive | Turn off start at login, quit, delete the folder. If installed as in the [README](../README.md#linux): `sudo rm -r /opt/agent-burn-desktop /usr/local/bin/agent-burn-desktop` and the `io.github.magikdidi24.AgentBurn.*` files copied under `/usr/local/share` (`applications/`, `metainfo/`, `icons/hicolor/*/apps/`). | Same. |
+| macOS app | Turn off start at login, quit, move `Agent Burn.app` to the Trash. | `~/Library/Application Support/AgentBurn`, `~/Library/Caches/AgentBurn`, `~/Library/Logs/AgentBurn`. |
 
 On Linux, if start at login is still on, `~/.config/autostart/io.github.magikdidi24.AgentBurn.desktop` stays
-behind: delete it. To erase everything:
+behind: delete it (macOS: `~/Library/LaunchAgents/io.github.magikdidi24.AgentBurn.plist`). To erase everything:
 `rm -r ~/.local/share/agent-burn-desktop ~/.config/agent-burn-desktop ~/.local/state/agent-burn-desktop ~/.cache/agent-burn-desktop ~/.cache/AgentBurn`
-(Windows: delete `%APPDATA%\AgentBurn` and `%LOCALAPPDATA%\AgentBurn`). The CLI cache (`~/.cache/agent-burn`)
-belongs to the CLI and may be used by another `agent-burn`: it is never touched.
+(Windows: delete `%APPDATA%\AgentBurn` and `%LOCALAPPDATA%\AgentBurn`; macOS:
+`rm -r ~/Library/Application\ Support/AgentBurn ~/Library/Caches/AgentBurn ~/Library/Logs/AgentBurn`). The CLI
+cache (`~/.cache/agent-burn`, `~/Library/Caches/agent-burn` on macOS) belongs to the CLI and may be used by another
+`agent-burn`: it is never touched.

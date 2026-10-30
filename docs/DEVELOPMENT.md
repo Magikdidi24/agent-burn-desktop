@@ -4,7 +4,7 @@ Architecture: [ARCHITECTURE.md](ARCHITECTURE.md). Usage: [README](../README.md) 
 
 ## Setup
 
-- Python 3.12 on Linux, 3.13 on Windows (the ones CI and the builds use: python.org no longer publishes Windows
+- Python 3.12 on Linux, 3.13 on Windows and macOS (the ones CI and the builds use: python.org no longer publishes
   binaries of 3.12), and the only dependency, pinned in
   [`app/requirements.txt`](../app/requirements.txt) (`PySide6-Essentials==6.12.0`):
 
@@ -17,19 +17,22 @@ Architecture: [ARCHITECTURE.md](ARCHITECTURE.md). Usage: [README](../README.md) 
 
   Builds and CI install [`app/requirements.lock`](../app/requirements.lock) instead, with
   `pip install --require-hashes`: the lock of [`app/requirements-build.txt`](../app/requirements-build.txt)
-  (`requirements.txt` plus `pyinstaller==6.22.3`), versions and sha256 of the whole tree for Linux x86_64 and
-  Windows x64 and ARM64. After a change to either of these two files, regenerate the lock from `app/`:
+  (`requirements.txt` plus `pyinstaller==6.22.3`), versions and sha256 of the whole tree for Linux x86_64,
+  Windows x64 and ARM64, and macOS (universal2 wheels, for both builds). After a change to either of these two files,
+  regenerate the lock from `app/`:
   `uv pip compile --universal --python-version 3.12 --generate-hashes requirements-build.txt -o requirements.lock`
   (with `--universal`, `--python-version` is a minimum: the lock also holds for 3.13).
 - The `agent-burn` CLI, at the `AB_REV` revision of [`cli.env`](../cli.env):
   - Linux: `cargo install --locked --git https://github.com/Melvynx/agent-burn --rev <AB_REV> agent-burn --bin agent-burn --root ~/.local`
     (into `~/.local/bin/agent-burn`);
   - Windows: a first `build.ps1` run compiles it into `build\cli\bin\agent-burn.exe`;
+  - macOS: the `cargo install` above, or a first `mac/build.sh` run (`build/cli-mac-<arch>/bin/agent-burn`);
   - or no CLI at all, with the fixtures (see below).
 - Font: the build scripts put JetBrainsMono Nerd Font into `app/fonts/`, which runs from source also load.
   Without it, the font must be installed on the system, otherwise the icons show up as squares.
 - Packages: podman (Linux build and tests); PowerShell 7.4+, Git, Rust (rustup, MSVC toolchain) and Inno Setup
-  6.3+ (Windows).
+  6.3+ (Windows); Xcode command line tools (`xcode-select --install`: clang, `codesign`, `sips`, `iconutil`,
+  `ditto`), Git and Rust (rustup) on macOS.
 
 ## Running from source
 
@@ -46,6 +49,9 @@ AGENT_BURN_FAKE_DIR=$PWD/../tests/fixtures AGENT_BURN_BIN=$PWD/tests/fake-agent-
 
 `tests/fake-agent-burn` runs `python3 -m agentburn`, which serves the fixtures without loading Qt: the system
 Python is enough. `tests/fixtures/codex` adds Codex.
+
+macOS: the same commands, without `xdg-open` or D-Bus to worry about. Python shows in the Dock (no `LSUIElement`
+outside the app bundle), and start at login is unavailable.
 
 Windows (PowerShell), from `app\`:
 
@@ -77,22 +83,26 @@ t() { env -u DISPLAY -u WAYLAND_DISPLAY QT_QPA_PLATFORM=offscreen PYTHONDONTWRIT
 
 | What | Command | In CI |
 |---|---|---|
-| Unit tests | `t python -m unittest discover -s tests -v` (from `app/`) | Linux and Windows |
-| Core suite under the shim | `t python tests/run_burn_suite.py`, then with `BURN_TEST=corrupt` and `BURN_TEST=timeout` | Linux |
+| Unit tests | `t python -m unittest discover -s tests -v` (from `app/`) | Linux, Windows, macOS (Apple Silicon, and Intel under Rosetta 2) |
+| Core suite under the shim | `t python tests/run_burn_suite.py`, then with `BURN_TEST=corrupt` and `BURN_TEST=timeout` | Linux, macOS |
 | Core suite under Quickshell | see below | no |
 | Upstream tracking | `python3 -I scripts/test_agent_burn_upstream.py` (from the root) | Linux; the check that needs the real CLI (`~/.local/bin/agent-burn`, skipped without it) runs in the packages job, with the CLI that job has just built |
 | License tools (crate notices, `.rpm` license) | `python3 -m unittest discover -s .` (from `tools/`) | Linux |
 | Selftest | see below | Linux (Xvfb), and on every frozen build |
 | Linux packages | `linux/smoke-local.sh IMAGE` | 7 distros |
 | Windows installer | `windows/smoke.ps1` | Windows x64 |
+| macOS zip | `mac/smoke.sh ZIP` | macOS (Apple Silicon, and Intel under Rosetta 2) |
+
+On macOS, no D-Bus: `QT_QPA_PLATFORM=offscreen` before the same commands (`PYTHONDONTWRITEBYTECODE=1` too).
 
 ### Unit tests
 
 Fake CLI, startup (render loop, single instance and its lock, window size on a small screen, closing with or
 without a system tray), popover (keyboard scrolling), icon and menu (system tray appearing or disappearing),
 cached QML copy, settings (BOM, deeply nested JSON) and Settings window (Enter, arrows, visible focus, contrast,
-two-step reset), log and redaction, diagnostics, folders, Linux and Windows autostart (fake registry), shim
-(environment, stderr, current directory, log, waiting for runs on close), check of the selftest captures, in-app
+two-step reset), log and redaction, diagnostics, folders (macOS ones with a simulated platform), Linux, Windows (fake
+registry) and macOS (LaunchAgent in a temporary home) autostart, macOS icon clicks, shim (environment, stderr, current
+directory, log, waiting for runs on close, idle polling), check of the selftest captures, in-app
 update (fake GitHub on 127.0.0.1: see [In-app update](#in-app-update-windows)). They set `QT_QPA_PLATFORM=offscreen`
 and `QT_QUICK_BACKEND=software` themselves; on Windows, `python -m unittest discover -s tests -v` is enough
 (6 Linux-only tests are skipped there).
@@ -132,7 +142,7 @@ qs exits with 0 even when tests fail: read the `RESULT` line. Same variants with
 and `BURN_TEST=timeout`. The qs warnings about Wayland, idle or portals
 come from the environment without a screen.
 
-The suite only runs on Linux: on Windows, the cp1252 console garbles its messages (seen under Wine).
+The suite runs on Linux and macOS, not on Windows: the cp1252 console garbles its messages (seen under Wine).
 
 ### Selftest
 
@@ -144,7 +154,11 @@ clean: data loaded, no QML warning, no CLI error, no capture that is empty, of a
 size. It does not notice a missing icon font: look at the PNGs.
 
 It needs OpenGL (software rendering ignores masks and shadows): under Xvfb like CI, in a desktop session
-(offscreen rendering) or in a nested session.
+(offscreen rendering) or in a nested session. On Windows and macOS, it renders on screen (Direct3D, Metal: the
+offscreen platform has no native window there), for a few seconds: do not click on it.
+`AGENT_BURN_SELFTEST_AUTOSTART=on` (or `off`) also sets start at login at the end, through the Settings singleton as
+the switch does, and `selftest.json` gives the state read back (`autostart`): `mac/smoke.sh` uses it, in a throwaway
+HOME; elsewhere it would change the real start at login.
 
 ```sh
 cd app
@@ -196,6 +210,23 @@ portable zip. Outputs in `dist/smoke/` (in CI, `selftest-windows-<arch>` artifac
 the zip). It runs in CI, on the `windows-2025` runner (Windows Server 2025), never on a desktop Windows; before
 CI, its logic had been replayed in Python under Wine (43 checks out of 43, plus an update over an old
 installation and the refusal of the arm64 installer on x64).
+
+### macOS app: `smoke.sh`
+
+```sh
+bash mac/smoke.sh dist/mac-arm64/AgentBurn-<ver>-macos-arm64.zip   # or the x64 zip, under Rosetta 2 on Apple Silicon
+```
+
+It works in a throwaway HOME (`/tmp/abhome.*`, short for the single-instance socket), never the real one, and
+checks the zip the way a user gets it: unzipped with `ditto`, `Agent Burn.app` at its top, Info.plist (identifier,
+executable, version, `LSUIElement`), `codesign --verify --deep --strict`, no App Sandbox entitlement, the
+architecture of the exe and of the bundled CLI (`lipo -archs`), the CLI's `--version`, `build-info.json`; then a
+selftest of the unzipped app that turns start at login on (the LaunchAgent: label, `ProgramArguments` = the exe,
+`RunAtLoad`) and one that turns it off (plist gone), both also checking that the app read its `build-info.json`
+(version and target in its log); then menu bar mode for 10 s and a 2nd launch that hands over to it (code 0, the
+1st one still running, "opened the dashboard of the running instance" in the log). Outputs in
+`dist/mac-<arch>/smoke/` (in CI, `selftest-macos-<arch>` artifact, without the unzipped app). It has run only on
+GitHub's `macos-15` runner, never on a real Mac.
 
 ### In-app update (Windows)
 
@@ -311,12 +342,44 @@ bundle (files from a previous version) only over an installation of Agent Burn (
 (`DisableDirPage`): an existing folder picked by hand would be emptied at the next update. `build.ps1` does not
 run under Wine (no PowerShell 7): it has only run in CI, on the `windows-2025` runner.
 
+### macOS: `mac/build.sh`
+
+```sh
+bash mac/build.sh          # Apple Silicon app: arm64 (default)
+bash mac/build.sh x64      # Intel app; on Apple Silicon, with Rosetta 2 and an x86_64 or universal2 python3
+SKIP_CLI=1 bash mac/build.sh   # reuses build/cli-mac-<arch> as is
+```
+
+A Mac with the Xcode command line tools, rustup, and Python 3.13 as `python3` (setup-python in CI; for x64, an
+x86_64 one under Rosetta 2). Steps, `bash` 3.2 compatible:
+
+1. CLI (only if `build/cli-mac-<arch>/rev` is not `AB_REV`): shallow clone of upstream, Rust from its
+   `rust-toolchain.toml`, `cargo build --target aarch64-apple-darwin` or `x86_64-apple-darwin` (cross-compiled on
+   Apple Silicon), `--version` == `AB_VER`, `lipo -archs` == the build's architecture, license and crate notices;
+2. the JetBrainsMono Nerd Font fonts, checked by sha256 as on Linux;
+3. venv from `app/requirements.lock` (`--require-hashes`), every Python command run through `arch -arm64` or
+   `arch -x86_64`: PyInstaller freezes the architecture its Python runs as, and thins the universal2 wheels to it;
+4. `.icns` from `assets/agent-burn.png` (`sips`, `iconutil`; 256 px source, no 512 px sizes), `licenses/` and
+   `build-info.json` (target `macos-arm64` or `macos-x64`) as on Linux;
+5. PyInstaller, then the checks: CLI in `Contents/Frameworks/bin/`, everything from `build/bundle-extra` in
+   `Contents/Resources`, every Mach-O file of the bundle of the build's architecture only;
+6. ad hoc signature of the whole bundle (`codesign --force --deep -s -`), then `codesign --verify --deep --strict`;
+7. selftest of the frozen app, on screen, HOME in `build/mac-<arch>/selftest-home`;
+8. zip with `ditto -c -k --sequesterRsrc --keepParent`, `Agent Burn.app` at its top.
+
+[`agentburn.spec`](../agentburn.spec) makes the `.app` with `BUNDLE`: `Contents/MacOS/AgentBurn`, the binaries
+(the CLI too) in `Contents/Frameworks` (`sys._MEIPASS`), the data in `Contents/Resources` with links from
+`Contents/Frameworks`; Info.plist: `io.github.magikdidi24.AgentBurn`, `CFBundleShortVersionString` and
+`CFBundleVersion` = `__version__`, `LSUIElement` (menu bar app), `LSMinimumSystemVersion` 14.0 (the PySide6 6.12
+wheels); not sandboxed, no entitlements. Outputs in `dist/mac-<arch>/`: `AgentBurn-<ver>-macos-<arch>.zip`,
+`selftest/`, `selftest.log`. It has run only on GitHub's `macos-15` runner (arm64), the x64 build under Rosetta 2.
+
 ### Bumping Qt, PySide6, Python or the AppImage runtime
 
 The notices in [`tools/licenses/`](../tools/licenses/) describe precise versions, given by their first
 line: `QT-THIRD-PARTY.txt` (Qt and PySide6), `PYTHON-<X.Y>-THIRD-PARTY.txt` (one per shipped minor version of
-Python: 3.12 on Linux, 3.13 on Windows), `NOTICE-AppImage-runtime.txt` (`RUNTIME` in `build.sh`).
-`build.sh` and `build.ps1` stop as long as they no longer match (or the notice for their Python is
+Python: 3.12 on Linux, 3.13 on Windows and macOS), `NOTICE-AppImage-runtime.txt` (`RUNTIME` in `build.sh`).
+The build scripts stop as long as they no longer match (or the notice for their Python is
 missing). After a change of PySide6 (and so of Qt) or of Python, regenerate the lock (see
 [Setup](#setup)), then redo the notice concerned; after a change of `RUNTIME`, redo the runtime
 one. The scripts that produced them are not in the repo. Sources used: the `qt_attribution.json` files and the
@@ -332,14 +395,16 @@ actually shipped; the "Licenses and Acknowledgements for Incorporated Software" 
 3. Tag: `git tag desktop-v<ver> && git push origin desktop-v<ver>`.
 4. CI redoes everything, the CLI included: on a tag, it is always compiled from the upstream sources, never
    taken from the cache. Then the "Release (draft)" job creates a draft release titled "Agent Burn <version>":
-   Linux packages (AppImage, `.deb`, `.rpm`, archive), Windows x64 installer and zip, one
-   `SHA256SUMS`. ARM64 is never in it. It refuses a `desktop-vX.Y.Z` tag whose `.deb` and x64 installer
-   are not version X.Y.Z (different `__version__`): error, no release.
+   Linux packages (AppImage, `.deb`, `.rpm`, archive), Windows x64 installer and zip, the macOS zips (Apple
+   Silicon and Intel), one `SHA256SUMS`. Windows ARM64 is never in it. It refuses a `desktop-vX.Y.Z` tag whose
+   `.deb`, x64 installer and macOS zips are not version X.Y.Z (different `__version__`): error, no release.
 5. Before publishing, by hand:
    - `sha256sum -c --ignore-missing SHA256SUMS` on the downloaded files;
    - install on a real Windows: SmartScreen, icon, popover next to the icon, Settings → Diagnostics (app, CLI
      and expected CLI versions);
    - install a package on a real Linux desktop (KDE, or GNOME with AppIndicator);
+   - on a real Mac (never done so far): Gatekeeper and "Open Anyway", the menu bar icon and its clicks (left,
+     right, Control-click), the popover under it, start at login after a restart, the Keychain question;
    - notes: changes, CLI version (`AB_VER`), known limitations;
    - publish the draft. It becomes the latest release: installed Windows apps offer it within a day, and the
      portable copies point to its page (see [In-app update](#in-app-update-windows)). Version 1.0.0 has no
@@ -368,9 +433,10 @@ branch, tag or pull request; a push and the pull request of its branch each get 
 | Packages on … | 7 distro containers (tags, no digest: up-to-date distros) | `linux/smoke.sh` on the artifact downloaded into `dist-in/` | `smoke-<n>` on failure (7 days): `smoke.sh` logs and captures |
 | Windows x64 | `windows-2025` (pinned image: `windows-latest` would change it without warning) | Python 3.13; `.venv` venv filled from the hashed lock (the `build.ps1` one), unit tests on a real Windows (UTF-8 output, 5 min at most), Inno Setup (choco 6.7.1 if missing), `build.ps1`, `smoke.ps1` | `agent-burn-desktop-windows-x64` (30 days, uploaded before `smoke.ps1`), `selftest-windows-x64` (7 days, as soon as the build has run: build selftest and `smoke.ps1` outputs, without the extracted copy of the zip) |
 | Windows ARM64 (experimental) | `windows-11-arm` | like x64; only on a manual run with `arm64`, its failure does not fail the run | same, `-arm64` |
-| Release (draft) | `ubuntu-24.04` | `desktop-v*` tags only, after the packages and Windows: refuses a tag whose version is not the one of the packages, `SHA256SUMS`, `gh release create --draft --verify-tag` | draft release |
+| macOS Apple Silicon, macOS Intel (Rosetta 2) | `macos-15` (arm64) for both | Python 3.13 (x86_64 for Intel, after Rosetta 2 if the image lacks it); unit tests, core suite (normal, corrupted, stuck CLI) offscreen; `mac/build.sh arm64` or `x64`, `mac/smoke.sh` | `agent-burn-desktop-macos-arm64` and `-x64` (30 days), `selftest-macos-<arch>` (7 days: build selftest, `smoke.sh` outputs without the unzipped app) |
+| Release (draft) | `ubuntu-24.04` | `desktop-v*` tags only, after the packages, Windows and macOS: refuses a tag whose version is not the one of the packages, `SHA256SUMS`, `gh release create --draft --verify-tag` | draft release |
 
-- Caches: CLI per `AB_REV` (and per architecture on Windows) with the cargo registry, saved as soon as it is
+- Caches: CLI per `AB_REV` (and per architecture on Windows and macOS) with the cargo registry, saved as soon as it is
   compiled even if the rest fails, never reused by a release tag; extracted fonts (`app/fonts`, checked again
   by sha256 on every build); pip for the Tests and Windows jobs (setup-python), keyed on the lock. No cache
   for the Rust toolchain: rustup installs the upstream one on every CLI compilation (about 15 s), and a cache
@@ -407,17 +473,21 @@ branch, tag or pull request; a push and the pull request of its branch each get 
   `grep -nP '[\x{E000}-\x{F8FF}]' shared/*.qml app/qml/*.qml app/agentburn/*.py`.
 - Text coming from the CLI is shown as `Text.PlainText`; processes are launched with argv; writes are atomic.
 - A deliberate shortcut carries a `shortcut: <limit>, <when to revisit>` comment.
-- Platform-specific code goes in `platform_win.py` or `platform_linux.py`, directories in `paths.py` only.
+- Platform-specific code goes in `platform_win.py`, `platform_linux.py` or `platform_mac.py`, directories in
+  `paths.py` only.
 - To keep in sync: the `io.github.magikdidi24.AgentBurn` id (`.desktop` file, icons, AppStream,
-  `setDesktopFileName`, autostart), the `AgentBurn` application name (`WM_CLASS` on X11 ↔
-  `StartupWMClass`), the `AgentBurn.exe` and `agent-burn-desktop` executables, the CLI in `<exe directory>/bin/`,
-  the `build-info.json` keys (`appVersion`, `cliRev`, `cliVersion`, `target`, `builtAt`) written by the
-  two build scripts (the Windows `target` values, `windows-x64` and `windows-arm64`, also turn the updater on:
-  `updater.ARCHS`), the `desktop-v<ver>` tag and the `AgentBurn-Setup-<ver>-<arch>.exe` and `SHA256SUMS`
-  release files (`build.ps1`, `installer.iss`, the release job, `updater.py`), the `/relaunch=1` parameter
-  (`updater.py`, `installer.iss`, `smoke.ps1`), the digest of the build image (workflow and
-  `linux/build-local.sh`), the sums of the extracted JetBrainsMono Nerd Font fonts (`linux/build.sh` and
-  `build.ps1`) and the version in their cache key (workflow).
+  `setDesktopFileName`, autostart; on macOS the bundle identifier in `agentburn.spec` and the LaunchAgent label in
+  `platform_mac.py`, both checked by `mac/smoke.sh`), the `AgentBurn` application name (`WM_CLASS` on X11 ↔
+  `StartupWMClass`), the `AgentBurn.exe`, `agent-burn-desktop` and `Agent Burn.app/Contents/MacOS/AgentBurn`
+  executables, the CLI in `bin/` of the bundle (`sys._MEIPASS`), the `build-info.json` keys (`appVersion`,
+  `cliRev`, `cliVersion`, `target`, `builtAt`) written by the three build scripts (the Windows `target` values,
+  `windows-x64` and `windows-arm64`, also turn the updater on: `updater.ARCHS`; the macOS ones are `macos-arm64` and
+  `macos-x64`), the `desktop-v<ver>` tag and the `AgentBurn-Setup-<ver>-<arch>.exe` and `SHA256SUMS` release files
+  (`build.ps1`, `installer.iss`, the release job, `updater.py`), the `AgentBurn-<ver>-macos-<arch>.zip` release files
+  (`mac/build.sh`, `mac/smoke.sh`, the release job), the `/relaunch=1` parameter (`updater.py`, `installer.iss`,
+  `smoke.ps1`), the digest of the build image (workflow and `linux/build-local.sh`), the sums of the extracted
+  JetBrainsMono Nerd Font fonts (`linux/build.sh`, `build.ps1` and `mac/build.sh`) and the version in their cache key
+  (workflow).
 
 ## ARM64
 
@@ -428,3 +498,5 @@ branch, tag or pull request; a push and the pull request of its branch each get 
   the audit). Nothing has run on ARM hardware.
 - The x64 installer accepts Windows 11 ARM, which emulates it: never tried.
 - Linux ARM64: no build (`build.sh`, nfpm and the AppImage target x86_64).
+- macOS: two single-architecture apps, arm64 and x64, both built on the arm64 `macos-15` runner; the x64 one runs
+  there only under Rosetta 2, never on an Intel Mac.

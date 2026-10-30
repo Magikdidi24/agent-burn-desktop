@@ -31,7 +31,7 @@ Three rules hold it all together:
 
 | Layer | Files | Role |
 |---|---|---|
-| CLI | `agent-burn` binary from [Melvynx/agent-burn](https://github.com/Melvynx/agent-burn) | Discovers the agents, reads their logs, computes prices (LiteLLM, models.dev, otherwise built-in prices), reads the limits (Claude usage API, Codex). Built by `build.ps1` and `linux/build.sh`, always at `AB_REV` ([`cli.env`](../cli.env)). |
+| CLI | `agent-burn` binary from [Melvynx/agent-burn](https://github.com/Melvynx/agent-burn) | Discovers the agents, reads their logs, computes prices (LiteLLM, models.dev, otherwise built-in prices), reads the limits (Claude usage API, Codex). Built by `build.ps1`, `linux/build.sh` and `mac/build.sh`, always at `AB_REV` ([`cli.env`](../cli.env)). |
 | Core | [`shared/Burn.qml`](../shared/Burn.qml) | Runs the CLI, validates its output, keeps the cache, archive and readings, computes windows, pace and provider state. |
 | Shared views | `shared/BurnPopover.qml`, `BurnDashboardView.qml`, `BurnQuotaChart.qml`, `BurnBarChart.qml`, `BurnButton.qml`, `assets/burn/` | Popover, dashboard, charts, keyboard-accessible button, agent icons. They read `Burn` and act only through its functions (`refresh()`, `setRange()`, `setCurrency()`, `openDashboard()`…) and through `Quickshell.execDetached` (opening the data folder, the rates provider's site). |
 | Quickshell host (outside this repo) | `BurnPill.qml`, `BurnDashboard.qml`, `BurnUpstream.qml`, `Colors.qml` from the author's Quickshell bar, which keeps a copy of `shared/` synced from this repo at a pinned revision | Bar pill, dashboard window, upstream tracking, wallust palette. Specific to Quickshell and Hyprland. |
@@ -72,13 +72,13 @@ provides them in the bar; [`shim.py`](../app/agentburn/shim.py) recreates them i
 | `StdioCollector` | `text` at the end of the stream | filled before `exited`, as under qs |
 | `FileView` | `path`, `text()`, `setText()`, `preload`, `blockLoading`, `blockWrites`, `printErrors` | synchronous read, atomic write (`QSaveFile`); the loading settings are accepted with no effect |
 | `IpcHandler` | `target` and functions callable by `qs ipc call` | no IPC; functions callable from Python (tests) |
-| `IdleMonitor` | Wayland's `ext-idle-notify`, `timeout`, `isIdle` | Windows: last input (`GetLastInputInfo`) polled every 5 s; elsewhere never idle |
+| `IdleMonitor` | Wayland's `ext-idle-notify`, `timeout`, `isIdle` | last input polled every 5 s, on Windows (`GetLastInputInfo`) and macOS (CoreGraphics `CGEventSourceSecondsSinceLastEventType`); Linux never idle |
 | `Quickshell.env(name)` | variable or `null` | `os.environ` or `null` |
 | `Quickshell.dataDir` | the shell's data directory | directory passed to `shim.register()` |
 | `Quickshell.dataPath(p)` | `dataDir + "/" + p` | same |
 
-The shared views add `Quickshell.execDetached` ("Show backup" button and the rates provider's link: on Windows,
-`QDesktopServices` replaces `xdg-open`; elsewhere a detached `QProcess` with the cleaned environment), and
+The shared views add `Quickshell.execDetached` ("Show backup" button and the rates provider's link: on Windows and
+macOS, `QDesktopServices` replaces `xdg-open`; on Linux a detached `QProcess` with the cleaned environment), and
 `Quickshell.Widgets` `IconImage` and `ClippingRectangle` (`app/qml/widgets/`). They import nothing but `QtQuick`,
 `QtQuick.Shapes` and these Quickshell modules: no `QtQuick.Controls`, hence `BurnButton` (`Rectangle` and
 `MouseArea`, keyboard focus and accessible name). For the exchange rates, `Burn` uses QML's own `XMLHttpRequest`:
@@ -97,7 +97,8 @@ otherwise it would be announced twice.
 Reproduced semantics, observed under qs: at the end of a run, `streamFinished` → `exited` (`running` already
 false) → `runningChanged`; missing binary: a single `runningChanged`, without `started` (this is how `Burn` detects
 a CLI that is not found). Shim shortcuts, commented in the code: `exec()` during a run relaunches nothing at its end
-(the shared QML never does that), any `signal()` kills the process, idle inhibitors are ignored on Windows. Beyond
+(the shared QML never does that), any `signal()` kills the process, idle inhibitors are ignored on Windows and
+macOS. Beyond
 qs: `shim.wait_for_runs(ms)`, called by the app when it closes, waits for the runs in progress to finish (one
 shared timeout, `exited` delivered during the wait) and launches none afterwards, even from an `exited`; true if
 all have finished.
@@ -263,15 +264,16 @@ The JSON must depend only on the agents' data, not on the machine's configuratio
    (`QWaylandWindow::beginFrame`) while a window is being shown, far more often with the texts exposed to screen
    readers (seen in a nested KWin session, Mesa llvmpipe: no crash in 9 tries with the basic loop). Offscreen,
    there is nothing from Wayland, and the basic loop would capture the top of the enlarged popover badly.
-4. Default `AGENT_BURN_BIN`: `<exe directory>/bin/agent-burn(.exe)` once frozen (exe with links resolved:
-   `/opt/agent-burn-desktop/` even when launched through `/usr/bin/agent-burn-desktop`), otherwise `agent-burn`
-   from `PATH`, otherwise `~/.local/bin/agent-burn`.
+4. Default `AGENT_BURN_BIN`: `bin/agent-burn(.exe)` of the bundle once frozen (`sys._MEIPASS`: the exe's directory,
+   links resolved: `/opt/agent-burn-desktop/` even when launched through `/usr/bin/agent-burn-desktop`; in the macOS
+   app, `Contents/Frameworks`), otherwise `agent-burn` from `PATH`, otherwise `~/.local/bin/agent-burn`.
 5. Log ([`logs.setup`](../app/agentburn/logs.py)) before anything else.
 6. `setDesktopFileName("io.github.magikdidi24.AgentBurn")` (Wayland app_id, portals); on Linux,
    `-platformtheme xdgdesktopportal` unless `QT_QPA_PLATFORMTHEME` is set (and never in selftest).
 7. Tray mode: single instance. First a `QLockFile` (`<socket>.lock`, on Windows
-   `<cache>\AgentBurn-<user>-<session>.lock`), stale only if its process is dead: two simultaneous launches each
-   probed before the other's `listen()`, and `listen()` is not exclusive on Windows (two servers on the same pipe).
+   `<cache>\AgentBurn-<user>-<session>.lock`; the macOS socket is in the cache), stale only if its process is dead:
+   two simultaneous launches each probed before the other's `listen()`, and `listen()` is not exclusive on Windows
+   (two servers on the same pipe).
    The loser keeps trying to reach the winner for about 3 s, then exits with 0; a lock that cannot be created
    (read-only directory) lets the app start as before. The winner probes the existing instance (`QLocalSocket`): if
    it answers, it opens its dashboard and this process exits with 0. Otherwise `QLocalServer` with
@@ -286,7 +288,8 @@ The JSON must depend only on the agents' data, not on the machine's configuratio
 11. Selftest, or: dark title bars (Windows), tray icon and automatic update checks (`Updater.start()`), closing
     rules (`quit_when_closed()`: dashboard closed with `closeToTray` false, the app quits once Settings is closed
     too, unless the dashboard is reopened in the meantime; without a system tray, when the last window closes),
-    later launches connected to the dashboard, Qt loop.
+    later launches connected to the dashboard (on macOS also the reopen from Finder, Spotlight or Launchpad: the
+    app activated while none of its windows, the menu included, is shown), Qt loop.
 12. On leaving the loop: `shim.wait_for_runs(5000)`, then the QML engine is destroyed.
 
 ### Python modules (`app/agentburn/`)
@@ -299,11 +302,12 @@ The JSON must depend only on the agents' data, not on the machine's configuratio
 | `settings.py` | `Settings` singleton: validated JSON (UTF-8 BOM accepted), written atomically, `.bak` of an unreadable file (invalid JSON, extreme nesting), `reset()`. Autostart is delegated to the platform module (none in dev). |
 | `logs.py` | Rotating file (1 MB × 3, UTF-8), stderr outside the frozen app (switched back to UTF-8, even when redirected on Windows), secret redaction on every handler, Qt messages on the `qt` logger, uncaught exceptions logged (main thread, threads), DEBUG level switched on the fly. The DEBUG lines: end of the CLI's stderr (`shim.py`), settings in effect and every write, system theme, clicks on the icon, 2nd launches. |
 | `diagnostics.py` | `Desktop` singleton: versions (app, `build-info.json` or `cli.env` in dev, `agent-burn --version` read in the background: "unreadable" if empty, "no response (10 s)" if it hangs), platform, screens, folders, opening the folders, redacted diagnostics text. |
-| `tray.py` | `QSystemTrayIcon` and its menu, icon drawn per size, popover placement (`place()`, X11 and Windows; on Wayland, height capped by the screen the compositor put it on), system tray checked again every 5 s for the whole session: host appeared (icon recreated under xcb), gone or back, `Desktop.trayAvailable` tracked both ways and logged. |
+| `tray.py` | `QSystemTrayIcon` and its menu, icon drawn per size, popover placement (`place()`, X11, Windows and macOS; on Wayland, height capped by the screen the compositor put it on), system tray checked again every 5 s for the whole session: host appeared (icon recreated under xcb), gone or back, `Desktop.trayAvailable` tracked both ways and logged. macOS: no context menu set (Qt's status item would open it on every click, left included); a right click or Control-click shows the menu under the icon, in a new `QMenu` each time (Qt closes a menu clicked away while the app is in the background only if its window was created then); icon at 16 pt. |
 | `platform_win.py` | `ctypes` and `winreg`: idle time, dark title bar (DWM), `Run` and `StartupApproved\Run` keys, `AllowSetForegroundWindow`, session number. |
 | `platform_linux.py` | The user's XDG autostart file, `Exec` key escaped per the Desktop Entry spec; `$APPIMAGE` for an AppImage; `Hidden=true` or `X-GNOME-Autostart-enabled=false` count as disabled; `OSError` (nothing written) for an exe path with a control character, `%` or `\`. |
+| `platform_mac.py` | `ctypes` and `plistlib`: idle time (CoreGraphics, this login session), the user's LaunchAgent (`RunAtLoad`, the bundle's executable, `ProcessType` `Interactive`: an app, not a throttled background job); `Disabled` true or an unreadable plist count as disabled; `OSError` (nothing written) for an app run from its translocated copy or a path with a control character. Only in the `.app` (`<name>.app/Contents/MacOS`). |
 | `updater.py` | `Updater` singleton, frozen Windows builds only (`build-info.json` target `windows-x64` or `windows-arm64`; elsewhere `mode` is empty and nothing is ever requested): latest GitHub release a minute after the tray icon starts, then every 24 h or on request, one request at a time. Installed app (Inno's `unins000.exe` next to the exe): installer downloaded to the cache, checked by SHA-256, started detached, app quit; portable zip: the release page opens. See [Security](#security). |
-| `selftest.py` | Renders the icon, the popover, the dashboard and the 4 settings sections; rejects a capture that is empty, of a single color, of the wrong size or with a transparent corner; writes `selftest.json`. |
+| `selftest.py` | Renders the icon, the popover, the dashboard and the 4 settings sections; rejects a capture that is empty, of a single color, of the wrong size or with a transparent corner; writes `selftest.json`. `AGENT_BURN_SELFTEST_AUTOSTART=on` or `off` then sets start at login like the Settings switch (`mac/smoke.sh`, throwaway HOME); `selftest.json` gives the state read back. |
 
 ### App QML (`app/qml/`)
 
@@ -331,11 +335,14 @@ The JSON must depend only on the agents' data, not on the machine's configuratio
 
 - One process, one Qt main thread; everything is event-driven. The app creates no Python thread.
 - Child processes: the CLI runs (asynchronous `QProcess`, output read at the end), `agent-burn --version`
-  (killed after 10 s), detached `xdg-open`, on Windows the installer of an update (detached, with
+  (killed after 10 s), detached `xdg-open` (Linux; Windows and macOS open folders and links through the system), on
+  Windows the installer of an update (detached, with
   `child_environment()`, which it passes on to the app it starts again), and in tests or selftest the exe itself as
   a fake CLI.
 - Synchronous file reads and writes on the main thread (small JSON files).
-- Single instance through `QLocalServer`: socket `$XDG_RUNTIME_DIR/AgentBurn.sock`, or pipe
+- Single instance through `QLocalServer`: socket `$XDG_RUNTIME_DIR/AgentBurn.sock` (macOS:
+  `~/Library/Caches/AgentBurn/AgentBurn.sock`, under the 104-byte limit of socket paths there for a usual home;
+  beyond it, `listen()` fails, logged, and the lock alone keeps one instance), or pipe
   `AgentBurn-<user>-<session>` on Windows; preceded by the `QLockFile` lock (see
   [Startup](#startup-agentburn__main__py)).
 - On exit, `shim.wait_for_runs(5000)` waits for the CLI runs in progress to finish (5 s at most, without launching
@@ -382,17 +389,24 @@ The JSON must depend only on the agents' data, not on the machine's configuratio
 - Atomic writes (`QSaveFile`, `os.replace`); unreadable files copied to `.bak`, never overwritten.
 - CLI isolation (configuration, environment, working directory) and the frozen app's environment cleaned for
   every child.
-- Single instance: socket in the user's runtime directory (0700) or a pipe named with user and session, access
-  restricted to the user (`UserAccessOption`); lock taken before probing, so that two simultaneous launches do not
-  create two instances (two icons, duplicate CLI runs, overwritten settings).
+- Single instance: socket in the user's runtime directory (0700; on macOS, in the cache under `~/Library`, 0700,
+  rather than `$TMPDIR`, where macOS deletes files left untouched for days) or a pipe named with user and session,
+  access restricted to the user (`UserAccessOption`); lock taken before probing, so that two simultaneous launches
+  do not create two instances (two icons, duplicate CLI runs, overwritten settings).
 - Autostart on Linux: exe path refused if it contains a control character (a line break would add an `Exec` chosen
-  by the name of a folder), `%` or `\` (entry rejected by GLib or systemd).
+  by the name of a folder), `%` or `\` (entry rejected by GLib or systemd). On macOS, the plist is written by
+  `plistlib` (argv, no shell); refused for an app run from its translocated copy (its path is gone after a restart)
+  or with a control character in the path (not allowed in XML).
 - QML copy read back byte for byte at every launch: a file modified in the cache is not executed.
 - Log and diagnostics redact secrets (patterns: see the
   [user guide](USAGE.md#privacy-what-the-app-reads-and-writes)); the diagnostics contain no environment variable
   and no file content.
 - `AGENT_BURN_FAKE_DIR` stays active in the shipped app (the frozen selftest needs it): flagged in the log outside
-  the selftest; only `harness claude|codex` are served, never a path taken from argv.
+  the selftest; only `harness claude|codex` are served, never a path taken from argv. `AGENT_BURN_SELFTEST_AUTOSTART`
+  too, read only by `--selftest`.
+- macOS app: signed ad hoc, not notarized (no paid developer account); no App Sandbox, which would keep the CLI out
+  of the agents' folders and quarantine what the app downloads. The `.app` holds a single architecture (checked by
+  `mac/build.sh`).
 - Builds: Nerd Font and downloaded tools (nfpm, appimagetool, AppImage
   runtime, rustup-init) checked by sha256; Python dependencies installed from a hashed lock file
   (`app/requirements.lock`, `--require-hashes`); Linux build image pinned by digest. CI: actions

@@ -1,10 +1,11 @@
 # Agent Burn (desktop app)
 
-Agent Burn shows, on Windows and Linux, what your coding agents spend (Claude Code, Codex and the other agents its
-CLI knows), their tokens and models, and your live subscription limits with the pace to stay within them. It does
-this through a system tray icon, a popover, a dashboard and a Settings window. It is a Windows and Linux remake of
-Melvynx's macOS app [agent-burn](https://github.com/Melvynx/agent-burn), and it bundles that project's CLI (Rust,
-revision pinned in [`cli.env`](cli.env)) to read the logs, compute prices and read the limits. MIT license.
+Agent Burn shows, on Windows, Linux and macOS, what your coding agents spend (Claude Code, Codex and the other agents
+its CLI knows), their tokens and models, and your live subscription limits with the pace to stay within them. It does
+this through a system tray (or menu bar) icon, a popover, a dashboard and a Settings window. It is a Windows and Linux
+remake of Melvynx's macOS app [agent-burn](https://github.com/Melvynx/agent-burn), also built for macOS, and it
+bundles that project's CLI (Rust, revision pinned in [`cli.env`](cli.env)) to read the logs, compute prices and read
+the limits. MIT license.
 
 Documentation: the [user guide](docs/USAGE.md) (icon, popover, dashboard, settings, updates, states, files,
 privacy, troubleshooting, uninstalling); for developers: [architecture](docs/ARCHITECTURE.md),
@@ -26,9 +27,11 @@ privacy, troubleshooting, uninstalling); for developers: [architecture](docs/ARC
 | GNOME | | GNOME 50, headless (container), during the audit, with the old version of the app: no system tray without the AppIndicator extension, one with it. The current app has not run there. |
 | XFCE, Cinnamon, Hyprland, others | | Not tried. |
 | EL9 (AlmaLinux, Rocky…) and any glibc older than 2.35 | | Not supported. |
+| macOS 14 or later, Apple Silicon | `.zip` (the app) | By GitHub CI, on the `macos-15` runner (an arm64 virtual machine): unit tests, core suite; build (CLI, app signed ad hoc, selftest of the frozen app); then the zip as downloaded: signature, selftest, start at login (LaunchAgent), menu bar mode for 10 s, 2nd launch ([`mac/smoke.sh`](mac/smoke.sh)). Never on a real Mac: I have not seen the menu bar icon, its clicks, the popover under it, Gatekeeper or the Keychain. |
+| macOS 14 or later, Intel | `.zip` (the app) | Same, but built and run under Rosetta 2 on that arm64 runner: never on an Intel Mac. |
 
-CI ([`ci.yml`](.github/workflows/ci.yml)) reruns the Windows and Linux checks above on every push (results in the
-Actions tab). Its first complete run, all green, was on 2026-10-25, just before the app got its own repository. I
+CI ([`ci.yml`](.github/workflows/ci.yml)) reruns the Windows, Linux and macOS checks above on every push (results in
+the Actions tab). Its first complete run, all green, was on 2026-10-25, just before the app got its own repository. I
 also run, locally on Linux and from source: unit tests (133), the core suite under Quickshell 0.3.2 and under the
 app (342 checks, 29 with corrupted files, 6 with a stuck CLI), selftests, and the nested KWin sessions from the
 table.
@@ -40,9 +43,9 @@ table.
 - [Releases](https://github.com/Magikdidi24/agent-burn-desktop/releases): CI builds every package for each
   `desktop-v<version>` tag and makes a draft release out of them, which I publish by hand.
 - Between releases, the CI artifacts: [Actions](https://github.com/Magikdidi24/agent-burn-desktop/actions) tab →
-  "Agent Burn (desktop)" workflow → a successful run → `agent-burn-desktop-linux` or
-  `agent-burn-desktop-windows-x64`. You have to be signed in to GitHub to download them, and they are kept for
-  30 days.
+  "Agent Burn (desktop)" workflow → a successful run → `agent-burn-desktop-linux`,
+  `agent-burn-desktop-windows-x64`, `agent-burn-desktop-macos-arm64` or `agent-burn-desktop-macos-x64`. You have to
+  be signed in to GitHub to download them, and they are kept for 30 days.
 - Local build: see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 | File | For |
@@ -53,7 +56,9 @@ table.
 | `agent-burn-desktop-<version>-1.x86_64.rpm` | Fedora, openSUSE |
 | `agent-burn-desktop-<version>-x86_64.AppImage` | any recent x86_64 distro |
 | `agent-burn-desktop-<version>-x86_64.tar.gz` | Arch, or a manual install |
-| `SHA256SUMS` | verification: `sha256sum -c --ignore-missing SHA256SUMS` (Windows: `Get-FileHash <file>`) |
+| `AgentBurn-<version>-macos-arm64.zip` | macOS, Apple Silicon (M1 and later) |
+| `AgentBurn-<version>-macos-x64.zip` | macOS, Intel |
+| `SHA256SUMS` | verification: `sha256sum -c --ignore-missing SHA256SUMS` (Windows: `Get-FileHash <file>`; macOS: `shasum -a 256 <file>`) |
 
 ### Windows
 
@@ -121,9 +126,26 @@ sudo tar -xzf $V.tar.gz -C /usr/local --strip-components=1 $V/share
 Dependencies on Arch:
 `sudo pacman -S --needed fontconfig freetype2 libdrm libglvnd libx11 libxcb libxkbcommon libxkbcommon-x11 wayland mesa ttf-dejavu`.
 
+### macOS
+
+macOS 14 (Sonoma) or later: the `arm64` zip for Apple Silicon, the `x64` one for Intel.
+
+1. Unzip it (double-click), then move `Agent Burn.app` to Applications before opening it: opened where it was
+   downloaded, macOS runs the app from a temporary copy, which start at login refuses.
+2. The app is signed ad hoc, not by an Apple developer account, so macOS blocks its first launch ("Agent Burn" Not
+   Opened). Then System Settings → Privacy & Security → "Open Anyway", and confirm. Or, in Terminal:
+   `xattr -dr com.apple.quarantine "/Applications/Agent Burn.app"`.
+3. Its icon goes into the menu bar; no Dock icon. Left click: popover; right click or Control-click: menu.
+4. Claude limits: the CLI reads Claude Code's sign-in from the Keychain item "Claude Code-credentials" through the
+   system `security` tool, the way Claude Code stores it there. If macOS asks whether `security` may use it, allow it
+   ("Always Allow" stops the question); denied, the limits stay unknown, the spend still shows.
+5. Updating: see [Updates](docs/USAGE.md#updates).
+
+Melvynx's native macOS app is also named `Agent Burn.app`: only one of the two fits in Applications.
+
 ### From source
 
-Python 3.12 or newer (the Linux packages bundle 3.12, the Windows ones 3.13) and PySide6 6.12: see
+Python 3.12 or newer (the Linux packages bundle 3.12, the Windows and macOS ones 3.13) and PySide6 6.12: see
 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## Requirements
@@ -132,21 +154,23 @@ Python 3.12 or newer (the Linux packages bundle 3.12, the Windows ones 3.13) and
   else to install: the `agent-burn` CLI, Python and Qt come with the app.
 - Live Claude limits: Claude Code signed in (`claude`, then `/login`) and a network connection.
 - Codex limits: read from the Codex session logs, or live when Codex is signed in and the network is up.
-- For the icon: a system tray (Windows; KDE; GNOME with the AppIndicator extension). Without one, the app works as
-  a plain window.
+- For the icon: a system tray (Windows; KDE; GNOME with the AppIndicator extension; the macOS menu bar). Without
+  one, the app works as a plain window.
 
 ## First launch
 
 - Windows: the installer starts the app. The icon shows up in the system tray, sometimes tucked behind the ^
   arrow: drag it onto the taskbar.
 - Linux: the "Agent Burn" menu entry, or `agent-burn-desktop`.
+- macOS: Agent Burn in Applications, Spotlight or Launchpad. The icon shows up in the menu bar.
 - The first report arrives a few seconds after launch (longer when offline). On later launches, the last report
   shows right away, marked "Cached", until the new one comes in.
 - With no system tray, the dashboard opens. The app checks again every 5 s for as long as it runs: a panel started
   after it, or the AppIndicator extension turned on later, gets the icon without restarting the app.
 - Starting the app while it is already running opens its dashboard: one instance per user and per session. Two
   launches at the same moment do not make two instances: a lock decides, and the second one tries for about 3 s
-  to reach the first (which then opens its dashboard), then exits.
+  to reach the first (which then opens its dashboard), then exits. On macOS, opened again from Finder, Spotlight or
+  Launchpad, the running app shows its dashboard (macOS reactivates it instead of starting another one).
 
 The rest (icon, popover, dashboard, settings, troubleshooting, uninstalling): [docs/USAGE.md](docs/USAGE.md).
 
@@ -154,13 +178,18 @@ The rest (icon, popover, dashboard, settings, troubleshooting, uninstalling): [d
 
 - I have never run it on a desktop Windows 10 or 11, only on the Windows Server of the CI runners (see
   [Platforms](#platforms)).
-- Not signed (SmartScreen, antivirus).
+- I have never run it on a real Mac, only on GitHub's macOS runners (arm64 virtual machines, the Intel app under
+  Rosetta 2). Not seen: the menu bar icon and its clicks (left, right, Control-click; read from Qt's sources), the
+  popover under it, Gatekeeper, the Keychain question, a launch at login, a reopen from Finder.
+- Not signed (SmartScreen, antivirus); on macOS, signed ad hoc, not notarized (Gatekeeper, see [macOS](#macos)).
+- macOS: start at login is a LaunchAgent. Turned off in System Settings → General → Login Items ("Allow in the
+  Background"), it stays on in the app, which only sees its plist. After moving the app, turn it on again.
 - Updates from the app: Windows only, the portable zip only opens the download page, and 1.0.0 predates them. On
   Linux, install the new package by hand. No update has gone through on a real Windows yet: CI runs the installer
   the way the app does (`/relaunch=1`), and the tests use a fake GitHub.
 - Wayland: the compositor places the popover. GNOME: system tray only with the AppIndicator extension.
-- Linux: no idle detection, so readings go on while the session is idle (Windows pauses them after 5 min without
-  input).
+- Linux: no idle detection, so readings go on while the session is idle (Windows and macOS pause them after 5 min
+  without input).
 - I have only seen Codex with test data (synthetic or cleaned), never with a real Codex account.
 - Outside Claude, limit windows are assumed to be 5 h and 7 days.
 - Screen readers: the app exposes the texts of the popover and the dashboard, a one-sentence summary of each
@@ -181,7 +210,7 @@ The rest (icon, popover, dashboard, settings, troubleshooting, uninstalling): [d
 ## Development
 
 - `app/`: the PySide6 app (Quickshell compatibility layer, windows, icon, settings), its QML and its tests;
-  `shared/`: the `Burn.qml` core and the shared views (popover, dashboard, charts); `linux/`, `windows/`,
+  `shared/`: the `Burn.qml` core and the shared views (popover, dashboard, charts); `linux/`, `windows/`, `mac/`,
   `build.ps1`, `installer.iss`, `agentburn.spec`: package builds and tests; `scripts/`: upstream project
   tracking; `tests/fixtures/`: real CLI output, cleaned; [`cli.env`](cli.env): pinned CLI revision.
 - `shared/` is also the core of my Quickshell bar (Hyprland), which keeps a copy synced from this repository, at
@@ -199,13 +228,15 @@ The rest (icon, popover, dashboard, settings, troubleshooting, uninstalling): [d
   Melvynx, text in `LICENSE-agent-burn.txt`). The logos are trademarks of their respective owners; they are only
   used to identify each agent.
 - Qt 6, PySide6, Shiboken6: LGPL-3.0, used unmodified. They are separate shared libraries (the app's `PySide6/`
-  folder; on Linux, also the `lib*.so.6` links at its root), so you can replace them with a compatible modified
-  version without recompiling the app (LGPL-3.0, section 4 d) 1)). Notice and links to the sources:
-  `NOTICE-Qt-PySide6.txt`; texts: `LGPL-3.0.txt`, `GPL-3.0.txt`.
+  folder, `Contents/Frameworks/PySide6/` in the macOS app; on Linux, also the `lib*.so.6` links at its root), so you
+  can replace them with a compatible modified version without recompiling the app (LGPL-3.0, section 4 d) 1)); on
+  macOS, sign the app again afterwards: `codesign --force --deep -s - "Agent Burn.app"`. Notice and links to the
+  sources: `NOTICE-Qt-PySide6.txt`; texts: `LGPL-3.0.txt`, `GPL-3.0.txt`.
 - Third-party components compiled into Qt and PySide6 (ICU on Linux, PCRE2, HarfBuzz, libpng, FreeType and zlib
   on Windows, Unicode data, Wayland protocols…): platform, SPDX license, copyright and text of each one in
   `QT-THIRD-PARTY.txt`. The image plugins the app never opens (JPEG, TIFF, WebP, GIF, TGA, WBMP, ICNS) and the
-  Windows software OpenGL (`opengl32sw.dll`) are not shipped.
+  Windows software OpenGL (`opengl32sw.dll`) are not shipped. The macOS app ships the same list, checked against the
+  Linux and Windows files only.
 - JetBrainsMono Nerd Font: SIL Open Font License 1.1.
 - Python: PSF license, with the C libraries of its distribution and the software included in CPython (libmpdec,
   HACL*, Mersenne Twister…), in `LICENSE-Python.txt`.
@@ -213,7 +244,8 @@ The rest (icon, popover, dashboard, settings, troubleshooting, uninstalling): [d
 - AppImage only: its runtime (type2-runtime) contains libfuse (LGPL-2.1, with its sources and how to relink it),
   squashfuse, zstd, zlib, mimalloc and musl: `NOTICE-AppImage-runtime.txt`.
 
-All these texts are in the `licenses/` folder next to the executable, which Settings → About → Licenses opens.
+All these texts are in the `licenses/` folder next to the executable (`Contents/Resources/licenses/` in the macOS
+app), which Settings → About → Licenses opens.
 The `.deb` also has `/usr/share/doc/agent-burn-desktop/copyright` (the app's MIT license and a pointer to
 `licenses/`); the License field of the `.rpm` is the SPDX expression for everything it contains.
 
