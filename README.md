@@ -6,8 +6,8 @@ this through a system tray icon, a popover, a dashboard and a Settings window. I
 Melvynx's macOS app [agent-burn](https://github.com/Melvynx/agent-burn), and it bundles that project's CLI (Rust,
 revision pinned in [`cli.env`](cli.env)) to read the logs, compute prices and read the limits. MIT license.
 
-Documentation: the [user guide](docs/USAGE.md) (icon, popover, dashboard, settings, states, files, privacy,
-troubleshooting, uninstalling); for developers: [architecture](docs/ARCHITECTURE.md),
+Documentation: the [user guide](docs/USAGE.md) (icon, popover, dashboard, settings, updates, states, files,
+privacy, troubleshooting, uninstalling); for developers: [architecture](docs/ARCHITECTURE.md),
 [providers](docs/PROVIDERS.md), [upstream tracking](docs/UPSTREAM.md),
 [tests, build and release](docs/DEVELOPMENT.md).
 
@@ -15,7 +15,7 @@ troubleshooting, uninstalling); for developers: [architecture](docs/ARCHITECTURE
 
 | Platform | Formats | What was actually checked |
 |---|---|---|
-| Windows 10 (1809 or later) and 11, x64 | installer, portable zip | By GitHub CI, on the `windows-2025` runner (Windows Server 2025): unit tests; build (CLI compiled with MSVC, bundle, selftest of the frozen app); silent install, shortcuts and registry, selftest of the installed app, tray mode for 10 s, 2nd launch, uninstall while the app runs, portable zip ([`windows/smoke.ps1`](windows/smoke.ps1)). Never on a desktop Windows 10 or 11: I have not seen SmartScreen, a real system tray or the dark title bar. Before CI, I tested it under Wine. |
+| Windows 10 (1809 or later) and 11, x64 | installer, portable zip | By GitHub CI, on the `windows-2025` runner (Windows Server 2025): unit tests; build (CLI compiled with MSVC, bundle, selftest of the frozen app); silent install, shortcuts and registry, silent update the way the app starts it (the app restarts, start at login stays off), selftest of the installed app, tray mode for 10 s, 2nd launch, uninstall while the app runs, portable zip ([`windows/smoke.ps1`](windows/smoke.ps1)). Never on a desktop Windows 10 or 11: I have not seen SmartScreen, a real system tray or the dark title bar. Before CI, I tested it under Wine. |
 | Windows 11 ARM64 | experimental `arm64` installer, or the x64 installer under emulation | arm64 installer built under Wine during development; CI only builds it on a manual run (the `arm64` checkbox), never done so far. Never run on an ARM machine, x64 emulation not tried. |
 | Ubuntu 22.04 and 24.04, Debian 12 and 13 | `.deb` | Packages built by CI (Debian 12 container), then tested in a container of each distro, with no desktop session: install without the recommended packages, command, launcher, icons, AppStream, bundled CLI, selftest of the installed app (software rendering, then Mesa OpenGL under Xvfb), full uninstall ([`linux/smoke.sh`](linux/smoke.sh)). |
 | Fedora 44 | `.rpm` (dnf) | Same as above. |
@@ -29,7 +29,7 @@ troubleshooting, uninstalling); for developers: [architecture](docs/ARCHITECTURE
 
 CI ([`ci.yml`](.github/workflows/ci.yml)) reruns the Windows and Linux checks above on every push (results in the
 Actions tab). Its first complete run, all green, was on 2026-10-25, just before the app got its own repository. I
-also run, locally on Linux and from source: unit tests (118), the core suite under Quickshell 0.3.2 and under the
+also run, locally on Linux and from source: unit tests (132), the core suite under Quickshell 0.3.2 and under the
 app (342 checks, 29 with corrupted files, 6 with a stuck CLI), selftests, and the nested KWin sessions from the
 table.
 
@@ -61,15 +61,20 @@ table.
    `%LOCALAPPDATA%\Programs\Agent Burn`, with a Start menu shortcut. Two checkboxes: "Start Agent Burn at
    Windows startup" (checked) and "Create a desktop shortcut" (unchecked). The app starts at the end.
 2. SmartScreen: the installer is not signed. "Windows protected your PC" → "More info" → "Run anyway".
-3. Updating: run the installer of a newer version. It closes the app if it is running, replaces the install and
-   keeps your data and settings. There is no automatic update.
+3. Updating: the app checks GitHub for a new release a minute after it starts, then once a day. When one is out,
+   Settings → About → "Update now" (or "Update to Agent Burn X.Y.Z" in the tray icon menu) downloads its
+   installer, checks it against the release's `SHA256SUMS`, installs it silently and restarts the app, keeping
+   your data, settings and start at login choice. Version 1.0.0 predates this: from 1.0.0, install the next
+   version by hand once. Running a newer installer by hand still works: it closes the app if it is running,
+   replaces the install and keeps your data and settings.
 4. If you pick the folder yourself: the installer only empties its subfolders (`bin`, `licenses`, `PySide6`…)
    when it goes over an existing Agent Burn install (`AgentBurn.exe` and `unins000.dat` present). A folder that
    holds anything else keeps its files.
 
 Without installing: unzip `AgentBurn-portable-<version>-x64.zip` wherever you like and run
 `AgentBurn\AgentBurn.exe`. Data and settings still go to `%APPDATA%\AgentBurn`, cache and logs to
-`%LOCALAPPDATA%\AgentBurn`.
+`%LOCALAPPDATA%\AgentBurn`. It checks for new releases too, but only offers "Open download page": unzip the new
+version in place of the old folder.
 
 ### Linux
 
@@ -149,7 +154,10 @@ The rest (icon, popover, dashboard, settings, troubleshooting, uninstalling): [d
 
 - I have never run it on a desktop Windows 10 or 11, only on the Windows Server of the CI runners (see
   [Platforms](#platforms)).
-- Not signed (SmartScreen, antivirus). No automatic update.
+- Not signed (SmartScreen, antivirus).
+- Updates from the app: Windows only, the portable zip only opens the download page, and 1.0.0 predates them. On
+  Linux, install the new package by hand. No update has gone through on a real Windows yet: CI runs the installer
+  the way the app does (`/relaunch=1`), and the tests use a fake GitHub.
 - Wayland: the compositor places the popover. GNOME: system tray only with the AppIndicator extension.
 - Linux: no idle detection, so readings go on while the session is idle (Windows pauses them after 5 min without
   input).

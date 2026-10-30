@@ -35,7 +35,7 @@ Three rules hold it all together:
 | Core | [`shared/Burn.qml`](../shared/Burn.qml) | Runs the CLI, validates its output, keeps the cache, archive and readings, computes windows, pace and provider state. |
 | Shared views | `shared/BurnPopover.qml`, `BurnDashboardView.qml`, `BurnQuotaChart.qml`, `BurnBarChart.qml`, `BurnButton.qml`, `assets/burn/` | Popover, dashboard, charts, keyboard-accessible button, agent icons. They read `Burn` and act only through its functions (`refresh()`, `setRange()`, `setCurrency()`, `openDashboard()`…) and through `Quickshell.execDetached` (opening the data folder, the rates provider's site). |
 | Quickshell host (outside this repo) | `BurnPill.qml`, `BurnDashboard.qml`, `BurnUpstream.qml`, `Colors.qml` from the author's Quickshell bar, which keeps a copy of `shared/` synced from this repo at a pinned revision | Bar pill, dashboard window, upstream tracking, wallust palette. Specific to Quickshell and Hyprland. |
-| Desktop app host | [`app/`](../app/) | Compatibility layer (`shim.py`), windows, tray icon, settings, logs, diagnostics, autostart, selftest. |
+| Desktop app host | [`app/`](../app/) | Compatibility layer (`shim.py`), windows, tray icon, settings, logs, diagnostics, autostart, updates (Windows), selftest. |
 | Upstream tracking | [`scripts/agent-burn-upstream.py`](../scripts/agent-burn-upstream.py) | See [UPSTREAM.md](UPSTREAM.md). |
 
 ## Data flow
@@ -276,16 +276,17 @@ The JSON must depend only on the agents' data, not on the machine's configuratio
    (read-only directory) lets the app start as before. The winner probes the existing instance (`QLocalSocket`): if
    it answers, it opens its dashboard and this process exits with 0. Otherwise `QLocalServer` with
    `UserAccessOption`; a failed `listen()` is logged.
-8. Bundled fonts, window icon, `Settings` (in memory for the selftest) and `Desktop`, color scheme.
-9. `runtime.assemble()` prepares the QML directory, `register()` registers the shim then the `Settings` and
-   `Desktop` singletons (`import AgentBurn`, app QML only), then `Main.qml` is loaded.
+8. Bundled fonts, window icon, `Settings` (in memory for the selftest), `Desktop` and `Updater` (supported only
+   when `build-info.json` names a Windows target), color scheme.
+9. `runtime.assemble()` prepares the QML directory, `register()` registers the shim then the `Settings`,
+   `Desktop` and `Updater` singletons (`import AgentBurn`, app QML only), then `Main.qml` is loaded.
 10. `fit()`: dashboard (1200 × 800) and Settings (620 × 680) centered on the primary screen, shrunk on a small
     screen (48 px margin) without going below their minimum size; screen smaller than that minimum: the minimum
     is brought down to the screen, the window fits on it whole and its content scrolls.
-11. Selftest, or: dark title bars (Windows), tray icon, closing rules (`quit_when_closed()`: dashboard closed with
-    `closeToTray` false, the app quits once Settings is closed too, unless the dashboard is reopened in the
-    meantime; without a system tray, when the last window closes), later launches connected to the dashboard, Qt
-    loop.
+11. Selftest, or: dark title bars (Windows), tray icon and automatic update checks (`Updater.start()`), closing
+    rules (`quit_when_closed()`: dashboard closed with `closeToTray` false, the app quits once Settings is closed
+    too, unless the dashboard is reopened in the meantime; without a system tray, when the last window closes),
+    later launches connected to the dashboard, Qt loop.
 12. On leaving the loop: `shim.wait_for_runs(5000)`, then the QML engine is destroyed.
 
 ### Python modules (`app/agentburn/`)
@@ -301,6 +302,7 @@ The JSON must depend only on the agents' data, not on the machine's configuratio
 | `tray.py` | `QSystemTrayIcon` and its menu, icon drawn per size, popover placement (`place()`, X11 and Windows; on Wayland, height capped by the screen the compositor put it on), system tray checked again every 5 s for the whole session: host appeared (icon recreated under xcb), gone or back, `Desktop.trayAvailable` tracked both ways and logged. |
 | `platform_win.py` | `ctypes` and `winreg`: idle time, dark title bar (DWM), `Run` and `StartupApproved\Run` keys, `AllowSetForegroundWindow`, session number. |
 | `platform_linux.py` | The user's XDG autostart file, `Exec` key escaped per the Desktop Entry spec; `$APPIMAGE` for an AppImage; `Hidden=true` or `X-GNOME-Autostart-enabled=false` count as disabled; `OSError` (nothing written) for an exe path with a control character, `%` or `\`. |
+| `updater.py` | `Updater` singleton, frozen Windows builds only (`build-info.json` target `windows-x64` or `windows-arm64`; elsewhere `mode` is empty and nothing is ever requested): latest GitHub release a minute after the tray icon starts, then every 24 h or on request, one request at a time. Installed app (Inno's `unins000.exe` next to the exe): installer downloaded to the cache, checked by SHA-256, started detached, app quit; portable zip: the release page opens. See [Security](#security). |
 | `selftest.py` | Renders the icon, the popover, the dashboard and the 4 settings sections; rejects a capture that is empty, of a single color, of the wrong size or with a transparent corner; writes `selftest.json`. |
 
 ### App QML (`app/qml/`)
@@ -316,9 +318,10 @@ The JSON must depend only on the agents' data, not on the machine's configuratio
   in the settings. Keyboard scrolling (focus followed, Page Up / Page Down / Home / End) and Escape in the model
   filter are in `BurnDashboardView`, shared with the bar.
 - `SettingsWindow.qml`: Qt Quick controls (Fusion) in the `Colors` palette; sections General, Providers,
-  Diagnostics, About. Enter works like Space (`activate()`), left and right arrows between the options of a row
-  (`Choice`), current tab in bold and underlined and focus ring (`PageTab`, `Ring`), `open(section)` which gives
-  focus to the section's tab, two-step reset (5 s), path fields wrapped anywhere.
+  Diagnostics, About (with the `Updater` state and buttons on Windows builds). Enter works like Space
+  (`activate()`), left and right arrows between the options of a row (`Choice`), current tab in bold and
+  underlined and focus ring (`PageTab`, `Ring`), `open(section)` which gives focus to the section's tab, two-step
+  reset (5 s), path fields wrapped anywhere.
 - `Colors.qml`: same API as the bar's `Colors.qml`; chosen theme or the system's light/dark (unknown: dark);
   system accent made readable (4.5:1 contrast); secondary text (`muted`) at 4.5:1 or more on the background and
   the cards, in light as in dark.
@@ -328,7 +331,9 @@ The JSON must depend only on the agents' data, not on the machine's configuratio
 
 - One process, one Qt main thread; everything is event-driven. The app creates no Python thread.
 - Child processes: the CLI runs (asynchronous `QProcess`, output read at the end), `agent-burn --version`
-  (killed after 10 s), detached `xdg-open`, and in tests or selftest the exe itself as a fake CLI.
+  (killed after 10 s), detached `xdg-open`, on Windows the installer of an update (detached, with
+  `child_environment()`, which it passes on to the app it starts again), and in tests or selftest the exe itself as
+  a fake CLI.
 - Synchronous file reads and writes on the main thread (small JSON files).
 - Single instance through `QLocalServer`: socket `$XDG_RUNTIME_DIR/AgentBurn.sock`, or pipe
   `AgentBurn-<user>-<session>` on Windows; preceded by the `QLockFile` lock (see
@@ -341,7 +346,8 @@ The JSON must depend only on the agents' data, not on the machine's configuratio
 ## Security
 
 - Processes launched as argv, never through a shell. Texts coming from the CLI shown as `Text.PlainText`.
-- One network request from the app itself, the exchange rates: `GET https://open.er-api.com/v6/latest/USD`
+- The app's own network requests: the update on Windows (next item) and the exchange rates:
+  `GET https://open.er-api.com/v6/latest/USD`
   (`ratesUrl`, free, no key), with Qt's default headers only (user agent `Mozilla/5.0`, the system language in
   `Accept-Language`), nothing about the usage. Sent only when the currency is not USD (at startup, when it is chosen,
   then checked every hour) or when the currency list opens, never before `ratesNext`: the provider's next update,
@@ -350,6 +356,27 @@ The JSON must depend only on the agents' data, not on the machine's configuratio
   (network, HTTP status, unreadable JSON) keeps the cached rates and goes to `recentErrors`. The provider's terms
   require the "Rates By Exchange Rate API" link, shown in the currency list. The CLI, however, downloads pricing,
   queries the usage APIs and rewrites `~/.claude/.credentials.json` when it renews the Claude token.
+- Update, frozen Windows builds only (`updater.py`): `GET https://api.github.com/repos/Magikdidi24/agent-burn-desktop/releases/latest`
+  (`Accept: application/vnd.github+json`, user agent `AgentBurn/<version>`), a minute after the tray icon starts,
+  then every 24 h, or from "Check for updates"; one request at a time, given up after 30 s without data. The
+  answer is validated before any use: drafts and pre-releases ignored; `tag_name` exactly
+  `desktop-v<major>.<minor>.<patch>` (ASCII digits), newer than `__version__` compared as numbers; assets
+  `AgentBurn-Setup-<version>-<arch>.exe` (arch from `build-info.json`) and `SHA256SUMS`, each with a
+  `browser_download_url` exactly `https://github.com/Magikdidi24/agent-burn-desktop/releases/download/desktop-v<version>/<name>`
+  (a prefix check would let `../` leave the repository) and a size from 1 byte to 256 MB (64 KB for
+  `SHA256SUMS`, 1 MB for the JSON); portable zip: `html_url` exactly the tag's release page, the only thing it
+  opens. Network text shown or logged loses its control and format characters (line breaks, escapes, bidi
+  overrides). "Update now": `SHA256SUMS` must give exactly one sum for the installer; the installer follows
+  GitHub's redirect (Qt's default policy: never from HTTPS to HTTP), is written to `<cache>/AgentBurn-Setup.exe`,
+  stopped beyond its announced size, then hashed (hashlib) as read back from disk: a mismatch or any error deletes
+  it and runs nothing. It starts detached with `/SILENT /SUPPRESSMSGBOXES /NORESTART /relaunch=1`, plus
+  `/MERGETASKS=!autostart` when start at login is off (Inno restores the previous installation's tasks: its
+  `autostart` task would turn it back on), then the app leaves through `QCoreApplication.quit()`, like menu →
+  Quit (CLI runs awaited, lock released). [`installer.iss`](../installer.iss) starts `{app}\AgentBurn.exe` again
+  at the end only with `/relaunch=1`. The hash catches a corrupted or truncated download, not a compromised
+  release: `SHA256SUMS` comes from the same release. `AGENT_BURN_UPDATE_URL` (tests) replaces both GitHub
+  addresses (`<url>/releases/latest`, `<url>/releases/download/…`, `<url>/releases/tag/…`); like
+  `AGENT_BURN_FAKE_DIR`, it stays active in the shipped app and is flagged in the log.
 - Atomic writes (`QSaveFile`, `os.replace`); unreadable files copied to `.bak`, never overwritten.
 - CLI isolation (configuration, environment, working directory) and the frozen app's environment cleaned for
   every child.

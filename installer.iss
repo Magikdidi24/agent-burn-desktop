@@ -90,6 +90,8 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupA
 
 [Run]
 Filename: "{app}\AgentBurn.exe"; Description: "{cm:LaunchProgram,Agent Burn}"; Flags: nowait postinstall skipifsilent
+; Silent update started by the app (updater.py), which quit for it: started again. Other silent installs do not.
+Filename: "{app}\AgentBurn.exe"; Flags: nowait; Check: Relaunch
 
 [UninstallRun]
 ; The app runs in the background in the system tray: without stopping it, its locked files would stay.
@@ -109,4 +111,10 @@ Type: dirifempty; Name: "{localappdata}\AgentBurn"
 function OwnInstall: Boolean;
 begin
   Result := FileExists(ExpandConstant('{app}\AgentBurn.exe')) and FileExists(ExpandConstant('{app}\unins000.dat'));
+end;
+
+// /relaunch=1 on the command line: the app started this update and quit to let it replace its files.
+function Relaunch: Boolean;
+begin
+  Result := ExpandConstant('{param:relaunch|0}') = '1';
 end;

@@ -99,15 +99,16 @@ def main():
         return 1
 
 
-def register(qml, data, cfg, desktop):
+def register(qml, data, cfg, desktop, upd):
     """Quickshell types of the shim and singletons of the app (import AgentBurn, desktop QML only). Only
     once per process: a 2nd registration makes the types incompatible (PySide)."""
     from PySide6.QtQml import qmlRegisterSingletonInstance
 
-    from agentburn import diagnostics, settings, shim
+    from agentburn import diagnostics, settings, shim, updater
     shim.register(qml, data)
     qmlRegisterSingletonInstance(settings.Settings, "AgentBurn", 1, 0, "Settings", cfg)
     qmlRegisterSingletonInstance(diagnostics.Desktop, "AgentBurn", 1, 0, "Desktop", desktop)
+    qmlRegisterSingletonInstance(updater.Updater, "AgentBurn", 1, 0, "Updater", upd)
 
 
 def fit(w, width, height, area):
@@ -152,7 +153,7 @@ def run(args):
     from PySide6.QtQuick import QQuickWindow
     from PySide6.QtWidgets import QApplication, QFileIconProvider
 
-    from agentburn import diagnostics, logs, paths, runtime, settings, shim, tray
+    from agentburn import diagnostics, logs, paths, runtime, settings, shim, tray, updater
 
     shim.APP_VARS.update(OWN_ENV)
 
@@ -240,6 +241,8 @@ def run(args):
     data = paths.data_dir()
     desktop = diagnostics.Desktop(os.environ["AGENT_BURN_BIN"], data, settings_file,
                                   Path(args.selftest) if args.selftest else paths.log_dir(), paths.cache_dir())
+    # Frozen Windows builds only (their build-info.json target); checks start with the tray icon.
+    upd = updater.Updater(desktop.buildInfo["target"], Path(sys.executable).parent, cfg)
     hints = QGuiApplication.styleHints()
 
     def apply_settings():
@@ -254,7 +257,7 @@ def run(args):
     hints.colorSchemeChanged.connect(lambda scheme: log.debug("system theme: %s", scheme.name))
 
     qml = runtime.assemble()
-    register(qml, data, cfg, desktop)
+    register(qml, data, cfg, desktop, upd)
     engine = QQmlApplicationEngine()
     engine.warnings.connect(lambda errors: problems["qmlErrors"].extend(e.toString() for e in errors))
     engine.load(QUrl.fromLocalFile(str(qml / "Main.qml")))
@@ -290,7 +293,8 @@ def run(args):
         cfg.changed.connect(title_bars)
 
     if mode == "tray":
-        icon = tray.Tray(root, cfg, desktop)  # noqa: F841 (kept alive until exit)
+        icon = tray.Tray(root, cfg, desktop, upd)  # noqa: F841 (kept alive until exit)
+        upd.start()
         if not icon.docked:   # no system tray (yet): the dashboard in the meantime
             log.warning("no system tray (%s): dashboard opened, checked again every 5 s",
                         QGuiApplication.platformName())

@@ -1,6 +1,6 @@
 # Tray icon tests on the real Main.qml (offscreen windows, fake CLI): menu labels and order,
-# effect of each action, autostart check mark, status lines, clicks, icon recreated when a system
-# tray appears, popover left to the compositor on Wayland.
+# effect of each action, autostart check mark, status lines, update item, clicks, icon recreated when a
+# system tray appears, popover left to the compositor on Wayland.
 #   cd app && python -m unittest discover -s tests -v
 import sys
 import types
@@ -10,16 +10,16 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from test_app import js, main_root, qml_env, wait_for  # noqa: E402
+from test_app import APP, js, main_root, qml_env, wait_for  # noqa: E402
 
 from PySide6.QtCore import QPoint, QRect  # noqa: E402
 from PySide6.QtGui import QGuiApplication  # noqa: E402
 from PySide6.QtQuick import QQuickWindow  # noqa: E402
 from PySide6.QtWidgets import QSystemTrayIcon  # noqa: E402
 
-from agentburn import settings, tray  # noqa: E402
+from agentburn import settings, tray, updater  # noqa: E402
 
-ACTIONS = ["Open popover", "Open dashboard", "Refresh", "Start at login", "Settings…",
+ACTIONS = ["Update to Agent Burn 9.9.9", "Open popover", "Open dashboard", "Refresh", "Start at login", "Settings…",
            "Logs", "About", "Quit"]
 R = QSystemTrayIcon.ActivationReason
 
@@ -37,12 +37,18 @@ class TrayIcon(unittest.TestCase):
         self.system = system or types.SimpleNamespace(autostart=lambda: self.state["on"],
                                                       set_autostart=lambda on: self.state.update(on=on))
         self.cfg = settings.Settings(None, self.system)
+        self.upd = updater.Updater("dev", APP, self.cfg)   # dev: never a request; an update shown as found
+        self.offer("available")
         self.quit = mock.patch.object(tray.QApplication, "quit").start()
         self.addCleanup(mock.patch.stopall)
-        t = tray.Tray(self.root, self.cfg, qml_env()["desktop"])
+        t = tray.Tray(self.root, self.cfg, qml_env()["desktop"], self.upd)
         t.timer.stop()   # system tray checked again: tested separately
         self.addCleanup(self.hide_all)
         return t
+
+    def offer(self, state, version="9.9.9"):
+        self.upd._state, self.upd._version = state, version
+        self.upd.changed.emit()
 
     def hide_all(self):
         js(self.root, "Burn.dashboardOpen = false")
@@ -68,6 +74,7 @@ class TrayIcon(unittest.TestCase):
         desktop = qml_env()["desktop"]
         a = self.actions(t)
         effects = {
+            "Update to Agent Burn 9.9.9": lambda: updated.called,
             "Open popover": lambda: self.pop.isVisible(),
             "Open dashboard": lambda: js(self.root, "Burn.dashboardOpen"),
             "Refresh": lambda: js(self.root, "Burn.updatedAt") > before,
@@ -78,7 +85,7 @@ class TrayIcon(unittest.TestCase):
             "Quit": lambda: self.quit.called,
         }
         self.assertEqual(sorted(effects), sorted(a))   # no action without a test, none extra
-        with mock.patch.object(desktop, "openLogs") as opened:
+        with mock.patch.object(desktop, "openLogs") as opened, mock.patch.object(self.upd, "update") as updated:
             for label, done in effects.items():
                 self.hide_all()
                 before = js(self.root, "Burn.updatedAt")
@@ -94,9 +101,28 @@ class TrayIcon(unittest.TestCase):
         self.assertTrue(t.boot.isChecked())
         t.boot.trigger()   # unchecks
         self.assertFalse(self.state["on"])
-        dev = tray.Tray(self.root, settings.Settings(None, None), qml_env()["desktop"])
+        dev = tray.Tray(self.root, settings.Settings(None, None), qml_env()["desktop"], qml_env()["updater"])
         dev.timer.stop()
         self.assertFalse(dev.boot.isEnabled())   # dev: no installed exe
+
+    def test_update_announced_once_per_version(self):
+        with mock.patch.object(tray.QSystemTrayIcon, "showMessage") as shown:
+            self.make()   # found before the icon existed
+            self.offer("current")
+            self.offer("available")
+            self.assertEqual(shown.call_count, 1)
+            self.offer("available", "10.0.0")
+        self.assertEqual([c.args[0] for c in shown.call_args_list],
+                         ["Agent Burn 9.9.9 is available", "Agent Burn 10.0.0 is available"])
+
+    def test_update_item_only_while_an_update_is_available(self):
+        t = self.make()
+        self.assertTrue(t.upgrade.isVisible())
+        for state in ("", "checking", "current", "downloading", "installing", "error"):
+            self.offer(state)
+            self.assertFalse(t.upgrade.isVisible(), state)
+        self.offer("available", "10.0.0")
+        self.assertEqual((t.upgrade.isVisible(), t.upgrade.text()), (True, "Update to Agent Burn 10.0.0"))
 
     def test_status_lines_without_data(self):
         t = self.make()

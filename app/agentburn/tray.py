@@ -108,15 +108,16 @@ class Tray(QObject):
     appearing after the app (panel started later, AppIndicator extension enabled), gone or back (panel
     restarted). The icon is recreated on xcb when a host appears."""
 
-    def __init__(self, root, settings, desktop):
+    def __init__(self, root, settings, desktop, updater):
         super().__init__()
-        self.root, self.settings, self.desktop = root, settings, desktop
+        self.root, self.settings, self.desktop, self.updater = root, settings, desktop, updater
         self.pop = root.property("popover")
         menu = self.menu = QMenu()
         self.lines = [menu.addAction("") for _ in range(LINES)]   # status: disabled lines
         for line in self.lines:
             line.setEnabled(False)
         menu.addSeparator()
+        self.upgrade = menu.addAction("", lambda: updater.update())   # shown while an update is available
         menu.addAction("Open popover", self.popover)
         menu.addAction("Open dashboard", self.dashboard)
         menu.addAction("Refresh", self.refresh)
@@ -148,6 +149,9 @@ class Tray(QObject):
         desktop.setTrayAvailable(self.docked)
         self.timer = QTimer(self, interval=5000, timeout=self.recheck)
         self.timer.start()
+        self.notified = ""   # last version announced by a notification (needs the icon)
+        updater.changed.connect(self.show_update)
+        self.show_update()
 
     def dock(self):
         """(Re)creates the icon: on xcb, an icon created without a system tray stays on XEmbed and never
@@ -186,6 +190,16 @@ class Tray(QObject):
         for i, action in enumerate(self.lines):
             action.setText(lines[i] if i < len(lines) else "")
             action.setVisible(i < len(lines))
+
+    def show_update(self):
+        version, found = self.updater.property("version"), self.updater.property("state") == "available"
+        self.upgrade.setText(f"Update to Agent Burn {version}")
+        self.upgrade.setVisible(found)
+        # Once per version and run: the menu item alone goes unnoticed.
+        if found and version != self.notified:
+            self.notified = version
+            self.icon.showMessage(f"Agent Burn {version} is available",
+                                  "Update from this icon's menu or from Settings › About.")
 
     def clicked(self, reason):
         R = QSystemTrayIcon.ActivationReason

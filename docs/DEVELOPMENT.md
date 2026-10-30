@@ -62,7 +62,9 @@ Differences from the installed app:
 - the log also goes to stderr; Diagnostics shows "development version" and the CLI expected by `cli.env`;
 - the shared QML files are read again from `shared/` at every launch (copy prepared in the cache): a change is
   picked up at the next launch;
-- `AGENT_BURN_FAKE_DIR` outside the selftest is reported in the log.
+- `AGENT_BURN_FAKE_DIR` outside the selftest is reported in the log;
+- no update check: the updater only runs in a frozen Windows build. `AGENT_BURN_UPDATE_URL=<url>` (tests)
+  points it at a fake GitHub instead of the real one: see [In-app update](#in-app-update-windows).
 
 ## Tests
 
@@ -89,9 +91,10 @@ Fake CLI, startup (render loop, single instance and its lock, window size on a s
 without a system tray), popover (keyboard scrolling), icon and menu (system tray appearing or disappearing),
 cached QML copy, settings (BOM, deeply nested JSON) and Settings window (Enter, arrows, visible focus, contrast,
 two-step reset), log and redaction, diagnostics, folders, Linux and Windows autostart (fake registry), shim
-(environment, stderr, current directory, log, waiting for runs on close), check of the selftest captures. They set
-`QT_QPA_PLATFORM=offscreen` and `QT_QUICK_BACKEND=software` themselves; on Windows,
-`python -m unittest discover -s tests -v` is enough (6 Linux-only tests are skipped there).
+(environment, stderr, current directory, log, waiting for runs on close), check of the selftest captures, in-app
+update (fake GitHub on 127.0.0.1: see [In-app update](#in-app-update-windows)). They set `QT_QPA_PLATFORM=offscreen`
+and `QT_QUICK_BACKEND=software` themselves; on Windows, `python -m unittest discover -s tests -v` is enough
+(6 Linux-only tests are skipped there).
 
 ### Core suite (Burn.qml)
 
@@ -183,13 +186,35 @@ pwsh -File windows\smoke.ps1 -Setup <...\AgentBurn-Setup-<ver>-x64.exe> -Portabl
 
 It requires a machine without Agent Burn (installation, process, autostart or `%APPDATA%\AgentBurn`)
 and refuses otherwise: it installs, then uninstalls for good. Made for CI runners or a disposable virtual
-machine. Checks: silent installation (files, shortcuts, `Run` value, uninstall key), selftest of the installed
+machine. Checks: silent installation (files, shortcuts, `Run` value, uninstall key), the same installer run
+again the way the app runs an update with start at login off (`/relaunch=1` starts the app, which a silent
+installation without it does not; `/MERGETASKS=!autostart` leaves the `Run` value out), selftest of the installed
 exe, tray mode for 10 s, a 2nd launch that exits with 0, uninstallation while the app runs (folder, shortcuts,
 `Run` and `StartupApproved` values, cache and logs gone, `%APPDATA%\AgentBurn` kept), then selftest of the
 portable zip. Outputs in `dist/smoke/` (in CI, `selftest-windows-<arch>` artifact, without the extracted copy of
 the zip). It runs in CI, on the `windows-2025` runner (Windows Server 2025), never on a desktop Windows; before
 CI, its logic had been replayed in Python under Wine (43 checks out of 43, plus an update over an old
 installation and the refusal of the arm64 installer on x64).
+
+### In-app update (Windows)
+
+[`updater.py`](../app/agentburn/updater.py) only runs in a frozen Windows build.
+[`test_updater.py`](../app/tests/test_updater.py) makes one through the constructor (build target `windows-x64`,
+Inno's `unins000.exe` next to the exe or not) and serves a fake GitHub from `127.0.0.1` through
+`AGENT_BURN_UPDATE_URL`, which replaces both GitHub addresses:
+`<url>/releases/latest` (the GitHub release JSON: `tag_name`, `draft`, `prerelease`, `html_url`, `assets` with
+`name`, `size`, `browser_download_url`), `<url>/releases/download/desktop-v<ver>/<file>` and
+`<url>/releases/tag/desktop-v<ver>`. The installer never runs there (`QProcess` and `QCoreApplication` patched):
+the test checks its exact command line. `smoke.ps1` runs the real installer with that command line.
+
+End to end, by hand, on a Windows machine or VM: install version X, then in a folder `D` put
+`releases/latest` (that JSON for version Y > X, addresses under `http://127.0.0.1:8000`),
+`releases/download/desktop-v<Y>/AgentBurn-Setup-<Y>-x64.exe` and its `SHA256SUMS` next to it; serve `D` with
+`python -m http.server 8000 -d D`, start version X with `AGENT_BURN_UPDATE_URL=http://127.0.0.1:8000` set,
+then Settings → About → Check for updates, Update now: the app quits, the installer runs, version Y starts.
+The installer part was also tried under Wine with Inno Setup 6.7.3, on a fake bundle: `/relaunch=1` runs the
+last `[Run]` entry, a silent installation without it does not, and without `/MERGETASKS=!autostart` the
+remembered `autostart` task writes the `Run` value back.
 
 ### Under Wine
 
@@ -315,7 +340,9 @@ actually shipped; the "Licenses and Acknowledgements for Incorporated Software" 
      and expected CLI versions);
    - install a package on a real Linux desktop (KDE, or GNOME with AppIndicator);
    - notes: changes, CLI version (`AB_VER`), known limitations;
-   - publish the draft.
+   - publish the draft. It becomes the latest release: installed Windows apps offer it within a day, and the
+     portable copies point to its page (see [In-app update](#in-app-update-windows)). Version 1.0.0 has no
+     updater: its users install the next version by hand.
 6. To redo a release: first delete the draft (`gh release delete desktop-v<ver>`), then rerun
    the tag's run.
 
@@ -384,9 +411,12 @@ branch, tag or pull request; a push and the pull request of its branch each get 
   `setDesktopFileName`, autostart), the `AgentBurn` application name (`WM_CLASS` on X11 ↔
   `StartupWMClass`), the `AgentBurn.exe` and `agent-burn-desktop` executables, the CLI in `<exe directory>/bin/`,
   the `build-info.json` keys (`appVersion`, `cliRev`, `cliVersion`, `target`, `builtAt`) written by the
-  two build scripts, the digest of the build image (workflow and `linux/build-local.sh`), the sums of the
-  extracted JetBrainsMono Nerd Font fonts (`linux/build.sh` and `build.ps1`) and the version in their
-  cache key (workflow).
+  two build scripts (the Windows `target` values, `windows-x64` and `windows-arm64`, also turn the updater on:
+  `updater.ARCHS`), the `desktop-v<ver>` tag and the `AgentBurn-Setup-<ver>-<arch>.exe` and `SHA256SUMS`
+  release files (`build.ps1`, `installer.iss`, the release job, `updater.py`), the `/relaunch=1` parameter
+  (`updater.py`, `installer.iss`, `smoke.ps1`), the digest of the build image (workflow and
+  `linux/build-local.sh`), the sums of the extracted JetBrainsMono Nerd Font fonts (`linux/build.sh` and
+  `build.ps1`) and the version in their cache key (workflow).
 
 ## ARM64
 

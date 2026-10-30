@@ -462,6 +462,39 @@ ApplicationWindow {
                     text: "Licenses"
                     onClicked: Desktop.openLicenses()
                 }
+                // Windows builds only: elsewhere Updater.mode is "" and nothing is ever requested.
+                Group {
+                    visible: Updater.mode !== ""
+                    title: "Updates"
+                    Txt {
+                        text: ({ "": "Not checked yet.", checking: "Checking…", current: "Agent Burn is up to date.",
+                                 available: "Agent Burn " + Updater.version + " is available.",
+                                 downloading: "Downloading Agent Burn " + Updater.version + "… " + Updater.progress + "%",
+                                 installing: "Installing Agent Burn " + Updater.version + ": the app restarts when it is done.",
+                                 error: Updater.message })[Updater.state] ?? ""
+                        color: Updater.state === "error" ? Colors.danger : Colors.foreground
+                    }
+                    Hint {
+                        text: "Checked on GitHub a minute after launch, then once a day. " + (Updater.mode === "installer"
+                            ? "Update now installs the new version and restarts the app."
+                            : "Portable copy: download the new zip and replace this folder with it.")
+                    }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        Button {
+                            text: "Check for updates"
+                            enabled: !["checking", "downloading", "installing"].includes(Updater.state)
+                            opacity: enabled ? 1 : 0.5   // the style keeps the label in its normal color
+                            onClicked: Updater.check()
+                        }
+                        Button {
+                            visible: Updater.state === "available"
+                            text: Updater.mode === "installer" ? "Update now" : "Open download page"
+                            onClicked: Updater.update()
+                        }
+                    }
+                }
             }
         }
     }

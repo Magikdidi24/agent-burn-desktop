@@ -29,7 +29,7 @@ from PySide6.QtQuick import QQuickItem, QQuickWindow  # noqa: E402,F401 (QQuickW
 from PySide6.QtTest import QTest  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
-from agentburn import __main__ as appmain, diagnostics, paths, runtime, settings, shim  # noqa: E402
+from agentburn import __main__ as appmain, diagnostics, paths, runtime, settings, shim, updater  # noqa: E402
 from agentburn.tray import open_popover, pixmap, place  # noqa: E402
 
 
@@ -45,9 +45,10 @@ _env = {}
 
 
 def qml_env():
-    """Runtime QML directory, shim types and Settings/Desktop singletons registered only once per
+    """Runtime QML directory, shim types and Settings/Desktop/Updater singletons registered only once per
     process (a 2nd registration makes the types incompatible), and the only engine that can read these
-    singletons (registered instances: a 2nd engine gets null). Fake CLI: never the real CLI or the real HOME."""
+    singletons (registered instances: a 2nd engine gets null). Fake CLI: never the real CLI or the real HOME;
+    dev updater: never a request."""
     if not _env:
         gui()
         data = Path(tempfile.mkdtemp(prefix="agent-burn-test-"))
@@ -64,9 +65,11 @@ def qml_env():
         own = shim._global if Path(shim._global.dataDir) == data else shim.QuickshellGlobal(data, qml)
         cfg = settings.Settings(None)
         desk = diagnostics.Desktop(os.environ["AGENT_BURN_BIN"], data, data / "settings.json", data / "logs", data / "cache")
+        upd = updater.Updater("dev", APP, cfg)
         qmlRegisterSingletonInstance(settings.Settings, "AgentBurn", 1, 0, "Settings", cfg)
         qmlRegisterSingletonInstance(diagnostics.Desktop, "AgentBurn", 1, 0, "Desktop", desk)
-        _env.update(qml=qml, data=data, settings=cfg, desktop=desk, engine=QQmlEngine(), quickshell=own)
+        qmlRegisterSingletonInstance(updater.Updater, "AgentBurn", 1, 0, "Updater", upd)
+        _env.update(qml=qml, data=data, settings=cfg, desktop=desk, updater=upd, engine=QQmlEngine(), quickshell=own)
         atexit.register(lambda: [_env.pop(k, None) for k in ("root", "component", "engine")])   # before QApplication
     return _env
 

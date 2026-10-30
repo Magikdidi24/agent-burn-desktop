@@ -1,6 +1,7 @@
 #Requires -Version 7.4
 # Smoke test on a real Windows (CI job): silent installation (files, shortcuts, autostart, uninstall key),
-# selftest of the installed exe, tray mode and 2nd launch, uninstallation, then the portable zip.
+# silent update as the app starts it (relaunch, autostart kept off), selftest of the installed exe, tray mode
+# and 2nd launch, uninstallation, then the portable zip.
 #   pwsh -File windows\smoke.ps1 -Setup <AgentBurn-Setup-<ver>-<arch>.exe> [-Portable <zip>]
 # Exit code 1 at the first failed check. Needs a machine without Agent Burn: the test installs then uninstalls.
 param(
@@ -68,6 +69,23 @@ $u = Get-ItemProperty $uninstallKey -ErrorAction Ignore
 Check ($u.DisplayName -eq 'Agent Burn' -and $u.DisplayVersion -eq $ver -and $u.Publisher -eq 'Berthelot Samuel') `
     "Uninstall key: DisplayName `“$($u.DisplayName)`”, DisplayVersion `“$($u.DisplayVersion)`”, Publisher `“$($u.Publisher)`”"
 
+# Update as the app starts it (updater.py, start at login off): /relaunch=1 starts the app again, which the
+# silent installation above, without it, did not; the remembered autostart task is not restored. The relaunched
+# app gets this environment through the installer: fake CLI, data outside %APPDATA%\AgentBurn.
+Check (-not (Get-Process AgentBurn -ErrorAction Ignore)) 'The silent installation without /relaunch=1 started the app'
+Remove-ItemProperty $runKey AgentBurn
+$env:AGENT_BURN_BIN = $exe
+$env:AGENT_BURN_DATA = "$out\relaunch-data"
+$code = Wait-Exit (Start-Process $Setup '/SILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/relaunch=1', '/MERGETASKS=!autostart',
+    "/LOG=`"$out\update.log`"" -PassThru) 600 'Update'
+Check ($code -eq 0) "Update: code $code (see $out\update.log)"
+Check (-not (Get-RegValue $runKey AgentBurn)) 'The update turned start at login back on (/MERGETASKS=!autostart ignored)'
+for ($i = 0; $i -lt 30 -and -not ($relaunched = Get-Process AgentBurn -ErrorAction Ignore | Where-Object Path -eq $exe | Select-Object -First 1); $i++) { Start-Sleep 1 }
+Check $relaunched "The update with /relaunch=1 did not start $exe (see $out\update.log)"
+Stop-Process -Id $relaunched.Id -Force
+Check ($relaunched.WaitForExit(10000)) "The relaunched app (pid $($relaunched.Id)) did not stop"
+Set-ItemProperty $runKey AgentBurn "`"$exe`""   # back for the uninstallation checks
+
 Test-Selftest $exe installed
 
 # Tray mode ~10 s: it must keep running and write its QML cache; a 2nd launch hands over to it and exits fast, code 0.
@@ -112,4 +130,4 @@ if ($Portable) {
     Test-Selftest "$out\portable\AgentBurn\AgentBurn.exe" portable-selftest
     Remove-Item $local -Recurse -Force -ErrorAction Ignore   # QML cache of this selftest
 }
-Write-Host "OK: installation, shortcuts, registry, selftest, tray mode (without system tray), 2nd launch, uninstallation$(if ($Portable) { ', portable zip' })"
+Write-Host "OK: installation, shortcuts, registry, update with relaunch, selftest, tray mode (without system tray), 2nd launch, uninstallation$(if ($Portable) { ', portable zip' })"
