@@ -111,7 +111,7 @@ tar -xzf agent-burn-desktop-<version>-x86_64.tar.gz
 Menu integration (optional), the way the package test does it on Arch:
 
 ```sh
-V=agent-burn-desktop-1.0.0-x86_64    # archive name without .tar.gz
+V=agent-burn-desktop-1.1.0-x86_64    # archive name without .tar.gz
 sudo mkdir /opt/agent-burn-desktop
 sudo tar -xzf $V.tar.gz -C /opt/agent-burn-desktop --strip-components=1 --exclude=$V/share
 sudo ln -s /opt/agent-burn-desktop/agent-burn-desktop /usr/local/bin/agent-burn-desktop

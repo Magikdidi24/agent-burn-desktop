@@ -25,7 +25,7 @@ from PySide6.QtGui import QColor  # noqa: E402
 from PySide6.QtNetwork import QNetworkAccessManager  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
 
-from agentburn import paths, settings, updater  # noqa: E402
+from agentburn import __version__, paths, settings, updater  # noqa: E402
 
 SETUP = b"MZ not a real installer\0" * 2000
 NAME = "AgentBurn-Setup-9.9.9-x64.exe"
@@ -135,11 +135,11 @@ class Update(unittest.TestCase):
         self.assertEqual(u.version, "9.9.9")
         path, headers = self.server.seen[0]
         self.assertEqual(path, "/releases/latest")
-        self.assertEqual((headers["User-Agent"], headers["Accept"]), ("AgentBurn/1.0.0", "application/vnd.github+json"))
+        self.assertEqual((headers["User-Agent"], headers["Accept"]), (f"AgentBurn/{__version__}", "application/vnd.github+json"))
 
     def test_same_older_draft_or_prerelease_is_up_to_date(self):
         u = self.updater()
-        for version, fields in (("1.0.0", {}), ("0.9.9", {}), ("9.9.9", {"draft": True}), ("9.9.9", {"prerelease": True})):
+        for version, fields in ((__version__, {}), ("0.9.9", {}), ("9.9.9", {"draft": True}), ("9.9.9", {"prerelease": True})):
             self.server.release(version, **fields)
             self.assertEqual(self.check(u), "current", (version, fields))
         with mock.patch.object(updater, "__version__", "1.0.9"):   # numbers, not text: 1.0.10 is newer

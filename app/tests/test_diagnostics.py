@@ -18,7 +18,7 @@ from test_app import APP, js, main_root, qml_env, wait_for  # noqa: E402
 from PySide6.QtCore import QUrl  # noqa: E402
 from PySide6.QtGui import QGuiApplication  # noqa: E402
 
-from agentburn import diagnostics  # noqa: E402
+from agentburn import __version__, diagnostics  # noqa: E402
 
 TOKEN = "sk-ant-oat01-SECRETSECRET1234567890abcdef"
 
@@ -42,7 +42,7 @@ class Text(unittest.TestCase):
         js(self.root, f"Burn.note('summary', 'refused: Bearer {TOKEN} for john@example.com')")
         with mock.patch.dict(os.environ, {"AB_DIAG_CANARY": "canary-4f2a9", "CLAUDE_CODE_OAUTH_TOKEN": TOKEN}):
             text = d.diagnosticsText()
-        for label in ("Agent Burn: 1.0.0 (dev)", "Pinned CLI: agent-burn ", "CLI: ", "System: ", "Qt: ",
+        for label in (f"Agent Burn: {__version__} (dev)", "Pinned CLI: agent-burn ", "CLI: ", "System: ", "Qt: ",
                       "Desktop: ", "Screens: ", "System tray: no", "Data: ", "Settings: ",
                       "Logs: ", "Cache: ", "agent-burn data: Live, updated ",
                       "Claude Code: Live.", "Codex: Not detected.", "Recent errors:"):
@@ -111,7 +111,7 @@ class BuildInfo(unittest.TestCase):
     def test_dev_reads_the_pinned_cli_from_cli_env(self):
         b = diagnostics.build_info()
         self.assertEqual(sorted(b), sorted(diagnostics.BUILD_KEYS))
-        self.assertEqual((b["appVersion"], b["target"]), ("1.0.0", "dev"))
+        self.assertEqual((b["appVersion"], b["target"]), (__version__, "dev"))
         self.assertRegex(b["cliRev"], r"^[0-9a-f]{40}$")
         self.assertRegex(b["cliVersion"], r"^agent-burn \d+\.\d+\.\d+$")
 
@@ -125,7 +125,7 @@ class BuildInfo(unittest.TestCase):
             (Path(d) / "build-info.json").write_text("{broken", encoding="utf-8")
             with self.assertLogs("agentburn", "WARNING"):
                 b = diagnostics.build_info()
-            self.assertEqual((b["appVersion"], b["target"], b["cliRev"]), ("1.0.0", "", ""))
+            self.assertEqual((b["appVersion"], b["target"], b["cliRev"]), (__version__, "", ""))
 
 
 class OpenDirs(unittest.TestCase):
