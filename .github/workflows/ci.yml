@@ -1,5 +1,6 @@
-# Agent Burn desktop app (Windows + Linux): tests, Linux packages tried on 7 distros, Windows installer and zip,
-# draft release on a desktop-v* tag. Caches, packages kept 30 days (7 for logs), superseded runs canceled.
+# Agent Burn desktop app (Windows, Linux, macOS): tests, Linux packages tried on 7 distros, Windows installer and zip,
+# macOS app zips (Apple Silicon, Intel), draft release on a desktop-v* tag. Caches, packages kept 30 days (7 for logs),
+# superseded runs canceled.
 name: Agent Burn (desktop)
 
 on:
@@ -343,10 +344,129 @@ jobs:
             !dist/smoke/portable/
           retention-days: 7
 
+  macos:
+    name: ${{ matrix.arch == 'x64' && 'macOS Intel (Rosetta 2)' || 'macOS Apple Silicon' }}
+    needs: test
+    # arm64 for both (pinned image, like windows-2025): the Intel app is built and tested under Rosetta 2, with an
+    # x86_64 Python.
+    runs-on: macos-15
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, x64]
+    env:
+      ARCH: ${{ matrix.arch }}
+      CLI_CACHE: |
+        ~/.cargo/registry/index/
+        ~/.cargo/registry/cache/
+        ~/.cargo/git/db/
+        build/cli-mac-${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      # Before the x86_64 Python, which runs under it.
+      - name: Rosetta 2 (if missing from the image)
+        if: matrix.arch == 'x64'
+        run: arch -x86_64 /usr/bin/true 2>/dev/null || sudo softwareupdate --install-rosetta --agree-to-license
+
+      # 3.13, as on Windows: python.org no longer publishes binaries of 3.12.
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.13'
+          architecture: ${{ matrix.arch }}
+          cache: pip
+          cache-dependency-path: app/requirements.lock
+
+      - name: Python dependencies
+        run: python -m pip install --require-hashes -r app/requirements.lock
+
+      # Offscreen, as on Linux: the windows of the tests stay off the runner's screen (no D-Bus on macOS).
+      - name: Unit tests
+        working-directory: app
+        timeout-minutes: 10
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -X faulthandler -m unittest discover -s tests -v
+
+      - name: Burn.qml suite (shim)
+        working-directory: app
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python tests/run_burn_suite.py
+
+      - name: 'Burn.qml suite: corrupted persisted files, stuck CLI'
+        working-directory: app
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: BURN_TEST=corrupt python tests/run_burn_suite.py && BURN_TEST=timeout python tests/run_burn_suite.py
+
+      - name: CLI revision (cli.env)
+        id: rev
+        run: |
+          rev=$(sed -nE 's/^AB_REV=([0-9a-f]+).*/\1/p' cli.env)
+          echo "rev=${rev:?AB_REV not found in cli.env}" >> "$GITHUB_OUTPUT"
+
+      - id: cli
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: ${{ env.CLI_CACHE }}
+          key: agent-burn-cli-macos-${{ matrix.arch }}-${{ steps.rev.outputs.rev }}
+          restore-keys: agent-burn-cli-macos-${{ matrix.arch }}-
+
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: app/fonts
+          key: fonts-jetbrainsmono-nf-v3.4.0
+
+      # The selftest runs on the runner's screen (cocoa, Metal): offscreen has no native window to render into.
+      - name: 'Build: CLI, app bundle, signature, selftest, zip'
+        id: build
+        env:
+          CLI_HIT: ${{ steps.cli.outputs.cache-hit }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # As on Linux: a CLI of another revision or a release tag compiles from source, the registry is reused.
+          if [ "$CLI_HIT" = true ] && [[ "$GITHUB_REF" != refs/tags/* ]]; then export SKIP_CLI=1; else rm -rf "build/cli-mac-$ARCH"; fi
+          bash mac/build.sh "$ARCH"
+
+      # As soon as the CLI is built, even if the rest fails: the next attempt does not rebuild it.
+      - uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        if: ${{ !cancelled() && steps.cli.outputs.cache-hit != 'true' && hashFiles(format('build/cli-mac-{0}/**/agent-burn', matrix.arch)) != '' }}
+        with:
+          path: ${{ env.CLI_CACHE }}
+          key: ${{ steps.cli.outputs.cache-primary-key }}
+
+      # Before smoke.sh: on failure, the zip stays downloadable to try it by hand.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: agent-burn-desktop-macos-${{ matrix.arch }}
+          path: dist/mac-${{ matrix.arch }}/AgentBurn-*-macos-${{ matrix.arch }}.zip
+          if-no-files-found: error
+          compression-level: 0   # already a zip
+          retention-days: 30     # like the other packages
+
+      - name: Unzip, signature, selftest, start at login, launch
+        run: bash mac/smoke.sh dist/mac-"$ARCH"/AgentBurn-*-macos-"$ARCH".zip
+
+      # Build selftest (PNG captures, selftest.json, log) and smoke.sh outputs, without the unzipped copy of the app.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() && steps.build.outcome != 'skipped' }}
+        with:
+          name: selftest-macos-${{ matrix.arch }}
+          path: |
+            dist/mac-${{ matrix.arch }}/selftest/
+            dist/mac-${{ matrix.arch }}/selftest.log
+            dist/mac-${{ matrix.arch }}/smoke/
+            !dist/mac-${{ matrix.arch }}/smoke/unzipped/
+          retention-days: 7
+
   release:
     name: Release (draft)
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/desktop-v')
-    needs: [linux, linux-smoke, windows]
+    needs: [linux, linux-smoke, windows, macos]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -365,10 +485,13 @@ jobs:
           # Packages named after __version__: a tag for another version would give a release with a wrong title.
           v=${GITHUB_REF_NAME#desktop-v}
           [ -f "dl/agent-burn-desktop-linux/agent-burn-desktop_${v}_amd64.deb" ] &&
-            [ -f "dl/agent-burn-desktop-windows-x64/AgentBurn-Setup-$v-x64.exe" ] ||
+            [ -f "dl/agent-burn-desktop-windows-x64/AgentBurn-Setup-$v-x64.exe" ] &&
+            [ -f "dl/agent-burn-desktop-macos-arm64/AgentBurn-$v-macos-arm64.zip" ] &&
+            [ -f "dl/agent-burn-desktop-macos-x64/AgentBurn-$v-macos-x64.zip" ] ||
             { echo "::error::tag $GITHUB_REF_NAME: no $v packages (app __version__ differs?)"; exit 1; }
           mkdir release
-          cp dl/agent-burn-desktop-linux/*.{tar.gz,AppImage,deb,rpm} dl/agent-burn-desktop-windows-x64/*.{exe,zip} release/
+          cp dl/agent-burn-desktop-linux/*.{tar.gz,AppImage,deb,rpm} dl/agent-burn-desktop-windows-x64/*.{exe,zip} \
+            dl/agent-burn-desktop-macos-{arm64,x64}/*.zip release/
           (cd release && sha256sum -- * > SHA256SUMS && cat SHA256SUMS)
           gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
             --title "Agent Burn $v" \
