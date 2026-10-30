@@ -7,7 +7,8 @@ import sys
 import time
 
 from PySide6.QtCore import QMetaObject, QObject, QPoint, QRect, QRectF, QSize, Qt, QTimer, Q_ARG
-from PySide6.QtGui import QCursor, QFont, QGuiApplication, QIcon, QPainter, QPainterPath, QPixmap, QTransform
+from PySide6.QtGui import (QCursor, QFont, QFontDatabase, QGuiApplication, QIcon, QPainter, QPainterPath, QPixmap,
+                           QTransform)
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
 GAP = 16   # card ↔ taskbar; = PopoverWindow's shadow margin (pad), nothing spills onto it
@@ -82,8 +83,11 @@ def pixmap(n, remaining, tone):
         p.drawRoundedRect(QRectF(0, 0, n, n), n / 5, n / 5)
         # Segoe UI Black (the dotted zero of JetBrains Mono blurs at 16 px), rounded like Math.round
         # as in the pill; black or white by the tint's luminance (not its HSL lightness), equal-contrast
-        # threshold ≈ 0.18: the highest contrast for the 8 Colors tints.
-        digits = _fit(str(int(remaining + 0.5)), "Segoe UI", QFont.Black, QRectF(n * 0.08, n * 0.2, n * 0.84, n * 0.6))
+        # threshold ≈ 0.18: the highest contrast for the 8 Colors tints. macOS: its own UI font, Black too
+        # (looking for Segoe UI there scans every family, 0.15 s, and logs a warning).
+        family = (QFontDatabase.systemFont(QFontDatabase.SystemFont.GeneralFont).family() if sys.platform == "darwin"
+                  else "Segoe UI")
+        digits = _fit(str(int(remaining + 0.5)), family, QFont.Black, QRectF(n * 0.08, n * 0.2, n * 0.84, n * 0.6))
         y = 0.2126 * tone.redF() ** 2.2 + 0.7152 * tone.greenF() ** 2.2 + 0.0722 * tone.blueF() ** 2.2
         p.fillPath(digits, Qt.black if y > 0.18 else Qt.white)
     p.end()
