@@ -52,8 +52,12 @@ click elsewhere.
   last 14 days.
 - One tab per agent that has limits (Claude Code, Codex…): provider state, spend over the last 30 days, monthly
   plan, % left of the weekly limit shown large, then the other limits (5-hour session, per-model limits), pace
-  verdict ("Room to keep going", "Pace slightly too fast" with the estimated run-out time and the pace to keep,
-  "Limit reached") and chart of the readings with their forecast.
+  verdict and chart of the readings with their forecast. The pace follows the curve: your speed over the last day
+  of the week (the last hour of a session), compared with the speed that would end at 0% left right at the reset.
+  "Room to keep going" with the % left at the reset at this pace; above it "Pace slightly too fast", "Pace too
+  fast" (1.25×) and "Pace way too fast" (2×, red), each with the estimated run-out time and the pace to keep;
+  "Limit reached". A curve that flattens out goes back to green, a steep drop turns red even when the weekly
+  average is fine.
 - At the bottom: data state ("Live · updated 2 min ago"), the CLI error if there is one, "Open dashboard" button.
   The refresh button is at the top right.
 - Screen too short for the card: it scrolls, and Tab scrolls it to the focused control; Page Up, Page Down, Home

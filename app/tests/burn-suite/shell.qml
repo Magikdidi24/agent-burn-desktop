@@ -44,6 +44,20 @@ Scope {
     function calls() { return rawCalls().map(l => l.replace(" --config " + Burn.cliConfig, "")); }
     function summaryCalls() { return calls().filter(l => l.startsWith("summary") && l.indexOf("--since") < 0); }
     function last() { return Burn.recentErrors[Burn.recentErrors.length - 1] ?? {}; }
+    // Burn.pace() of a Claude window read now, resetting in resetIn ms, with readings [[ms ago, used]];
+    // account and readings swapped in for the call, then put back.
+    function craftedPace(key, used, resetIn, readings) {
+        var acc = Burn.account, smp = Burn.samples, n = Burn.now, a = { observedAtMs: n, scoped: [] }, s = {};
+        a[key + "UsedPercent"] = used;
+        a[key + "ResetsAtMs"] = n + resetIn;
+        s["claude:" + key] = readings.map(r => ({ t: n - r[0], used: r[1] }));
+        Burn.account = a;
+        Burn.samples = s;
+        var p = Burn.pace("claude", key);
+        Burn.account = acc;
+        Burn.samples = smp;
+        return p;
+    }
     // Local date at today+offset, chosen separator (independent of Burn).
     function date(offset, sep) {
         var d = new Date();
@@ -231,6 +245,62 @@ Scope {
             eq(Burn.pace("claude", "session").projected, -1, "session without usage → no projection");
             eq(Burn.pace("claude", "nope").status, "unknown", "unknown window");
             eq(Burn.pace("claude", "nope").used, null, "unknown window: used null");
+            // Pace follows the curve: speed over the last day of a week (last hour of a session), against
+            // the speed that ends at 0% left exactly at the reset. Week started 4 d ago, 3 d left.
+            p = craftedPace("weekly", 48, 3 * day, [[2 * day, 24], [day, 36]]);
+            eq(p.status, "good", "steady 12%/day for 52% in 3 d → good");
+            eq(p.title, "Room to keep going", "steady title");
+            near(p.projected, 48 + 3 * 12, 1e-6, "steady projection");
+            eq(p.detail, "At this pace, about 16% left at the reset.", "steady detail");
+            p = craftedPace("weekly", 50, 3 * day, [[day, 32]]);
+            eq(p.status, "warn", "18%/day for 16.7%/day → warn");
+            eq(p.title, "Pace slightly too fast", "slightly too fast title");
+            near(p.projected, 50 + 3 * 18, 1e-6, "slightly too fast projection");
+            p = craftedPace("weekly", 50, 3 * day, [[day, 25]]);
+            eq(p.status, "warn", "1.5× the sustainable pace → warn");
+            eq(p.title, "Pace too fast", "too fast title");
+            near(p.ratio, 1.5, 1e-6, "too fast ratio");
+            // Free fall: 12.5%/day on average since the start (the old verdict: room to keep going), 40% in the last day.
+            p = craftedPace("weekly", 50, 3 * day, [[day, 10]]);
+            eq(p.status, "danger", "free fall → danger");
+            eq(p.title, "Pace way too fast", "free fall title");
+            near(p.projected, 50 + 3 * 40, 1e-6, "free fall projection");
+            near(p.ratio, 2.4, 1e-6, "free fall ratio");
+            near(p.exhaustAtMs, Burn.now + 1.25 * day, 1000, "free fall: 50% left at 40%/day");
+            check(p.detail.startsWith("2.4× the sustainable pace: runs out ≈ "), "free fall detail — " + p.detail);
+            check(p.detail.endsWith(" before the reset. Stay under 16.7%/day."), "free fall advice — " + p.detail);
+            // Slowed down: too fast on average (70% in 4 d), flat for 2 days.
+            p = craftedPace("weekly", 70, 3 * day, [[2 * day, 70]]);
+            eq(p.status, "good", "flat curve → good");
+            near(p.projected, 70, 1e-6, "flat curve projection");
+            // A day ago falls between two readings: interpolated (16%).
+            p = craftedPace("weekly", 40, 3 * day, [[30 * 3600000, 10], [18 * 3600000, 22]]);
+            near(p.projected, 40 + 3 * 24, 1e-6, "interpolated reading");
+            eq(p.title, "Pace slightly too fast", "interpolated: 1.2×");
+            // Session (5 h): last hour, advice per hour.
+            p = craftedPace("session", 50, 2 * 3600000, [[3600000, 20]]);
+            eq(p.title, "Pace slightly too fast", "session 30%/h for 25%/h");
+            near(p.projected, 50 + 2 * 30, 1e-6, "session projection");
+            check(p.detail.endsWith("Stay under 25.0%/h."), "session advice per hour — " + p.detail);
+            // 5 min into a session with 4% used: a burst is not a trend yet (speed over 30 min at least).
+            p = craftedPace("session", 4, 295 * 60000, []);
+            eq(p.status, "good", "burst at the start of a session → good");
+            near(p.projected, 4 + 4 * 295 / 30, 1e-6, "session start: speed over 30 min");
+            // First day of a week, 9 h of work on budget (14%/day): a full day at least, nights included.
+            p = craftedPace("weekly", 14, 7 * day - 9 * 3600000, []);
+            eq(p.title, "Pace slightly too fast", "first workday of a week on budget → not red");
+            check(p.detail.startsWith("Runs out ≈ "), "slightly too fast: no multiple — " + p.detail);
+            // Titles follow the multiple as written (one decimal): 1.26× → 1.3×, 1.96× → 2.0×.
+            p = craftedPace("weekly", 30, 5 * day, [[day, 12.36]]);
+            eq(p.title, "Pace too fast", "1.26× → too fast");
+            check(p.detail.startsWith("1.3× the sustainable pace"), "1.26× written 1.3× — " + p.detail);
+            p = craftedPace("weekly", 30, 5 * day, [[day, 2.56]]);
+            eq(p.status, "danger", "1.96× → danger");
+            check(p.detail.startsWith("2.0× the sustainable pace"), "1.96× written 2.0× — " + p.detail);
+            p = craftedPace("weekly", 30, 5 * day, [[day, 2.84]]);
+            eq(p.title, "Pace too fast", "1.94× → too fast");
+            p = craftedPace("weekly", 100, day, [[day, 60]]);
+            eq(p.title, "Limit reached", "nothing left → limit reached");
             l = Burn.quotaSamples("claude", "weekly");
             eq(l.length, 1, "sample outside the window excluded");
             eq(l.length && l[0].used, 50, "persisted sample");
@@ -282,11 +352,13 @@ Scope {
             eq(Burn.remaining, 25, "remaining = tightest window");
             eq(Burn.remainingKey, "wk", "remainingKey");
             eq(Burn.remainingWindow, "weekly", "remainingWindow");
+            // 50% two hours ago (persisted reading), 75% now: free fall, far beyond the CLI's linear estimate (102%).
             p = Burn.pace("claude", "weekly");
-            eq(p.status, "warn", "exhaustion before reset → warn");
-            near(p.projected, 102.122, 0.01, "projection (= CLI estimate)");
-            near(p.exhaustAtMs, w[1].resetsAtMs - 12569600, 60000, "exhaustion ≈ 3 h 30 min before reset");
-            eq(p.title, "Pace slightly too fast", "title warn");
+            u = Burn.account.observedAtMs - day;   // on the line from the start of the week (0%) to the 50% reading
+            u = 50 * (u - w[1].startMs) / (seedAt - 7200000 - w[1].startMs);
+            near(p.projected, 75 + (75 - u) * (w[1].resetsAtMs - Burn.account.observedAtMs) / day, 1e-6, "projection from the last day");
+            eq(p.status, "danger", "75% now, 50% 2 h ago → danger");
+            eq(p.title, "Pace way too fast", "title danger");
             check(p.detail.indexOf("%/day") > 0, "detail: advised pace per day — " + p.detail);
             console.info("pace weekly: " + p.title + " — " + p.detail);
             p = Burn.pace("claude", "session");

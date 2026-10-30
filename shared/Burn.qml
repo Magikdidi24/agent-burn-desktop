@@ -140,11 +140,12 @@ Singleton {
         return out;
     }
 
-    // Like the Mac app: the reading's usage projected linearly to the reset (Forecast), HarnessView
-    // titles; exhaustion before the reset → warn with the pace to keep (Claude verdict).
+    // Pace from the curve, not the average since the start: speed over the last day of a week (last hour
+    // of a session), projected to the reset. ratio = that speed / the one ending at 0% left at the reset;
+    // the verdict gets louder with it. Readings are interpolated, a window starts at 0%.
     function pace(agent, key) {
         var w = windows(agent).find(x => x.key === key);
-        var r = { used: w ? w.used : null, elapsed: 0, projected: -1, status: "unknown", title: "No data",
+        var r = { used: w ? w.used : null, elapsed: 0, projected: -1, ratio: -1, status: "unknown", title: "No data",
                   detail: "No reading for this limit yet.", exhaustAtMs: 0 };
         function set(status, title, detail) {
             r.status = status;
@@ -155,19 +156,32 @@ Singleton {
         if (!w) return r;
         var dur = w.durationMin * 60000, obs = agent === "claude" ? account.observedAtMs || now : updatedAt;   // time of the reading
         if (w.resetsAtMs) r.elapsed = Math.max(0, Math.min(1, (obs - w.startMs) / dur));
-        if (w.used > 0 && r.elapsed > 0) r.projected = w.used / r.elapsed;
-        if (r.projected > 100) r.exhaustAtMs = w.startMs + dur * 100 / r.projected;
+        if (w.used > 0 && w.remaining > 0 && r.elapsed > 0) {
+            var look = Math.min(86400000, dur / 5), from = Math.max(w.startMs, obs - look);
+            var pts = [{ t: w.startMs, used: 0 }].concat(quotaSamples(agent, key).filter(s => s.t > w.startMs && s.t < obs),
+                                                          [{ t: obs, used: w.used }]);
+            var i = pts.findIndex(s => s.t >= from), a = pts[Math.max(0, i - 1)], b = pts[i];
+            var base = b.t > a.t ? a.used + (b.used - a.used) * (from - a.t) / (b.t - a.t) : b.used;
+            // Window just started: a burst is not a trend yet. A full day for a week (its nights included), half an
+            // hour for a session.
+            var rate = Math.max(0, w.used - base) / Math.max(obs - from, dur > 86400000 ? look : look / 2);
+            r.projected = w.used + rate * (w.resetsAtMs - obs);
+            r.ratio = (r.projected - w.used) / w.remaining;
+            if (r.ratio > 1) r.exhaustAtMs = obs + w.remaining / rate;
+        }
         var margin = "Room to keep going";
         if (w.remaining <= 0)
             return set("danger", "Limit reached", "Resets " + (w.resetsAtMs ? until(w.resetsAtMs) : "at an unknown time") + ".");
         if (r.exhaustAtMs) {
-            var short = dur <= 86400000, left = Math.max(60000, w.resetsAtMs - Math.max(now, obs));
-            return set("warn", "Pace slightly too fast", "Runs out ≈ "
+            // Thresholds on the multiple as written (one decimal): the title never contradicts it.
+            var short = dur <= 86400000, left = Math.max(60000, w.resetsAtMs - Math.max(now, obs)), x = Math.round(r.ratio * 10) / 10;
+            return set(x >= 2 ? "danger" : "warn", x >= 2 ? "Pace way too fast" : x >= 1.3 ? "Pace too fast" : "Pace slightly too fast",
+                       (x >= 1.3 ? x.toFixed(1) + "× the sustainable pace: runs" : "Runs") + " out ≈ "
                 + new Date(r.exhaustAtMs).toLocaleString(Qt.locale("en_US"), short ? "HH:mm" : "ddd HH:mm")
-                + ", " + span(w.resetsAtMs - r.exhaustAtMs) + " before the reset: stay under "
+                + ", " + span(w.resetsAtMs - r.exhaustAtMs) + " before the reset. Stay under "
                 + (w.remaining * (short ? 3600000 : 86400000) / left).toFixed(1) + (short ? "%/h." : "%/day."));
         }
-        if (r.projected > 0) return set("good", margin, "Your current pace should last until the reset.");
+        if (r.projected >= 0) return set("good", margin, "At this pace, about " + Math.round(100 - r.projected) + "% left at the reset.");
         if (w.used > 0) return set("unknown", "Unknown pace", "Reset time unknown: no forecast.");
         return set("good", margin, "A forecast will appear as soon as this cycle has some usage.");
     }

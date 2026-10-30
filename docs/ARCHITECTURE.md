@@ -132,7 +132,9 @@ Public, used by the views and the hosts:
   `remainingKey`, `remainingAgent`, `remainingWindow`, `dataDir`, `cliConfig`.
 - **Actions**: `refresh(force)`, `poke()` (summary if the data is more than 60 s old), `loadHarness(agent, force)`,
   `loadQuota()`, `loadRange(force)`, `setRange(r)`, `openDashboard(page)`.
-- **Read**: `agentEntry(a)`, `subEntry(a)`, `windows(a)`, `pace(a, key)`, `quotaSamples(a, key)`,
+- **Read**: `agentEntry(a)`, `subEntry(a)`, `windows(a)`, `pace(a, key)` (`{ used, elapsed, projected, ratio,
+  status, title, detail, exhaustAtMs }`: speed over the last day of the window, or hour for a 5-hour session,
+  from the interpolated readings), `quotaSamples(a, key)`,
   `providerState(a)` (`{ state, label, detail, error, at }`), `stateText(s)`, `dailySeries(a)`,
   `spendSince(a, days)`, `lastDays(series, n)`, `priced(cost, tokens)` (`null` for tokens without a price).
 - **Format**: `money`, `tokens`, `pct`, `tone`, `ago`, `until`, `span`, `iso`, `agentName`, `agentIcon`,
