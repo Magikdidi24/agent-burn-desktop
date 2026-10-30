@@ -1,4 +1,5 @@
 pragma ComponentBehavior: Bound
+import Quickshell
 import Quickshell.Widgets
 import QtQuick
 
@@ -233,21 +234,47 @@ Item {
 
         // Freshness spelled out: live, cached (read back from disk, last call failed or
         // too old) or unavailable.
-        Row {
-            spacing: 8
-            Rectangle {
-                anchors.verticalCenter: parent.verticalCenter
-                width: 7
-                height: 7
-                radius: 3.5
-                color: Burn.dataState === "live" ? Colors.good : Burn.dataState === "cached" ? Colors.warn
-                     : Burn.loading ? Colors.muted : Colors.danger
+        Item {
+            width: parent.width
+            height: fresh.implicitHeight
+            Row {
+                id: fresh
+                spacing: 8
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 7
+                    height: 7
+                    radius: 3.5
+                    color: Burn.dataState === "live" ? Colors.good : Burn.dataState === "cached" ? Colors.warn
+                         : Burn.loading ? Colors.muted : Colors.danger
+                }
+                Txt {
+                    text: Burn.dataState !== "unavailable" ? Burn.stateText(Burn.dataState) + " · updated " + Burn.ago(Burn.updatedAt)
+                        : Burn.loading ? "Updating…" : Burn.stateText(Burn.dataState)
+                    color: Colors.muted
+                    font.pixelSize: 11
+                }
             }
-            Txt {
-                text: Burn.dataState !== "unavailable" ? Burn.stateText(Burn.dataState) + " · updated " + Burn.ago(Burn.updatedAt)
-                    : Burn.loading ? "Updating…" : Burn.stateText(Burn.dataState)
-                color: Colors.muted
-                font.pixelSize: 11
+            // Attribution the rates provider requires wherever converted amounts show.
+            BurnButton {
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                visible: Burn.shownCurrency !== "USD"
+                width: popCredit.implicitWidth
+                height: popCredit.implicitHeight + 4
+                radius: 4
+                Accessible.role: Accessible.Link
+                Accessible.name: "Rates By Exchange Rate API"
+                onClicked: Quickshell.execDetached(["xdg-open", "https://www.exchangerate-api.com"])
+                Txt {
+                    id: popCredit
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Rates By Exchange Rate API"
+                    color: Colors.muted
+                    font.pixelSize: 11
+                    font.underline: true
+                    spoken: false
+                }
             }
         }
         Txt {

@@ -1236,6 +1236,28 @@ Item {
                 font.pixelSize: 11
             }
         }
+        // Attribution the rates provider requires wherever converted amounts show.
+        BurnButton {
+            anchors.right: footRefresh.left
+            anchors.rightMargin: 12
+            anchors.verticalCenter: parent.verticalCenter
+            visible: Burn.shownCurrency !== "USD"
+            width: footCredit.implicitWidth
+            height: footCredit.implicitHeight + 4
+            radius: 4
+            Accessible.role: Accessible.Link
+            Accessible.name: "Rates By Exchange Rate API"
+            onClicked: Quickshell.execDetached(["xdg-open", "https://www.exchangerate-api.com"])
+            Txt {
+                id: footCredit
+                anchors.verticalCenter: parent.verticalCenter
+                text: "Rates By Exchange Rate API"
+                color: Colors.muted
+                font.pixelSize: 11
+                font.underline: true
+                spoken: false
+            }
+        }
         // 28 px target (the former 16 px icon + 6 px around it), glyph in the same place.
         BurnButton {
             id: footRefresh
