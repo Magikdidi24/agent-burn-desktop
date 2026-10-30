@@ -376,7 +376,9 @@ The JSON must depend only on the agents' data, not on the machine's configuratio
   at the end only with `/relaunch=1`. The hash catches a corrupted or truncated download, not a compromised
   release: `SHA256SUMS` comes from the same release. `AGENT_BURN_UPDATE_URL` (tests) replaces both GitHub
   addresses (`<url>/releases/latest`, `<url>/releases/download/…`, `<url>/releases/tag/…`); like
-  `AGENT_BURN_FAKE_DIR`, it stays active in the shipped app and is flagged in the log.
+  `AGENT_BURN_FAKE_DIR`, it stays active in the shipped app and is flagged in the log, but only for an address on
+  this machine (`127.0.0.1`, `localhost`, `::1`): any other is ignored, so the variable cannot send "Update now"
+  to someone else's installer.
 - Atomic writes (`QSaveFile`, `os.replace`); unreadable files copied to `.bak`, never overwritten.
 - CLI isolation (configuration, environment, working directory) and the frozen app's environment cleaned for
   every child.

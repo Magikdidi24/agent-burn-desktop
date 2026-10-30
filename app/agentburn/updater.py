@@ -57,7 +57,8 @@ def parse(release, arch, site, portable):
             raise ValueError("release page outside the repository")
         return {"version": version, "page": page}
     assets = release.get("assets")
-    found = {a.get("name"): a for a in assets if isinstance(a, dict)} if isinstance(assets, list) else {}
+    found = {a["name"]: a for a in assets if isinstance(a, dict) and isinstance(a.get("name"), str)} \
+        if isinstance(assets, list) else {}
     offer = {"version": version, "name": f"AgentBurn-Setup-{version}-{arch}.exe"}
     for key, name, limit in (("setup", offer["name"], MAX_SETUP), ("sums", "SHA256SUMS", MAX_SUMS)):
         a = found.get(name)
@@ -101,6 +102,11 @@ class Updater(QObject):
         self._state, self._version, self._progress, self._message = "", "", 0, ""
         self._offer = None
         base = os.environ.get("AGENT_BURN_UPDATE_URL", "").rstrip("/")   # tests: a local server instead of GitHub
+        # This machine only: a variable set behind the user's back cannot point "Update now" at another installer.
+        if base and QUrl(base).host() not in ("127.0.0.1", "localhost", "::1"):
+            if self._mode:
+                log.warning("AGENT_BURN_UPDATE_URL ignored, not on this machine: %s", clean(base))
+            base = ""
         self._api, self._site = (base, base) if base else (API, SITE)
         if base and self._mode:
             log.warning("AGENT_BURN_UPDATE_URL set: updates read from %s", base)
@@ -182,7 +188,8 @@ class Updater(QObject):
             if error:
                 raise ValueError(error)
             offer = parse(json.loads(data), self._arch, self._site, self._mode == "portable")
-        except (ValueError, RecursionError) as e:   # JSON and UTF-8 errors are ValueErrors
+        # JSON and UTF-8 errors are ValueErrors; TypeError: an answer shaped oddly must not leave "checking" stuck.
+        except (ValueError, TypeError, RecursionError) as e:
             self._fail(f"Update check failed: {e}")
             return
         self._offer, self._version = offer, offer["version"] if offer else ""

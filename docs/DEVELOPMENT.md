@@ -63,8 +63,9 @@ Differences from the installed app:
 - the shared QML files are read again from `shared/` at every launch (copy prepared in the cache): a change is
   picked up at the next launch;
 - `AGENT_BURN_FAKE_DIR` outside the selftest is reported in the log;
-- no update check: the updater only runs in a frozen Windows build. `AGENT_BURN_UPDATE_URL=<url>` (tests)
-  points it at a fake GitHub instead of the real one: see [In-app update](#in-app-update-windows).
+- no update check: the updater only runs in a frozen Windows build. `AGENT_BURN_UPDATE_URL=<url>` (tests, an
+  address on this machine only) points it at a fake GitHub instead of the real one: see
+  [In-app update](#in-app-update-windows).
 
 ## Tests
 

@@ -161,6 +161,7 @@ class Update(unittest.TestCase):
             ({"assets": [setup]}, "SHA256SUMS missing from the release"),
             ({"assets": "nope"}, f"{NAME} missing from the release"),
             ({"assets": [{**setup, "name": "AgentBurn-Setup-9.9.9-arm64.exe"}, sums]}, f"{NAME} missing"),
+            ({"assets": [{**setup, "name": [NAME]}, sums]}, f"{NAME} missing"),   # unhashable name
         ]
         for url in ("https://evil.example/" + NAME, prefix + "../../../../other/repo/" + NAME,
                     prefix.replace("9.9.9", "9.9.8") + NAME, prefix + NAME + "?x", None):
@@ -285,6 +286,14 @@ class Update(unittest.TestCase):
             self.assertEqual((u.mode, u.state, u._timer.isActive()), ("", "", False), target)
             self.assertEqual(u.findChildren(QNetworkAccessManager), [])
         self.assertEqual(self.server.seen, [])
+
+    def test_url_override_only_for_this_machine(self):
+        app = Path(tempfile.mkdtemp(dir=self.tmp))
+        for base in ("https://evil.example", "http://10.0.0.1:8000", "file:///C:/x"):
+            with mock.patch.dict(os.environ, {"AGENT_BURN_UPDATE_URL": base}):
+                u = updater.Updater("windows-x64", app, self.cfg)
+            self.assertEqual((u._api, u._site), (updater.API, updater.SITE), base)
+        self.assertTrue(any("ignored" in line for line in self.logged), self.logged)
 
     def test_automatic_checks_one_request_at_a_time(self):
         self.server.release()
