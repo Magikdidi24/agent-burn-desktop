@@ -73,6 +73,12 @@ Scope {
         Burn.refresh(false);
     }
     function refreshed() { return !Burn.loading && summaryCalls().length > mark; }
+    // Answer of the rates provider (open.er-api.com format), invalid entries mixed in; extra overrides fields.
+    function fxAnswer(extra) {
+        return JSON.stringify(Object.assign({ result: "success", base_code: "USD", time_last_update_unix: 1767225600,
+            time_next_update_unix: Math.round(Date.now() / 1000) + 36000,
+            rates: { USD: 1, EUR: 0.9, JPY: 150.5, CHF: 0.8, eur: 2, EURO: 2, XAU: 0, XAG: -1, NAN: "1" } }, extra));
+    }
     function finish() {
         console.info("RESULT: " + passed + " ok, " + failed + " failed");
         step = -1;
@@ -83,6 +89,7 @@ Scope {
     FileView { id: histSeed; path: Quickshell.dataPath("burn-history.json"); preload: false; blockWrites: true }
     FileView { id: quotaSeed; path: Quickshell.dataPath("burn-quota.json"); preload: false; blockWrites: true }
     FileView { id: sumSeed; path: Quickshell.dataPath("burn-summary.json"); preload: false; blockWrites: true }
+    FileView { id: fxSeed; path: Quickshell.dataPath("burn-fx.json"); preload: false; blockWrites: true }
     FileView { id: mode; path: t.fake + "/mode"; preload: false; blockWrites: true }
     FileView { id: codexHarness; path: t.fake + "/harness-codex.json"; preload: false; blockWrites: true }
     Process { id: ipc; command: ["qs", "ipc", "-p", Quickshell.shellDir, "call", "burn", "dashboard"] }
@@ -94,6 +101,7 @@ Scope {
             histSeed.setText(garbage);
             quotaSeed.setText(garbage);
             sumSeed.setText(garbage);
+            fxSeed.setText(garbage);
         } else {
             histSeed.setText(JSON.stringify({ "2026-08-01": { cost: 5, tokens: 1000, agents: { claude: { cost: 5, tokens: 1000 } } } }));
             quotaSeed.setText(JSON.stringify({
@@ -103,6 +111,9 @@ Scope {
             }));
             // Last successful summary from a previous session: empty home (nothing installed).
             sumSeed.setText(JSON.stringify({ at: n - 3 * 3600000, data: JSON.parse(read(fake + "/summary-empty.json")) }));
+            // EUR chosen but its rate missing (not loaded yet, or dropped by the provider), invalid entries.
+            fxSeed.setText(JSON.stringify({ currency: "EUR", rates: { GBP: 0.8, JPY: 150, eur: 2, XAU: 0, NAN: "1" },
+                                            at: n - 3600000, next: n + day }));
         }
         next();
     }
@@ -120,12 +131,16 @@ Scope {
         switch (step) {
         case 1:   // 1st access to Burn: persisted state loaded, before the 1st refresh (3 s)
             burnAt = Date.now();
+            // Never the real provider: an unknown scheme fails at once, without network, and leaves a "rates" failure.
+            Burn.ratesUrl = "nope:";
             if (corrupt) {
                 eq(Burn.historyDays, 0, "unreadable archive → empty");
                 eq(Burn.account, null, "unreadable quota → no account");
                 eq(read(Quickshell.dataPath("burn-history.json.bak")), garbage, "raw archive copied to .bak");
                 eq(read(Quickshell.dataPath("burn-quota.json.bak")), garbage, "raw quota copied to .bak");
                 eq(read(Quickshell.dataPath("burn-summary.json.bak")), garbage, "raw summary copied to .bak");
+                eq(read(Quickshell.dataPath("burn-fx.json.bak")), garbage, "raw rates file copied to .bak");
+                eq(Burn.currency, "USD", "unreadable rates file → USD");
                 eq(Burn.summary, null, "unreadable summary → none");
                 eq(Burn.summaryCached, false, "nothing cached");
                 eq(Burn.dataState, "unavailable", "dataState without summary");
@@ -308,6 +323,46 @@ Scope {
             eq(Burn.dailySeries("").length && Burn.dailySeries("")[0].date, "2026-08-01", "dailySeries archive");
             eq(Burn.dailySeries("codex").length, 0, "dailySeries missing agent");
             check(Burn.dataDir.length > 0, "dataDir");
+            // Display currency read back (seed: EUR chosen without its rate): amounts in USD meanwhile.
+            eq(Burn.currency, "EUR", "currency read back");
+            eq(Burn.shownCurrency, "USD", "no rate for the chosen currency → USD");
+            eq(Burn.money(12.5), "$12.50", "amounts in USD meanwhile");
+            eq(JSON.stringify(Burn.currencies), '["GBP","JPY","USD"]', "codes read back, invalid ones dropped, USD added");
+            eq(Burn.ratesAt, seedAt - 3600000, "date of the rates read back");
+            eq(Burn.ratesNext, seedAt + day, "time of the next request read back");
+            Burn.setCurrency("XYZ");
+            Burn.setCurrency("jpy");
+            eq(Burn.currency, "EUR", "code outside the list refused");
+            Burn.setCurrency("JPY");
+            eq(Burn.money(831.8660224199998), "¥124,780", "50 or more per USD: no cents, en_US grouping");
+            // Provider answer (as loadRates passes it on): only its valid entries, dated by the provider.
+            Burn.ratesDone(200, fxAnswer({}));
+            eq(JSON.stringify(Burn.currencies), '["CHF","EUR","JPY","USD"]', "invalid codes and rates dropped");
+            eq(Burn.ratesAt, 1767225600000, "rates dated by the provider");
+            near(Burn.ratesNext, Date.now() + 36000000, 2000, "next request at the provider's next update");
+            Burn.setCurrency("EUR");
+            eq(Burn.money(1075.4374865599998), "€967.89", "EUR");
+            near(Burn.fx(10), 9, 1e-9, "fx: USD → EUR");
+            eq(Burn.fx(null), null, "fx(null)");
+            eq(Burn.money(2500, true), "€2,500.00", "already converted (chart axis): not converted again");
+            eq(Burn.money(null), "—", "money(null) in EUR");
+            Burn.setCurrency("CHF");
+            eq(Burn.money(10), "CHF 8.00", "no symbol: code written out");
+            Burn.ratesDone(200, fxAnswer({ time_next_update_unix: undefined }));
+            near(Burn.ratesNext, Date.now() + day, 2000, "no next update: 24 h");
+            Burn.ratesDone(200, fxAnswer({ time_next_update_unix: 1000 }));
+            near(Burn.ratesNext, Date.now() + 3600000, 2000, "next update already past: 1 h");
+            Burn.ratesDone(200, fxAnswer({ time_next_update_unix: Date.now() / 1000 + 3 * 86400 }));
+            near(Burn.ratesNext, Date.now() + day, 2000, "next update beyond a day: 24 h");
+            Burn.ratesDone(503, "<html>");
+            eq(last().source, "rates", "failed rates noted");
+            eq(last().msg, "Exchange rates unavailable: HTTP 503", "HTTP status");
+            l = Burn.recentErrors.length;
+            for (var bad of ["{not json", fxAnswer({ result: "error" }), fxAnswer({ base_code: "EUR" }), fxAnswer({ rates: { eur: 1 } })])
+                Burn.ratesDone(200, bad);
+            eq(Burn.recentErrors.length - l, 4, "bad JSON, error result, other base, no valid rate: all refused");
+            eq(last().msg, "Exchange rates unavailable: unreadable answer", "unreadable answer");
+            eq(Burn.money(10), "CHF 8.00", "cached rates kept");
             // Dashboard open at launch: summary right away, harness requested while it runs.
             mode.setText("delay\n");
             Burn.poke();
@@ -379,6 +434,9 @@ Scope {
             check(l.length === 2 && l[0].t < l[1].t && l[1].used === 75, "samples sorted");
             eq(Burn.quotaSamples("claude", "session").length, 1, "session sample");
             eq(Burn.quotaSamples("claude", "scoped:Fable").length, 1, "scoped sample");
+            // Currency other than USD since startup, rates not expired: still no request.
+            check(!Burn.recentErrors.some(e => e.msg.endsWith("network error")), "fresh rates: no request at startup");
+            Burn.setCurrency("USD");
             Burn.poke();              // fresh summary: ignored
             mark = Burn.updatedAt;
             Burn.refresh(true);
@@ -743,6 +801,39 @@ Scope {
             for (var i = 0; i < 25; i++) Burn.note("test", "n" + i);
             eq(Burn.recentErrors.length, 20, "recentErrors: 20 at most");
             eq(last().msg, "n24", "most recent last");
+            // Rates expired: still none requested while USD and the currency list stays closed.
+            Burn.recentErrors = [];
+            Burn.ratesNext = 0;
+            next();
+            break;
+        case 33:
+            if (!waited(1000)) return;
+            eq(Burn.recentErrors.length, 0, "USD, list never opened: no rates request");
+            Burn.loadRates();   // the currency list opens
+            Burn.loadRates();   // request in progress: ignored
+            next();
+            break;
+        case 34:
+            if (Burn.ratesLoading || !waited(300)) return;
+            eq(JSON.stringify(Burn.recentErrors.map(e => e.source + ": " + e.msg)),
+               '["rates: Exchange rates unavailable: network error"]', "list opened: a single request, failure noted");
+            eq(JSON.stringify(Burn.currencies), '["CHF","EUR","JPY","USD"]', "rates kept after the failed request");
+            Burn.ratesNext = Date.now() + 60000;
+            Burn.loadRates();
+            eq(Burn.ratesLoading, false, "no request before ratesNext");
+            Burn.ratesNext = 0;
+            Burn.setCurrency("EUR");
+            next();
+            break;
+        case 35:   // another currency chosen: rates requested, burn-fx.json written (deferred by 1 s)
+            if (Burn.ratesLoading || !waited(1500)) return;
+            eq(Burn.recentErrors.length, 2, "currency other than USD chosen: rates requested");
+            var fx = JSON.parse(read(Quickshell.dataPath("burn-fx.json")));
+            eq(fx.currency, "EUR", "burn-fx.json: currency");
+            eq(JSON.stringify(fx.rates), JSON.stringify(Burn.rates), "burn-fx.json: rates");
+            eq(fx.at, Burn.ratesAt, "burn-fx.json: date of the rates");
+            eq(fx.next, 0, "burn-fx.json: failed request, retried at the next check");
+            Burn.ratesUrl = "";
             finish();
             break;
         case 80:   // corrupt: the timer's 1st summary (nothing ran) failed, still no report

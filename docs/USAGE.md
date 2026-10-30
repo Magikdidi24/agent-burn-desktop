@@ -67,6 +67,9 @@ click elsewhere.
 
 - Sidebar: All agents, one page per agent, Settings at the bottom. Period at the top: All, 30 days, 7 days, Today
   (the selected period in bold and in color).
+- Currency, left of the period: every currency of the Exchange Rate API, with the date of the rates; amounts
+  converted from USD at the day's rate (USD until the rates are downloaded). Arrows move in the list, Enter or Space
+  chooses, Esc closes it.
 - All agents: total spend, tokens, days recorded, models; Providers card (Claude Code and Codex, then the
   detected agents, with their state); daily spend; spend by agent; models table (filter, sort by column).
 - Agent page: state, warnings (CLI error, error specific to this agent, explanation of the state when it is not
@@ -156,6 +159,7 @@ Data folder:
 - `burn-history.json`: daily archive (cost and tokens per day and per agent);
 - `burn-quota.json`: last reading of the Claude account and limit readings from the last 8 days (charts);
 - `burn-summary.json`: last successful report, shown as "Cached" at launch;
+- `burn-fx.json`: chosen currency and the last exchange rates;
 - `*.bak`: copy of one of these files found unreadable, the app then starting that file over from scratch;
 - `agent-burn-cli.json` never exists: it is the empty configuration passed to the CLI (see below).
 
@@ -165,8 +169,13 @@ launch) and Qt's compiled cache. The `AGENT_BURN_DATA` variable overrides the da
 
 ## Privacy: what the app reads and writes
 
-- The app makes no network calls. It launches the bundled `agent-burn` CLI (arguments passed directly, never
-  through a shell), one run of each kind at a time, and reads its JSON output.
+- The app launches the bundled `agent-burn` CLI (arguments passed directly, never through a shell), one run of
+  each kind at a time, and reads its JSON output.
+- The app's only network request, the exchange rates: `GET https://open.er-api.com/v6/latest/USD`
+  (ExchangeRate-API), when the chosen currency is not USD (at launch, when it is chosen, then about once a day,
+  when the provider updates its rates) or when the currency list opens with rates missing or out of date. Nothing
+  about your usage is sent, only Qt's default headers (user agent `Mozilla/5.0`, the system language); the provider
+  sees your IP address. In USD, without opening the list, the app sends nothing.
 - The CLI reads Claude Code's logs and configuration (`~/.claude/projects`, `~/.claude.json`), its sign-in token
   (`~/.claude/.credentials.json`) to read the limits, the Codex logs (`~/.codex/sessions`,
   `~/.codex/archived_sessions`) and its token (`~/.codex/auth.json`), and the folders of the other agents. On

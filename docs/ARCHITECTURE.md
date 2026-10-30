@@ -33,7 +33,7 @@ Three rules hold it all together:
 |---|---|---|
 | CLI | `agent-burn` binary from [Melvynx/agent-burn](https://github.com/Melvynx/agent-burn) | Discovers the agents, reads their logs, computes prices (LiteLLM, models.dev, otherwise built-in prices), reads the limits (Claude usage API, Codex). Built by `build.ps1` and `linux/build.sh`, always at `AB_REV` ([`cli.env`](../cli.env)). |
 | Core | [`shared/Burn.qml`](../shared/Burn.qml) | Runs the CLI, validates its output, keeps the cache, archive and readings, computes windows, pace and provider state. |
-| Shared views | `shared/BurnPopover.qml`, `BurnDashboardView.qml`, `BurnQuotaChart.qml`, `BurnBarChart.qml`, `BurnButton.qml`, `assets/burn/` | Popover, dashboard, charts, keyboard-accessible button, agent icons. They read `Burn` and act only through its functions (`refresh()`, `setRange()`, `openDashboard()`…) and through `Quickshell.execDetached` (opening the data folder). |
+| Shared views | `shared/BurnPopover.qml`, `BurnDashboardView.qml`, `BurnQuotaChart.qml`, `BurnBarChart.qml`, `BurnButton.qml`, `assets/burn/` | Popover, dashboard, charts, keyboard-accessible button, agent icons. They read `Burn` and act only through its functions (`refresh()`, `setRange()`, `setCurrency()`, `openDashboard()`…) and through `Quickshell.execDetached` (opening the data folder, the rates provider's site). |
 | Quickshell host (outside this repo) | `BurnPill.qml`, `BurnDashboard.qml`, `BurnUpstream.qml`, `Colors.qml` from the author's Quickshell bar, which keeps a copy of `shared/` synced from this repo at a pinned revision | Bar pill, dashboard window, upstream tracking, wallust palette. Specific to Quickshell and Hyprland. |
 | Desktop app host | [`app/`](../app/) | Compatibility layer (`shim.py`), windows, tray icon, settings, logs, diagnostics, autostart, selftest. |
 | Upstream tracking | [`scripts/agent-burn-upstream.py`](../scripts/agent-burn-upstream.py) | See [UPSTREAM.md](UPSTREAM.md). |
@@ -54,8 +54,8 @@ Three rules hold it all together:
    per limit window is added to the samples. A period fills `rangeCache[range]` and also merges its days. A harness
    fills `harnesses[agent]` (or `harnessErrors[agent]`). A light reading updates the week and the session of the
    Claude account and resets `signInExpired` to false.
-4. A timer writes `burn-history.json`, `burn-quota.json` and `burn-summary.json` to the data folder atomically, at
-   most once per second.
+4. A timer writes `burn-history.json`, `burn-quota.json`, `burn-summary.json` and `burn-fx.json` to the data folder
+   atomically, at most once per second.
 5. The views read the properties of `Burn` and its read functions (`windows()`, `pace()`, `providerState()`,
    `dailySeries()`…). The `Burn.now` clock ticks every 10 s (stopped while idle) for the values that age
    ("3 min ago", past resets).
@@ -77,11 +77,12 @@ provides them in the bar; [`shim.py`](../app/agentburn/shim.py) recreates them i
 | `Quickshell.dataDir` | the shell's data directory | directory passed to `shim.register()` |
 | `Quickshell.dataPath(p)` | `dataDir + "/" + p` | same |
 
-The shared views add `Quickshell.execDetached` ("Show backup" button: on Windows, `QDesktopServices` replaces
-`xdg-open`; elsewhere a detached `QProcess` with the cleaned environment), and `Quickshell.Widgets` `IconImage` and
-`ClippingRectangle` (`app/qml/widgets/`). They import nothing but `QtQuick`, `QtQuick.Shapes` and these Quickshell
-modules: no `QtQuick.Controls`, hence `BurnButton` (`Rectangle` and `MouseArea`, keyboard focus and accessible
-name).
+The shared views add `Quickshell.execDetached` ("Show backup" button and the rates provider's link: on Windows,
+`QDesktopServices` replaces `xdg-open`; elsewhere a detached `QProcess` with the cleaned environment), and
+`Quickshell.Widgets` `IconImage` and `ClippingRectangle` (`app/qml/widgets/`). They import nothing but `QtQuick`,
+`QtQuick.Shapes` and these Quickshell modules: no `QtQuick.Controls`, hence `BurnButton` (`Rectangle` and
+`MouseArea`, keyboard focus and accessible name). For the exchange rates, `Burn` uses QML's own `XMLHttpRequest`:
+nothing to recreate, the same in both hosts.
 
 Screen readers: `Burn.accessibleText` (false by default) decides whether the views expose their texts. When true,
 every `Txt` in `BurnPopover` and `BurnDashboardView` gets `Accessible.role = StaticText` and an `Accessible.name`
@@ -117,34 +118,42 @@ Public, used by the views and the hosts:
 - **Data**: `summary`, `summaryCached`, `harnesses`, `harnessErrors` (`{ agent: message }`), `account`
   (latest `claudeAccount`), `rangeSummary`, `history`, `historyDays`, `samples`, `recentErrors` (last 20
   failures `{ t, source, msg }`, without stdout; `source` is one of `summary`, `range`, `harness:claude`,
-  `harness:codex`, `quota`, `cli`).
+  `harness:codex`, `quota`, `cli`, `rates`), `currency` (chosen code, `USD` by default), `currencies` (sorted
+  codes that have a rate, `USD` always), `rates` (`{ code: units per USD }`), `ratesAt` (the provider's update).
 - **State**: `loading`, `error` (summary, period, missing CLI), `cliMissing`, `signInExpired`, `limitsStale`,
-  `dataState` (`live`, `cached`, `unavailable`), `pricingMissing`, `updatedAt`, `now`.
+  `dataState` (`live`, `cached`, `unavailable`), `pricingMissing`, `updatedAt`, `now`, `ratesLoading`.
 - **Set by the host**: `refreshInterval` (ms, 300,000 by default; the app binds it to its settings),
   `cliTimeoutMs` (maximum duration of a CLI run, 120,000 ms; only the test suite changes it), `cliHint`
   (remedy shown when the CLI is missing), `bin` (`AGENT_BURN_BIN`, otherwise `~/.local/bin/agent-burn`),
   `accessibleText` (false by default; true in the desktop app, false in the bar: see
-  [Platform contract](#platform-contract)).
+  [Platform contract](#platform-contract)), `ratesUrl` (only the test suite changes it; `""`: never requested).
 - **Navigation**: `dashboardOpen`, `dashboardPage` (`all` or an agent), `range` (`all`, `30d`, `7d`, `today`).
 - **Registry**: `providers` (`{ id: { name, color, harness } }`), `knownProviders` (`["claude", "codex"]`,
   always listed), `names`.
 - **Derived**: `agents` (agents from the summary and the archive, by descending cost), `tightest`, `remaining`,
-  `remainingKey`, `remainingAgent`, `remainingWindow`, `dataDir`, `cliConfig`.
+  `remainingKey`, `remainingAgent`, `remainingWindow`, `dataDir`, `cliConfig`, `shownCurrency`.
 - **Actions**: `refresh(force)`, `poke()` (summary if the data is more than 60 s old), `loadHarness(agent, force)`,
-  `loadQuota()`, `loadRange(force)`, `setRange(r)`, `openDashboard(page)`.
+  `loadQuota()`, `loadRange(force)`, `setRange(r)`, `openDashboard(page)`, `setCurrency(code)`, `loadRates()`.
 - **Read**: `agentEntry(a)`, `subEntry(a)`, `windows(a)`, `pace(a, key)` (`{ used, elapsed, projected, ratio,
   status, title, detail, exhaustAtMs }`: speed over the last day of the window, or hour for a 5-hour session,
   from the interpolated readings), `quotaSamples(a, key)`,
   `providerState(a)` (`{ state, label, detail, error, at }`), `stateText(s)`, `dailySeries(a)`,
   `spendSince(a, days)`, `lastDays(series, n)`, `priced(cost, tokens)` (`null` for tokens without a price).
-- **Format**: `money`, `tokens`, `pct`, `tone`, `ago`, `until`, `span`, `iso`, `agentName`, `agentIcon`,
-  `agentColor`.
+- **Format**: `money(v, converted)`, `fx`, `tokens`, `pct`, `tone`, `ago`, `until`, `span`, `iso`, `agentName`,
+  `agentIcon`, `agentColor`.
 - **IPC** (bar only): `qs ipc call burn refresh`, `qs ipc call burn dashboard`.
 
 Internal, public only because QML requires it, not to be used elsewhere: `cadence`, `staleAfter`, `pendingForce`,
 `pendingRefresh`, `pendingHarness`, `rangeCache`, `spans`, `flags`, `launch`, `note`, `missing`, `isReport`,
-`result`, `harnessDone`, `setSummary`, `remember`, `record`, `merge`, `load`, and on each `Cli`: `source`,
-`since`, `at`, `failed`, `problem`, `launched`, `timedOut`, `errorOutput`.
+`result`, `harnessDone`, `setSummary`, `remember`, `record`, `merge`, `load`, `ratesNext`, `rate`, `symbols`,
+`ratesDone`, `ratesOf`, and on each `Cli`: `source`, `since`, `at`, `failed`, `problem`, `launched`, `timedOut`,
+`errorOutput`.
+
+Currency: amounts stay in USD everywhere (CLI, archive, files); `money()` converts them when it formats, at the
+rate of `currency`, or shows USD while that rate is unknown (`shownCurrency`). Symbol for a few unambiguous
+currencies, the code otherwise (`CHF 12.34`); no cents at 50 units or more per USD (JPY, KRW, INR…). `BurnBarChart`
+gets values already converted (`fx()`), so that its axis is rounded in that currency, and formats them with
+`money(v, true)`. The rates: see [Security](#security).
 
 `dataState`: `unavailable` without a summary; `cached` if the summary comes from disk (`summaryCached`), if the
 last summary failed, or if it is older than one hour plus one `cadence` plus `cliTimeoutMs` (the maximum duration
@@ -185,6 +194,7 @@ In the data folder (`Quickshell.dataDir`; for the app, see
 | `burn-history.json` | `{ "YYYY-MM-DD": { cost, tokens, agents: { id: { cost, tokens } } } }` | A summary replaces the days it contains, the others stay. A cost that drops without a drop in tokens, or $0 with tokens (missing pricing), keeps the archived cost. |
 | `burn-quota.json` | `{ account, samples }` | `samples`: `{ "agent:window": [{ t, used }] }`, 8 days, one point per newer reading, plateaus compacted. |
 | `burn-summary.json` | `{ at, data }` | Last successful summary. Read back at startup only if `at > 0` and `data.agents` is an array: `summaryCached` true, no merge and no reading replayed. |
+| `burn-fx.json` | `{ currency, rates, at, next }` | Display currency and the last valid rates (`at`: the provider's update; `next`: no request before). Read back with the same filter as the answer: invalid codes and rates dropped, an invalid currency becomes `USD`. |
 | `*.bak` | raw copy of one of the files above, found unreadable | The core starts over from an empty object for that file. |
 | `agent-burn-cli.json` | never created | Passed to the CLI as `--config`. |
 | `burn-upstream.json` | bar only (`BurnUpstream.qml`) | Notified upstream head, dismissed banner, date of the last report. |
@@ -331,8 +341,15 @@ The JSON must depend only on the agents' data, not on the machine's configuratio
 ## Security
 
 - Processes launched as argv, never through a shell. Texts coming from the CLI shown as `Text.PlainText`.
-- No network calls from the app. The CLI, however, downloads pricing, queries the usage APIs and rewrites
-  `~/.claude/.credentials.json` when it renews the Claude token.
+- One network request from the app itself, the exchange rates: `GET https://open.er-api.com/v6/latest/USD`
+  (`ratesUrl`, free, no key), with Qt's default headers only (user agent `Mozilla/5.0`, the system language in
+  `Accept-Language`), nothing about the usage. Sent only when the currency is not USD (at startup, when it is chosen,
+  then checked every hour) or when the currency list opens, never before `ratesNext`: the provider's next update,
+  kept between 1 and 24 h. A USD user who never opens the list sends nothing. The answer is validated
+  (`result` `success`, `base_code` `USD`, codes of 3 capital letters with a finite positive rate); any failure
+  (network, HTTP status, unreadable JSON) keeps the cached rates and goes to `recentErrors`. The provider's terms
+  require the "Rates By Exchange Rate API" link, shown in the currency list. The CLI, however, downloads pricing,
+  queries the usage APIs and rewrites `~/.claude/.credentials.json` when it renews the Claude token.
 - Atomic writes (`QSaveFile`, `os.replace`); unreadable files copied to `.bak`, never overwritten.
 - CLI isolation (configuration, environment, working directory) and the frozen app's environment cleaned for
   every child.

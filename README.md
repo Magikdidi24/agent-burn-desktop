@@ -30,7 +30,7 @@ troubleshooting, uninstalling); for developers: [architecture](docs/ARCHITECTURE
 CI ([`ci.yml`](.github/workflows/ci.yml)) reruns the Windows and Linux checks above on every push (results in the
 Actions tab). Its first complete run, all green, was on 2026-10-25, just before the app got its own repository. I
 also run, locally on Linux and from source: unit tests (118), the core suite under Quickshell 0.3.2 and under the
-app (274 checks, 27 with corrupted files, 6 with a stuck CLI), selftests, and the nested KWin sessions from the
+app (342 checks, 29 with corrupted files, 6 with a stuck CLI), selftests, and the nested KWin sessions from the
 table.
 
 ## Install

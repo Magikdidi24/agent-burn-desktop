@@ -61,6 +61,23 @@ Singleton {
     property var samples: ({})   // quota readings { "<agent>:<key>": [{ t, used }] }, 8 days
     readonly property string dataDir: Quickshell.dataDir
 
+    // Display currency: amounts stay in USD everywhere else (CLI, archive), money() converts them. Rates from
+    // open.er-api.com (USD base, updated daily), requested only for another currency or when the currency list
+    // opens: a USD user sends nothing. "": never requested (test suite).
+    property string ratesUrl: "https://open.er-api.com/v6/latest/USD"
+    property string currency: "USD"   // chosen code, kept in burn-fx.json
+    property var rates: ({})   // { code: units per USD }, validated
+    property real ratesAt: 0   // the provider's last update of these rates
+    property real ratesNext: 0   // no request before this time
+    property bool ratesLoading: false
+    readonly property var currencies: Object.keys(Object.assign({ USD: 1 }, rates)).sort()
+    // Without its rate (not loaded yet, dropped by the provider), the chosen currency shows as USD.
+    readonly property string shownCurrency: rates.hasOwnProperty(currency) ? currency : "USD"
+    readonly property real rate: shownCurrency === "USD" ? 1 : rates[shownCurrency]
+    // Unambiguous symbols; any other code is written out ("CHF 12.34").
+    readonly property var symbols: ({ USD: "$", EUR: "€", GBP: "£", JPY: "¥", CNY: "¥", INR: "₹", KRW: "₩",
+                                      RUB: "₽", TRY: "₺", UAH: "₴", ILS: "₪", NGN: "₦", PHP: "₱", VND: "₫" })
+
     // Summary agents, plus those only the archive still knows (purged logs, at $0): the sum
     // of the per-agent rows stays equal to the archive total.
     readonly property var agents: {
@@ -307,8 +324,58 @@ Singleton {
         launch(rangeProc, ["summary"].concat(flags, ["--since",
             iso(new Date(t.getFullYear(), t.getMonth(), t.getDate() - spans[range])).replace(/-/g, "")]));
     }
+    // A code of the list (USD, or one with a rate), kept in burn-fx.json.
+    function setCurrency(code) {
+        if (!currencies.includes(code)) return;
+        currency = code;
+        saveTimer.start();
+    }
+    // One request at a time, none before ratesNext (the provider updates once a day).
+    // shortcut: no timeout (QML's XMLHttpRequest has none), a request that never ends blocks the next ones
+    // until restart; add an abort timer if that shows up.
+    function loadRates() {
+        if (!ratesUrl || ratesLoading || Date.now() < ratesNext) return;
+        var x = new XMLHttpRequest();
+        x.onreadystatechange = () => {
+            if (x.readyState !== XMLHttpRequest.DONE) return;
+            root.ratesLoading = false;
+            root.ratesDone(x.status, x.responseText);
+        };
+        ratesLoading = true;
+        x.open("GET", ratesUrl);
+        x.send();
+    }
+    // Only a valid answer replaces the rates (USD base, codes of 3 capital letters, finite positive rates);
+    // otherwise the cached ones stay, failure in recentErrors.
+    function ratesDone(status, text) {
+        var d = null;
+        try { d = JSON.parse(text); } catch (e) {}
+        var r = status === 200 && d?.result === "success" && d.base_code === "USD" ? ratesOf(d.rates) : {};
+        if (!Object.keys(r).length)
+            return note("rates", "Exchange rates unavailable: "
+                + (status === 200 ? "unreadable answer" : status ? "HTTP " + status : "network error"));
+        var t = Date.now();
+        rates = r;
+        ratesAt = d.time_last_update_unix * 1000 || t;
+        // At the provider's next update, kept between 1 h and 24 h from now (missing: 24 h).
+        ratesNext = Math.min(t + 86400000, Math.max(t + 3600000, d.time_next_update_unix * 1000 || Infinity));
+        saveTimer.start();
+    }
+    function ratesOf(o) {
+        var r = {};
+        for (var k in o)
+            if (/^[A-Z]{3}$/.test(k) && Number.isFinite(o[k]) && o[k] > 0) r[k] = o[k];
+        return r;
+    }
 
-    function money(v) { return v == null ? "—" : "$" + Number(v).toLocaleString(Qt.locale("en_US"), "f", 2); }
+    // USD amount in the shown currency; converted: already through fx() (chart axis, rounded in that currency).
+    // No cents for small units (50 or more per USD: JPY, KRW, INR…).
+    function money(v, converted) {
+        if (v == null) return "—";
+        return (symbols[shownCurrency] ?? shownCurrency + " ")
+            + Number(converted ? v : fx(v)).toLocaleString(Qt.locale("en_US"), "f", rate >= 50 ? 0 : 2);
+    }
+    function fx(v) { return v == null ? null : v * rate; }
     // Tokens without a price (missing pricing): unknown cost, never $0.00.
     function priced(cost, tokens) { return tokens > 0 && cost === 0 ? null : cost; }
     function tokens(v) {
@@ -476,10 +543,12 @@ Singleton {
     FileView { id: historyFile; path: Quickshell.dataPath("burn-history.json"); blockLoading: true }
     FileView { id: quotaFile; path: Quickshell.dataPath("burn-quota.json"); blockLoading: true }
     FileView { id: summaryFile; path: Quickshell.dataPath("burn-summary.json"); blockLoading: true }
+    FileView { id: fxFile; path: Quickshell.dataPath("burn-fx.json"); blockLoading: true }
     // One FileView per copy: setText ignores content equal to what the view already saw, even from another path.
     FileView { id: historyBak; path: historyFile.path + ".bak"; preload: false; blockWrites: true }
     FileView { id: quotaBak; path: quotaFile.path + ".bak"; preload: false; blockWrites: true }
     FileView { id: summaryBak; path: summaryFile.path + ".bak"; preload: false; blockWrites: true }
+    FileView { id: fxBak; path: fxFile.path + ".bak"; preload: false; blockWrites: true }
     Component.onCompleted: {
         history = load(historyFile, historyBak);
         var q = load(quotaFile, quotaBak);
@@ -492,6 +561,11 @@ Singleton {
             updatedAt = c.at;
             summaryCached = true;
         }
+        var f = load(fxFile, fxBak);
+        rates = ratesOf(f.rates);
+        ratesAt = Number(f.at) || 0;
+        ratesNext = Number(f.next) || 0;
+        currency = /^[A-Z]{3}$/.test(f.currency) ? f.currency : "USD";
     }
     // At most one write per second (NotifCenter pattern), atomic.
     Timer {
@@ -501,6 +575,7 @@ Singleton {
             historyFile.setText(JSON.stringify(root.history));
             quotaFile.setText(JSON.stringify({ account: root.account, samples: root.samples }));
             if (root.summary) summaryFile.setText(JSON.stringify({ at: root.updatedAt, data: root.summary }));
+            fxFile.setText(JSON.stringify({ currency: root.currency, rates: root.rates, at: root.ratesAt, next: root.ratesNext }));
         }
     }
 
@@ -632,6 +707,11 @@ Singleton {
             && Date.now() - root.updatedAt < 3600000 ? root.loadQuota() : root.refresh(false)
     }
     Timer { interval: 10000; repeat: true; running: !afk.isIdle; onTriggered: root.now = Date.now() }
+    // Currency other than USD: rates checked at startup, when it is chosen, then every hour (a request once expired).
+    Timer {
+        interval: 3600000; repeat: true; triggeredOnStart: true; running: root.currency !== "USD"
+        onTriggered: root.loadRates()
+    }
 
     IpcHandler {
         target: "burn"

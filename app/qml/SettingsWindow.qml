@@ -16,7 +16,8 @@ ApplicationWindow {
     readonly property var agents: Array.from(new Set(Burn.knownProviders.concat(Burn.agents)))
     // Source of a Burn.recentErrors error, in plain words.
     readonly property var sources: ({ summary: "Report", range: "Dashboard period", "harness:claude": "Claude Code details",
-                                      "harness:codex": "Codex details", quota: "Limits reading", cli: "CLI launch" })
+                                      "harness:codex": "Codex details", quota: "Limits reading", cli: "CLI launch",
+                                      rates: "Exchange rates" })
 
     function open(name) {
         section = Math.max(0, sections.indexOf(name));

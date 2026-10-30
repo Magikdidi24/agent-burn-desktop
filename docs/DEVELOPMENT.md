@@ -98,7 +98,7 @@ two-step reset), log and redaction, diagnostics, folders, Linux and Windows auto
 [`app/tests/burn-suite/shell.qml`](../app/tests/burn-suite/shell.qml) tests `Burn.qml` without a window, with a
 fake CLI (`burn-suite/fake/`) that replays the fixtures and failures (code 1 or 2, unreadable JSON, stuck CLI,
 light reading). It must give the same result under the shim and under Quickshell: that is the proof of the shim's
-fidelity. Expected result: `RESULT: N ok, 0 failed`, where N is currently 274 (normal), 27 (`corrupt`) and 6
+fidelity. Expected result: `RESULT: N ok, 0 failed`, where N is currently 342 (normal), 29 (`corrupt`) and 6
 (`timeout`): a smaller N means that some steps did not run.
 
 Under the shim, from `app/` (code 1 if a test fails):

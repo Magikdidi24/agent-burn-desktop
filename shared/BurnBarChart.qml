@@ -5,9 +5,9 @@ import QtQuick
 // hovering a column = date + value tooltip. Pure component: the parent supplies the points.
 Item {
     id: root
-    property var points: []          // [{ date: "YYYY-MM-DD", value }] sorted; value null = unknown amount
+    property var points: []          // [{ date: "YYYY-MM-DD", value }] sorted, value through Burn.fx; null = unknown amount
     property color barColor: Colors.accent
-    property string unit: "USD"
+    property string unit: Burn.shownCurrency
     property bool compact: false
 
     implicitWidth: 360
@@ -39,9 +39,9 @@ Item {
     function lastDays(series, n) {
         const tokens = {};
         for (const d of series) tokens[d.date] = d.tokens;
-        return Burn.lastDays(series, n).map(p => ({ date: p.date, value: Burn.priced(p.value, tokens[p.date] ?? 0) }));
+        return Burn.lastDays(series, n).map(p => ({ date: p.date, value: Burn.fx(Burn.priced(p.value, tokens[p.date] ?? 0)) }));
     }
-    function fmt(v) { return Burn.money(v); }
+    function fmt(v) { return Burn.money(v, true); }   // converted points: round ticks in the shown currency
     // Compact ticks without trailing decimal zeros: "$1,000.00" → "$1,000", "$2.50" → "$2.5".
     function tick(v) { return fmt(v).replace(/(\.\d*?)0+(?=\D*$)/, "$1").replace(/\.(?=\D*$)/, ""); }
 

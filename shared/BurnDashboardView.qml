@@ -71,6 +71,18 @@ Item {
         Burn.setRange(ranges[i].key);
         rangeOptions.itemAt(i).forceActiveFocus();
     }
+    // Currency list: rates requested if missing or expired; focus on the chosen code (Escape then closes the
+    // list, not the window), given back to the button when it closes.
+    function openCurrencies() {
+        Burn.loadRates();
+        fxPanel.visible = true;
+        fxGrid.currentIndex = Math.max(0, Burn.currencies.indexOf(Burn.currency));
+        fxGrid.forceActiveFocus();
+    }
+    function closeCurrencies() {
+        fxButton.forceActiveFocus();
+        fxPanel.visible = false;
+    }
 
     readonly property var days: inRange(Burn.dailySeries(agent))
     readonly property bool noData: !Burn.summary && days.length === 0   // neither report nor archive: "—", not 0
@@ -432,11 +444,12 @@ Item {
             width: flick.width - 48
             spacing: 14
 
-            // Header: icon, title, range; range picker on the right.
+            // Header: icon, title, range; currency and range pickers on the right.
             Item {
                 id: header
                 width: parent.width
                 height: 52
+                z: 1   // the currency list opens over the cards below
                 Row {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 14
@@ -455,14 +468,14 @@ Item {
                         IconImage { anchors.fill: parent; source: Burn.agentIcon(root.agent) }
                     }
                     Column {
-                        width: header.width - rangePicker.width - 70
+                        width: header.width - rangePicker.width - fxButton.width - 78
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 3
                         Row {
                             id: titleRow
                             width: parent.width
                             spacing: 12
-                            // Narrow window: the name is elided, the badge does not spill onto the range picker.
+                            // Narrow window: the name is elided, the badge does not spill onto the pickers.
                             Txt {
                                 width: Math.min(implicitWidth, titleRow.width - (pageBadge.visible ? pageBadge.width + titleRow.spacing : 0))
                                 elide: Text.ElideRight
@@ -485,6 +498,25 @@ Item {
                             text: root.rangeLong + " · usage from your logs and connected providers"
                             color: Colors.muted
                         }
+                    }
+                }
+                // Currency of the amounts: its list opens below.
+                BurnButton {
+                    id: fxButton
+                    anchors.right: rangePicker.left
+                    anchors.rightMargin: 8
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: fxLabel.implicitWidth + 22
+                    height: 32
+                    radius: 10
+                    color: fxButton.hovered ? Colors.withAlpha(Colors.muted, 0.2) : Colors.withAlpha(Colors.surface, 0.55)
+                    Accessible.name: "Currency: " + Burn.currency
+                    onClicked: root.openCurrencies()
+                    Txt {
+                        id: fxLabel
+                        anchors.centerIn: parent
+                        text: Burn.currency + "  \uf0d7"  // caret-down
+                        spoken: false
                     }
                 }
                 // Range: radio buttons, left / right arrows.
@@ -530,6 +562,104 @@ Item {
                                     spoken: false
                                 }
                             }
+                        }
+                    }
+                }
+                // Click outside the open currency list: closes it (no Popup without QtQuick.Controls).
+                MouseArea {
+                    visible: fxPanel.visible
+                    x: -pageCol.x
+                    y: -pageCol.y
+                    width: flick.width
+                    height: Math.max(flick.height, flick.contentHeight)
+                    onClicked: root.closeCurrencies()
+                }
+                // Currency list, one Tab stop: arrows move, Enter / Space choose, Escape closes. Closed as soon as
+                // the focus leaves it (Tab).
+                Rectangle {
+                    id: fxPanel
+                    readonly property bool focused: fxGrid.activeFocus || fxCredit.activeFocus
+                    visible: false
+                    anchors.right: fxButton.right
+                    y: fxButton.y + fxButton.height + 6
+                    width: 344
+                    height: fxBody.implicitHeight + 24
+                    radius: 10
+                    color: Colors.background
+                    border.width: 1
+                    border.color: Colors.withAlpha(Colors.muted, 0.3)
+                    onFocusedChanged: if (!focused) visible = false
+                    Keys.onEscapePressed: root.closeCurrencies()
+                    Column {
+                        id: fxBody
+                        x: 12
+                        y: 12
+                        width: parent.width - 24
+                        spacing: 8
+                        GridView {
+                            id: fxGrid
+                            width: parent.width
+                            height: Math.min(6.5, Math.ceil(count / 6)) * cellHeight   // half a row: it scrolls
+                            cellWidth: width / 6
+                            cellHeight: 30
+                            clip: true
+                            boundsBehavior: Flickable.StopAtBounds
+                            activeFocusOnTab: true
+                            model: Burn.currencies
+                            Accessible.role: Accessible.Grouping
+                            Accessible.name: "Currency"
+                            // Filled while open (rates arriving): back on the chosen code.
+                            onCountChanged: currentIndex = Math.max(0, Burn.currencies.indexOf(Burn.currency))
+                            delegate: BurnButton {
+                                id: cell
+                                required property string modelData
+                                readonly property bool sel: Burn.currency === modelData
+                                width: fxGrid.cellWidth - 4
+                                height: 26
+                                radius: 8
+                                activeFocusOnTab: false   // the arrows move from one code to the next
+                                color: sel ? Colors.withAlpha(Colors.accent, 0.25)
+                                     : cell.hovered ? Colors.withAlpha(Colors.muted, 0.12) : "transparent"
+                                Accessible.role: Accessible.RadioButton
+                                Accessible.name: cell.modelData
+                                Accessible.checkable: true
+                                Accessible.checked: cell.sel
+                                onClicked: {
+                                    Burn.setCurrency(cell.modelData);
+                                    root.closeCurrencies();
+                                }
+                                Txt {
+                                    anchors.centerIn: parent
+                                    text: cell.modelData
+                                    color: cell.sel ? Colors.foreground : Colors.muted
+                                    font.bold: cell.sel
+                                    spoken: false
+                                }
+                            }
+                        }
+                        // Attribution required by the provider's terms.
+                        BurnButton {
+                            id: fxCredit
+                            width: creditText.implicitWidth
+                            height: creditText.implicitHeight + 4
+                            radius: 4
+                            Accessible.role: Accessible.Link
+                            Accessible.name: "Rates By Exchange Rate API"
+                            onClicked: Quickshell.execDetached(["xdg-open", "https://www.exchangerate-api.com"])
+                            Txt {
+                                id: creditText
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "Rates By Exchange Rate API"
+                                color: Colors.accent
+                                font.underline: true
+                                spoken: false
+                            }
+                        }
+                        Txt {
+                            text: Burn.ratesAt ? "Updated " + Burn.ago(Burn.ratesAt)
+                                : Burn.ratesLoading ? "Loading rates…" : "No rates yet: amounts in USD"
+                            color: Colors.muted
+                            font.pixelSize: 11
                         }
                     }
                 }
@@ -843,7 +973,7 @@ Item {
                         width: parent.width
                         height: 220
                         // Bounded range: all its days ($0 without usage), the axis covers all of it.
-                        points: Burn.range === "all" ? root.days.map(d => ({ date: d.date, value: Burn.priced(d.cost, d.tokens) }))
+                        points: Burn.range === "all" ? root.days.map(d => ({ date: d.date, value: Burn.fx(Burn.priced(d.cost, d.tokens)) }))
                             : dailyChart.lastDays(root.days, Burn.spans[Burn.range] + 1)
                         barColor: root.tint
                     }
