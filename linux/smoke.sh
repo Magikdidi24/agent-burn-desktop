@@ -55,7 +55,7 @@ case " $ID ${ID_LIKE:-} " in
 *" arch "*)
     # Tarball dependencies on Arch (the user installs them by hand, as here).
     pacman -Syu --noconfirm --needed -q fontconfig freetype2 libdrm libglvnd libx11 libxcb libxkbcommon \
-        libxkbcommon-x11 wayland >/dev/null
+        libxkbcommon-x11 openssl-3 wayland >/dev/null
     pkg_install() {
         mkdir /opt/agent-burn-desktop
         tar -xzf "$DIST/$TB.tar.gz" -C /opt/agent-burn-desktop --strip-components=1 --exclude="$TB/share"

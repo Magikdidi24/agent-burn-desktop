@@ -124,7 +124,7 @@ sudo tar -xzf $V.tar.gz -C /usr/local --strip-components=1 $V/share
 ```
 
 Dependencies on Arch:
-`sudo pacman -S --needed fontconfig freetype2 libdrm libglvnd libx11 libxcb libxkbcommon libxkbcommon-x11 wayland mesa ttf-dejavu`.
+`sudo pacman -S --needed fontconfig freetype2 libdrm libglvnd libx11 libxcb libxkbcommon libxkbcommon-x11 openssl-3 wayland mesa ttf-dejavu`.
 
 ### macOS
 
