@@ -18,6 +18,7 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtQml import ListProperty, QJSValue, qmlRegisterSingletonInstance, qmlRegisterType
 
 log = logging.getLogger("agentburn.cli")
+files_log = logging.getLogger("agentburn.files")
 _runs = set()   # QProcess objects in progress, awaited by wait_for_runs()
 _closing = False   # wait_for_runs() called: the app is closing, no more runs launched
 
@@ -270,11 +271,25 @@ class FileView(QObject):
 
     @Slot(str)
     def setText(self, text):
-        Path(self._path).parent.mkdir(parents=True, exist_ok=True)
+        # text() reflects the disk: on a failed write it keeps the old content, a warning goes to the log.
+        try:
+            Path(self._path).parent.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            files_log.warning("%s: not written, %s", self._path, e)
+            return
         f = QSaveFile(self._path)   # temporary file renamed: never a half-written JSON
-        if f.open(QIODevice.OpenModeFlag.WriteOnly):
-            f.write(text.encode("utf-8"))
-            f.commit()
+        data = text.encode("utf-8")
+        if not f.open(QIODevice.OpenModeFlag.WriteOnly):
+            files_log.warning("%s: not written, %s", self._path, f.errorString())
+            return
+        if f.write(data) != len(data):
+            files_log.warning("%s: not written, %s", self._path, f.errorString())
+            f.cancelWriting()
+            f.commit()   # discards the temporary file after cancelWriting()
+            return
+        if not f.commit():
+            files_log.warning("%s: not written, %s", self._path, f.errorString())
+            return
         self._text = text
 
 
