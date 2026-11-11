@@ -288,6 +288,40 @@ class Detached(unittest.TestCase):
             services.openUrl.assert_called_once_with(QUrl.fromUserInput(path))
 
 
+class FileViewWrite(unittest.TestCase):
+    # setText: text() follows the disk, a failed write keeps the old content and is logged (issue #1).
+    def setUp(self):
+        self.dir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.dir, True)
+        self.view = shim.FileView()
+        self.path = self.dir / "sub" / "burn-quota.json"
+        self.view.setProperty("path", str(self.path))
+
+    def test_written_atomically(self):
+        self.view.setText('{"a":1}')
+        self.assertEqual((self.path.read_text("utf-8"), self.view.text()), ('{"a":1}', '{"a":1}'))
+
+    def test_open_failure_keeps_old_text(self):
+        self.view.setText("old")
+        with mock.patch.object(shim.QSaveFile, "open", return_value=False), \
+                self.assertLogs("agentburn.files", "WARNING"):
+            self.view.setText("new")
+        self.assertEqual((self.view.text(), self.path.read_text("utf-8")), ("old", "old"))
+
+    def test_commit_failure_keeps_old_text(self):
+        self.view.setText("old")
+        with mock.patch.object(shim.QSaveFile, "commit", return_value=False), \
+                self.assertLogs("agentburn.files", "WARNING"):
+            self.view.setText("new")
+        self.assertEqual(self.view.text(), "old")
+
+    def test_mkdir_failure_logged_not_raised(self):
+        with mock.patch.object(Path, "mkdir", side_effect=PermissionError("denied")), \
+                self.assertLogs("agentburn.files", "WARNING"):
+            self.view.setText("new")
+        self.assertEqual(self.view.text(), "")
+
+
 class Idle(unittest.TestCase):
     def test_last_input_polled_on_windows_and_macos(self):
         # Burn.qml pauses its rounds after 300 s without input.
