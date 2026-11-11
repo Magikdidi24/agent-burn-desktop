@@ -199,10 +199,10 @@ class Update(unittest.TestCase):
             self.assertIn("Update check failed: " + error, u.message, fields)
             u.update()   # nothing to install
             self.assertEqual(u.state, "error")
-        for body, error in ((b"[]", "unreadable answer"), (b"{", "Expecting"), (b"\xff", "utf-8"), (b"[" * 100000, "recursion")):
+        for body, error in ((b"[]", "unreadable answer"), (b"{", "Expecting"), (b"\xff", "utf-8"), (b"[" * 100000, "recursion|Stack overflow")):   # RecursionError: Python 3.14 says "Stack overflow"
             self.server.files["/releases/latest"] = (200, body, {})
             self.assertEqual(self.check(u), "error")
-            self.assertIn(error, u.message)
+            self.assertRegex(u.message, error)
         self.server.files["/releases/latest"] = (403, b'{"message": "API rate limit exceeded"}', {})
         self.assertEqual(self.check(u), "error")
         self.assertEqual(u.message, "Update check failed: HTTP 403")
